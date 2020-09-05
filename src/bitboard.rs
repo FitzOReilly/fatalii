@@ -174,35 +174,35 @@ impl Bitboard {
         self >> 7
     }
 
-    fn north_two_east_one(self) -> Self {
+    pub fn north_two_east_one(self) -> Self {
         self << 10 & !(Self::RANK_1 | Self::RANK_2)
     }
 
-    fn north_one_east_two(self) -> Self {
+    pub fn north_one_east_two(self) -> Self {
         self << 17 & !Self::RANK_1
     }
 
-    fn south_one_east_two(self) -> Self {
+    pub fn south_one_east_two(self) -> Self {
         self << 15 & !Self::RANK_8
     }
 
-    fn south_two_east_one(self) -> Self {
+    pub fn south_two_east_one(self) -> Self {
         self << 6 & !(Self::RANK_8 | Self::RANK_7)
     }
 
-    fn south_two_west_one(self) -> Self {
+    pub fn south_two_west_one(self) -> Self {
         self >> 10 & !(Self::RANK_8 | Self::RANK_7)
     }
 
-    fn south_one_west_two(self) -> Self {
+    pub fn south_one_west_two(self) -> Self {
         self >> 17 & !Self::RANK_8
     }
 
-    fn north_one_west_two(self) -> Self {
+    pub fn north_one_west_two(self) -> Self {
         self >> 15 & !Self::RANK_1
     }
 
-    fn north_two_west_one(self) -> Self {
+    pub fn north_two_west_one(self) -> Self {
         self >> 6 & !(Self::RANK_1 | Self::RANK_2)
     }
 }
