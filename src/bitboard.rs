@@ -1,5 +1,5 @@
 use std::fmt;
-use std::ops::{BitAnd, BitOr, Not, Shl, Shr};
+use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
 use std::str;
 
 // Bitboard using little endian file rank mapping (LEFR)
@@ -270,6 +270,26 @@ impl Bitboard {
     pub fn north_two_west_one(self) -> Self {
         self >> 6 & !(Self::RANK_1 | Self::RANK_2)
     }
+
+    fn least_significant_1_bit(self) -> Self {
+        debug_assert!(self != Self::EMPTY);
+        self & Bitboard(0_u64.wrapping_sub(self.0))
+    }
+
+    fn below_least_significant_1_bit(self) -> Self {
+        debug_assert!(self != Self::EMPTY);
+        !self & Bitboard(self.0 - 1)
+    }
+
+    fn below_least_significant_1_bit_inclusive(self) -> Self {
+        debug_assert!(self != Self::EMPTY);
+        self ^ Bitboard(self.0 - 1)
+    }
+
+    fn above_least_significant_1_bit(self) -> Self {
+        debug_assert!(self != Self::EMPTY);
+        self ^ Bitboard(0_u64.wrapping_sub(self.0))
+    }
 }
 
 impl BitAnd for Bitboard {
@@ -333,6 +353,38 @@ impl<'a> BitOr<Bitboard> for &'a Bitboard {
 
     fn bitor(self, rhs: Bitboard) -> Self::Output {
         Bitboard(self.0 | rhs.0)
+    }
+}
+
+impl BitXor for Bitboard {
+    type Output = Self;
+
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        Bitboard(self.0 ^ rhs.0)
+    }
+}
+
+impl<'a> BitXor<&'a Self> for Bitboard {
+    type Output = Self;
+
+    fn bitxor(self, rhs: &Self) -> Self::Output {
+        Bitboard(self.0 ^ rhs.0)
+    }
+}
+
+impl<'a> BitXor for &'a Bitboard {
+    type Output = Bitboard;
+
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        Bitboard(self.0 ^ rhs.0)
+    }
+}
+
+impl<'a> BitXor<Bitboard> for &'a Bitboard {
+    type Output = Bitboard;
+
+    fn bitxor(self, rhs: Bitboard) -> Self::Output {
+        Bitboard(self.0 ^ rhs.0)
     }
 }
 
@@ -885,5 +937,181 @@ mod tests {
         assert_eq!(Bitboard(0xc0c0c0c0c0c0c0ff), board);
         let board = board.north_two_west_one();
         assert_eq!(Bitboard::EMPTY, board);
+    }
+
+    #[test]
+    fn least_significant_1_bit() {
+        assert_eq!(
+            Bitboard(0x1),
+            Bitboard::least_significant_1_bit(Bitboard(0x1))
+        );
+        assert_eq!(
+            Bitboard(0x2),
+            Bitboard::least_significant_1_bit(Bitboard(0x2))
+        );
+        assert_eq!(
+            Bitboard(0x1),
+            Bitboard::least_significant_1_bit(Bitboard(0x3))
+        );
+        assert_eq!(
+            Bitboard(0x4),
+            Bitboard::least_significant_1_bit(Bitboard(0x4))
+        );
+        assert_eq!(
+            Bitboard(0x1),
+            Bitboard::least_significant_1_bit(Bitboard(0x5))
+        );
+        assert_eq!(
+            Bitboard(0x2),
+            Bitboard::least_significant_1_bit(Bitboard(0x6))
+        );
+        assert_eq!(
+            Bitboard(0x1),
+            Bitboard::least_significant_1_bit(Bitboard(0x7))
+        );
+        assert_eq!(
+            Bitboard(0x8),
+            Bitboard::least_significant_1_bit(Bitboard(0x8))
+        );
+        assert_eq!(
+            Bitboard(0x8000000000000000),
+            Bitboard::least_significant_1_bit(Bitboard(0x8000000000000000))
+        );
+        assert_eq!(
+            Bitboard(0x0000000080000000),
+            Bitboard::least_significant_1_bit(Bitboard(0x8000000080000000))
+        );
+    }
+
+    #[test]
+    fn below_least_significant_1_bit() {
+        assert_eq!(
+            Bitboard(0x0),
+            Bitboard::below_least_significant_1_bit(Bitboard(0x1))
+        );
+        assert_eq!(
+            Bitboard(0x1),
+            Bitboard::below_least_significant_1_bit(Bitboard(0x2))
+        );
+        assert_eq!(
+            Bitboard(0x0),
+            Bitboard::below_least_significant_1_bit(Bitboard(0x3))
+        );
+        assert_eq!(
+            Bitboard(0x3),
+            Bitboard::below_least_significant_1_bit(Bitboard(0x4))
+        );
+        assert_eq!(
+            Bitboard(0x0),
+            Bitboard::below_least_significant_1_bit(Bitboard(0x5))
+        );
+        assert_eq!(
+            Bitboard(0x1),
+            Bitboard::below_least_significant_1_bit(Bitboard(0x6))
+        );
+        assert_eq!(
+            Bitboard(0x0),
+            Bitboard::below_least_significant_1_bit(Bitboard(0x7))
+        );
+        assert_eq!(
+            Bitboard(0x7),
+            Bitboard::below_least_significant_1_bit(Bitboard(0x8))
+        );
+        assert_eq!(
+            Bitboard(0x7fffffffffffffff),
+            Bitboard::below_least_significant_1_bit(Bitboard(0x8000000000000000))
+        );
+        assert_eq!(
+            Bitboard(0x000000007fffffff),
+            Bitboard::below_least_significant_1_bit(Bitboard(0x8000000080000000))
+        );
+    }
+
+    #[test]
+    fn below_least_significant_1_bit_inclusive() {
+        assert_eq!(
+            Bitboard(0x1),
+            Bitboard::below_least_significant_1_bit_inclusive(Bitboard(0x1))
+        );
+        assert_eq!(
+            Bitboard(0x3),
+            Bitboard::below_least_significant_1_bit_inclusive(Bitboard(0x2))
+        );
+        assert_eq!(
+            Bitboard(0x1),
+            Bitboard::below_least_significant_1_bit_inclusive(Bitboard(0x3))
+        );
+        assert_eq!(
+            Bitboard(0x7),
+            Bitboard::below_least_significant_1_bit_inclusive(Bitboard(0x4))
+        );
+        assert_eq!(
+            Bitboard(0x1),
+            Bitboard::below_least_significant_1_bit_inclusive(Bitboard(0x5))
+        );
+        assert_eq!(
+            Bitboard(0x3),
+            Bitboard::below_least_significant_1_bit_inclusive(Bitboard(0x6))
+        );
+        assert_eq!(
+            Bitboard(0x1),
+            Bitboard::below_least_significant_1_bit_inclusive(Bitboard(0x7))
+        );
+        assert_eq!(
+            Bitboard(0xf),
+            Bitboard::below_least_significant_1_bit_inclusive(Bitboard(0x8))
+        );
+        assert_eq!(
+            Bitboard(0xffffffffffffffff),
+            Bitboard::below_least_significant_1_bit_inclusive(Bitboard(0x8000000000000000))
+        );
+        assert_eq!(
+            Bitboard(0x00000000ffffffff),
+            Bitboard::below_least_significant_1_bit_inclusive(Bitboard(0x8000000080000000))
+        );
+    }
+
+    #[test]
+    fn above_least_significant_1_bit() {
+        assert_eq!(
+            Bitboard(0xfffffffffffffffe),
+            Bitboard::above_least_significant_1_bit(Bitboard(0x1))
+        );
+        assert_eq!(
+            Bitboard(0xfffffffffffffffc),
+            Bitboard::above_least_significant_1_bit(Bitboard(0x2))
+        );
+        assert_eq!(
+            Bitboard(0xfffffffffffffffe),
+            Bitboard::above_least_significant_1_bit(Bitboard(0x3))
+        );
+        assert_eq!(
+            Bitboard(0xfffffffffffffff8),
+            Bitboard::above_least_significant_1_bit(Bitboard(0x4))
+        );
+        assert_eq!(
+            Bitboard(0xfffffffffffffffe),
+            Bitboard::above_least_significant_1_bit(Bitboard(0x5))
+        );
+        assert_eq!(
+            Bitboard(0xfffffffffffffffc),
+            Bitboard::above_least_significant_1_bit(Bitboard(0x6))
+        );
+        assert_eq!(
+            Bitboard(0xfffffffffffffffe),
+            Bitboard::above_least_significant_1_bit(Bitboard(0x7))
+        );
+        assert_eq!(
+            Bitboard(0xfffffffffffffff0),
+            Bitboard::above_least_significant_1_bit(Bitboard(0x8))
+        );
+        assert_eq!(
+            Bitboard(0x0),
+            Bitboard::above_least_significant_1_bit(Bitboard(0x8000000000000000))
+        );
+        assert_eq!(
+            Bitboard(0xffffffff00000000),
+            Bitboard::above_least_significant_1_bit(Bitboard(0x8000000080000000))
+        );
     }
 }
