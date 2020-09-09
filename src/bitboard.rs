@@ -303,6 +303,11 @@ impl Bitboard {
         ];
         BIT_IDX_LOOKUP[DEBRUIJN_SEQ.wrapping_mul(self.0) as usize >> (LEN_SEQ - LEN_VAL)] as usize
     }
+
+    fn bit_scan_forward(self) -> usize {
+        debug_assert!(self != Bitboard::EMPTY);
+        self.least_significant_1_bit().bit_idx()
+    }
 }
 
 impl BitAnd for Bitboard {
@@ -994,6 +999,10 @@ mod tests {
             Bitboard(0x0000000080000000),
             Bitboard::least_significant_1_bit(Bitboard(0x8000000080000000))
         );
+        assert_eq!(
+            Bitboard(0x0000000000000001),
+            Bitboard::least_significant_1_bit(Bitboard(0xffffffffffffffff))
+        );
     }
 
     #[test]
@@ -1037,6 +1046,10 @@ mod tests {
         assert_eq!(
             Bitboard(0x000000007fffffff),
             Bitboard::below_least_significant_1_bit(Bitboard(0x8000000080000000))
+        );
+        assert_eq!(
+            Bitboard(0x0000000000000000),
+            Bitboard::below_least_significant_1_bit(Bitboard(0xffffffffffffffff))
         );
     }
 
@@ -1082,6 +1095,10 @@ mod tests {
             Bitboard(0x00000000ffffffff),
             Bitboard::below_least_significant_1_bit_inclusive(Bitboard(0x8000000080000000))
         );
+        assert_eq!(
+            Bitboard(0x0000000000000001),
+            Bitboard::below_least_significant_1_bit_inclusive(Bitboard(0xffffffffffffffff))
+        );
     }
 
     #[test]
@@ -1126,6 +1143,10 @@ mod tests {
             Bitboard(0xffffffff00000000),
             Bitboard::above_least_significant_1_bit(Bitboard(0x8000000080000000))
         );
+        assert_eq!(
+            Bitboard(0xfffffffffffffffe),
+            Bitboard::above_least_significant_1_bit(Bitboard(0xffffffffffffffff))
+        );
     }
 
     #[test]
@@ -1134,5 +1155,20 @@ mod tests {
             let bit: u64 = 1 << idx;
             assert_eq!(idx, Bitboard::bit_idx(Bitboard(bit)));
         }
+    }
+
+    #[test]
+    fn bit_scan_forward() {
+        assert_eq!(0, Bitboard::bit_scan_forward(Bitboard(0x1)));
+        assert_eq!(1, Bitboard::bit_scan_forward(Bitboard(0x2)));
+        assert_eq!(0, Bitboard::bit_scan_forward(Bitboard(0x3)));
+        assert_eq!(2, Bitboard::bit_scan_forward(Bitboard(0x4)));
+        assert_eq!(0, Bitboard::bit_scan_forward(Bitboard(0x5)));
+        assert_eq!(1, Bitboard::bit_scan_forward(Bitboard(0x6)));
+        assert_eq!(0, Bitboard::bit_scan_forward(Bitboard(0x7)));
+        assert_eq!(3, Bitboard::bit_scan_forward(Bitboard(0x8)));
+        assert_eq!(63, Bitboard::bit_scan_forward(Bitboard(0x8000000000000000)));
+        assert_eq!(31, Bitboard::bit_scan_forward(Bitboard(0x8000000080000000)));
+        assert_eq!(0, Bitboard::bit_scan_forward(Bitboard(0xffffffffffffffff)));
     }
 }
