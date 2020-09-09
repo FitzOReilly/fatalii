@@ -290,6 +290,19 @@ impl Bitboard {
         debug_assert!(self != Self::EMPTY);
         self ^ Bitboard(0_u64.wrapping_sub(self.0))
     }
+
+    fn bit_idx(self) -> usize {
+        debug_assert!(self.0.count_ones() == 1);
+        const DEBRUIJN_SEQ: u64 = 0x0218a392cd3d5dbf;
+        const LEN_SEQ: usize = 64;
+        const LEN_VAL: usize = 6;
+        const BIT_IDX_LOOKUP: [u8; LEN_SEQ] = [
+            0, 1, 2, 7, 3, 13, 8, 19, 4, 25, 14, 28, 9, 34, 20, 40, 5, 17, 26, 38, 15, 46, 29, 48,
+            10, 31, 35, 54, 21, 50, 41, 57, 63, 6, 12, 18, 24, 27, 33, 39, 16, 37, 45, 47, 30, 53,
+            49, 56, 62, 11, 23, 32, 36, 44, 52, 55, 61, 22, 43, 51, 60, 42, 59, 58,
+        ];
+        BIT_IDX_LOOKUP[DEBRUIJN_SEQ.wrapping_mul(self.0) as usize >> (LEN_SEQ - LEN_VAL)] as usize
+    }
 }
 
 impl BitAnd for Bitboard {
@@ -1113,5 +1126,13 @@ mod tests {
             Bitboard(0xffffffff00000000),
             Bitboard::above_least_significant_1_bit(Bitboard(0x8000000080000000))
         );
+    }
+
+    #[test]
+    fn bit_idx() {
+        for idx in 0..64 {
+            let bit: u64 = 1 << idx;
+            assert_eq!(idx, Bitboard::bit_idx(Bitboard(bit)));
+        }
     }
 }
