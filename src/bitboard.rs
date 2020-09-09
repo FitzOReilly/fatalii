@@ -308,6 +308,14 @@ impl Bitboard {
         debug_assert!(self != Bitboard::EMPTY);
         self.least_significant_1_bit().bit_idx()
     }
+
+    fn bit_scan_forward_reset(&mut self) -> usize {
+        debug_assert!(*self != Bitboard::EMPTY);
+        let ls1b = self.least_significant_1_bit();
+        let bit_idx = ls1b.bit_idx();
+        *self = Bitboard(self.0 & self.0 - 1);
+        bit_idx
+    }
 }
 
 impl BitAnd for Bitboard {
@@ -1170,5 +1178,80 @@ mod tests {
         assert_eq!(63, Bitboard::bit_scan_forward(Bitboard(0x8000000000000000)));
         assert_eq!(31, Bitboard::bit_scan_forward(Bitboard(0x8000000080000000)));
         assert_eq!(0, Bitboard::bit_scan_forward(Bitboard(0xffffffffffffffff)));
+    }
+
+    #[test]
+    fn bit_scan_forward_reset() {
+        let mut bb = Bitboard(0x1);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(0, bit_idx);
+        assert_eq!(Bitboard::EMPTY, bb);
+
+        let mut bb = Bitboard(0x2);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(1, bit_idx);
+        assert_eq!(Bitboard::EMPTY, bb);
+
+        let mut bb = Bitboard(0x3);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(0, bit_idx);
+        assert_eq!(Bitboard(0x2), bb);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(1, bit_idx);
+        assert_eq!(Bitboard::EMPTY, bb);
+
+        let mut bb = Bitboard(0x4);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(2, bit_idx);
+        assert_eq!(Bitboard::EMPTY, bb);
+
+        let mut bb = Bitboard(0x5);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(0, bit_idx);
+        assert_eq!(Bitboard(0x4), bb);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(2, bit_idx);
+        assert_eq!(Bitboard::EMPTY, bb);
+
+        let mut bb = Bitboard(0x6);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(1, bit_idx);
+        assert_eq!(Bitboard(0x4), bb);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(2, bit_idx);
+        assert_eq!(Bitboard::EMPTY, bb);
+
+        let mut bb = Bitboard(0x7);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(0, bit_idx);
+        assert_eq!(Bitboard(0x6), bb);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(1, bit_idx);
+        assert_eq!(Bitboard(0x4), bb);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(2, bit_idx);
+        assert_eq!(Bitboard::EMPTY, bb);
+
+        let mut bb = Bitboard(0x8);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(3, bit_idx);
+        assert_eq!(Bitboard::EMPTY, bb);
+
+        let mut bb = Bitboard(0x8000000000000000);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(63, bit_idx);
+        assert_eq!(Bitboard::EMPTY, bb);
+
+        let mut bb = Bitboard(0x8000000080000000);
+        let bit_idx = bb.bit_scan_forward_reset();
+        assert_eq!(31, bit_idx);
+        assert_eq!(Bitboard(0x8000000000000000), bb);
+
+        let mut bb = Bitboard(0xffffffffffffffff);
+        for expected_idx in 0..64 {
+            let bit_idx = bb.bit_scan_forward_reset();
+            assert_eq!(expected_idx, bit_idx);
+        }
+        assert_eq!(Bitboard::EMPTY, bb);
     }
 }
