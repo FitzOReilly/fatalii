@@ -177,7 +177,7 @@ impl Bitboard {
         square / Self::NUM_RANKS
     }
 
-    fn north_one(self) -> Self {
+    pub fn north_one(self) -> Self {
         self << 1 & !Self::RANK_1
     }
 
@@ -186,7 +186,7 @@ impl Bitboard {
         self << 1
     }
 
-    fn north_east_one(self) -> Self {
+    pub fn north_east_one(self) -> Self {
         self << 9 & !Self::RANK_1
     }
 
@@ -195,11 +195,11 @@ impl Bitboard {
         self << 9
     }
 
-    fn east_one(self) -> Self {
+    pub fn east_one(self) -> Self {
         self << 8
     }
 
-    fn south_east_one(self) -> Self {
+    pub fn south_east_one(self) -> Self {
         self << 7 & !Self::RANK_8
     }
 
@@ -208,7 +208,7 @@ impl Bitboard {
         self << 7
     }
 
-    fn south_one(self) -> Self {
+    pub fn south_one(self) -> Self {
         self >> 1 & !Self::RANK_8
     }
 
@@ -217,7 +217,7 @@ impl Bitboard {
         self >> 1
     }
 
-    fn south_west_one(self) -> Self {
+    pub fn south_west_one(self) -> Self {
         self >> 9 & !Self::RANK_8
     }
 
@@ -226,11 +226,11 @@ impl Bitboard {
         self >> 9
     }
 
-    fn west_one(self) -> Self {
+    pub fn west_one(self) -> Self {
         self >> 8
     }
 
-    fn north_west_one(self) -> Self {
+    pub fn north_west_one(self) -> Self {
         self >> 7 & !Self::RANK_1
     }
 
