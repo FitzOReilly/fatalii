@@ -16,6 +16,22 @@ impl Pawn {
             single_push_targets.south_one_if_rank_1_empty() & empty & Bitboard::RANK_5;
         (single_push_targets, double_push_targets)
     }
+
+    fn white_east_attack_targets(white_pawns: Bitboard) -> Bitboard {
+        white_pawns.north_east_one_if_rank_8_empty()
+    }
+
+    fn white_west_attack_targets(white_pawns: Bitboard) -> Bitboard {
+        white_pawns.north_west_one_if_rank_8_empty()
+    }
+
+    fn black_east_attack_targets(black_pawns: Bitboard) -> Bitboard {
+        black_pawns.south_east_one_if_rank_1_empty()
+    }
+
+    fn black_west_attack_targets(black_pawns: Bitboard) -> Bitboard {
+        black_pawns.south_west_one_if_rank_1_empty()
+    }
 }
 
 #[cfg(test)]
@@ -94,5 +110,113 @@ mod tests {
             Pawn::black_push_targets(black_pawns, empty);
         assert_eq!(expected_single_push_targets, single_push_targets);
         assert_eq!(expected_double_push_targets, double_push_targets);
+    }
+
+    #[test]
+    fn white_east_attack_targets() {
+        let white_pawns = Bitboard::RANK_2;
+        assert_eq!(
+            Bitboard::RANK_3 & !Bitboard::A3,
+            Pawn::white_east_attack_targets(white_pawns)
+        );
+
+        let white_pawns = Bitboard::RANK_7;
+        assert_eq!(
+            Bitboard::RANK_8 & !Bitboard::A8,
+            Pawn::white_east_attack_targets(white_pawns)
+        );
+
+        let white_pawns = Bitboard::FILE_A & !Bitboard::A1 & !Bitboard::A8;
+        assert_eq!(
+            Bitboard::FILE_B & !Bitboard::B1 & !Bitboard::B2,
+            Pawn::white_east_attack_targets(white_pawns)
+        );
+
+        let white_pawns = Bitboard::FILE_H & !Bitboard::H1 & !Bitboard::H8;
+        assert_eq!(
+            Bitboard::EMPTY,
+            Pawn::white_east_attack_targets(white_pawns)
+        );
+    }
+
+    #[test]
+    fn white_west_attack_targets() {
+        let white_pawns = Bitboard::RANK_2;
+        assert_eq!(
+            Bitboard::RANK_3 & !Bitboard::H3,
+            Pawn::white_west_attack_targets(white_pawns)
+        );
+
+        let white_pawns = Bitboard::RANK_7;
+        assert_eq!(
+            Bitboard::RANK_8 & !Bitboard::H8,
+            Pawn::white_west_attack_targets(white_pawns)
+        );
+
+        let white_pawns = Bitboard::FILE_A & !Bitboard::A1 & !Bitboard::A8;
+        assert_eq!(
+            Bitboard::EMPTY,
+            Pawn::white_west_attack_targets(white_pawns)
+        );
+
+        let white_pawns = Bitboard::FILE_H & !Bitboard::H1 & !Bitboard::H8;
+        assert_eq!(
+            Bitboard::FILE_G & !Bitboard::G1 & !Bitboard::G2,
+            Pawn::white_west_attack_targets(white_pawns)
+        );
+    }
+
+    #[test]
+    fn black_east_attack_targets() {
+        let black_pawns = Bitboard::RANK_2;
+        assert_eq!(
+            Bitboard::RANK_1 & !Bitboard::A1,
+            Pawn::black_east_attack_targets(black_pawns)
+        );
+
+        let black_pawns = Bitboard::RANK_7;
+        assert_eq!(
+            Bitboard::RANK_6 & !Bitboard::A6,
+            Pawn::black_east_attack_targets(black_pawns)
+        );
+
+        let black_pawns = Bitboard::FILE_A & !Bitboard::A1 & !Bitboard::A8;
+        assert_eq!(
+            Bitboard::FILE_B & !Bitboard::B7 & !Bitboard::B8,
+            Pawn::black_east_attack_targets(black_pawns)
+        );
+
+        let black_pawns = Bitboard::FILE_H & !Bitboard::H1 & !Bitboard::H8;
+        assert_eq!(
+            Bitboard::EMPTY,
+            Pawn::black_east_attack_targets(black_pawns)
+        );
+    }
+
+    #[test]
+    fn black_west_attack_targets() {
+        let black_pawns = Bitboard::RANK_2;
+        assert_eq!(
+            Bitboard::RANK_1 & !Bitboard::H1,
+            Pawn::black_west_attack_targets(black_pawns)
+        );
+
+        let black_pawns = Bitboard::RANK_7;
+        assert_eq!(
+            Bitboard::RANK_6 & !Bitboard::H6,
+            Pawn::black_west_attack_targets(black_pawns)
+        );
+
+        let black_pawns = Bitboard::FILE_A & !Bitboard::A1 & !Bitboard::A8;
+        assert_eq!(
+            Bitboard::EMPTY,
+            Pawn::black_west_attack_targets(black_pawns)
+        );
+
+        let black_pawns = Bitboard::FILE_H & !Bitboard::H1 & !Bitboard::H8;
+        assert_eq!(
+            Bitboard::FILE_G & !Bitboard::G7 & !Bitboard::G8,
+            Pawn::black_west_attack_targets(black_pawns)
+        );
     }
 }

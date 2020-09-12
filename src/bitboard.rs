@@ -190,7 +190,7 @@ impl Bitboard {
         self << 9 & !Self::RANK_1
     }
 
-    fn north_east_one_if_rank_8_empty(self) -> Self {
+    pub fn north_east_one_if_rank_8_empty(self) -> Self {
         assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_8);
         self << 9
     }
@@ -203,7 +203,7 @@ impl Bitboard {
         self << 7 & !Self::RANK_8
     }
 
-    fn south_east_one_if_rank_1_empty(self) -> Self {
+    pub fn south_east_one_if_rank_1_empty(self) -> Self {
         assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_1);
         self << 7
     }
@@ -221,7 +221,7 @@ impl Bitboard {
         self >> 9 & !Self::RANK_8
     }
 
-    fn south_west_one_if_rank_1_empty(self) -> Self {
+    pub fn south_west_one_if_rank_1_empty(self) -> Self {
         assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_1);
         self >> 9
     }
@@ -234,7 +234,7 @@ impl Bitboard {
         self >> 7 & !Self::RANK_1
     }
 
-    fn north_west_one_if_rank_8_empty(self) -> Self {
+    pub fn north_west_one_if_rank_8_empty(self) -> Self {
         assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_8);
         self >> 7
     }
