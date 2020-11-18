@@ -316,6 +316,16 @@ impl Bitboard {
         *self = Bitboard(self.0 & self.0 - 1);
         bit_idx
     }
+
+    fn pop_count(self) -> usize {
+        let mut x = self.0;
+        x = x - ((x >> 1) & 0x5555555555555555);
+        x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333);
+        x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0f;
+        x = x.wrapping_mul(0x0101010101010101);
+        x >>= 56;
+        x as usize
+    }
 }
 
 impl BitAnd for Bitboard {
@@ -1253,5 +1263,18 @@ mod tests {
             assert_eq!(expected_idx, bit_idx);
         }
         assert_eq!(Bitboard::EMPTY, bb);
+    }
+
+    #[test]
+    fn pop_count() {
+        assert_eq!(0, Bitboard::pop_count(Bitboard(0x0000000000000000)));
+        assert_eq!(1, Bitboard::pop_count(Bitboard(0x0000000000000001)));
+        assert_eq!(1, Bitboard::pop_count(Bitboard(0x0000000000000002)));
+        assert_eq!(2, Bitboard::pop_count(Bitboard(0x0000000000000003)));
+        assert_eq!(1, Bitboard::pop_count(Bitboard(0x0000000000000004)));
+        assert_eq!(8, Bitboard::pop_count(Bitboard(0x00000000000000ff)));
+        assert_eq!(1, Bitboard::pop_count(Bitboard(0x0000000000000100)));
+        assert_eq!(32, Bitboard::pop_count(Bitboard(0xfedcba9876543210)));
+        assert_eq!(64, Bitboard::pop_count(Bitboard(0xffffffffffffffff)));
     }
 }
