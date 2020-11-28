@@ -3,14 +3,16 @@ use crate::bitboard::Bitboard;
 pub struct Pawn;
 
 impl Pawn {
-    fn white_push_targets(white_pawns: Bitboard, empty: Bitboard) -> (Bitboard, Bitboard) {
+    fn white_push_targets(white_pawns: Bitboard, occupied: Bitboard) -> (Bitboard, Bitboard) {
+        let empty = !occupied;
         let single_push_targets = white_pawns.north_one_if_rank_8_empty() & empty;
         let double_push_targets =
             (single_push_targets & Bitboard::RANK_3).north_one_if_rank_8_empty() & empty;
         (single_push_targets, double_push_targets)
     }
 
-    fn black_push_targets(black_pawns: Bitboard, empty: Bitboard) -> (Bitboard, Bitboard) {
+    fn black_push_targets(black_pawns: Bitboard, occupied: Bitboard) -> (Bitboard, Bitboard) {
+        let empty = !occupied;
         let single_push_targets = black_pawns.south_one_if_rank_1_empty() & empty;
         let double_push_targets =
             (single_push_targets & Bitboard::RANK_6).south_one_if_rank_1_empty() & empty;
@@ -40,18 +42,18 @@ mod tests {
 
     #[test]
     fn white_push_targets() {
-        let empty = !Bitboard::A1
-            & !Bitboard::B2
-            & !Bitboard::C3
-            & !Bitboard::D4
-            & !Bitboard::E5
-            & !Bitboard::F6
-            & !Bitboard::G7
-            & !Bitboard::H8;
+        let occupied = Bitboard::A1
+            | Bitboard::B2
+            | Bitboard::C3
+            | Bitboard::D4
+            | Bitboard::E5
+            | Bitboard::F6
+            | Bitboard::G7
+            | Bitboard::H8;
 
         let white_pawns = Bitboard::RANK_2;
         let (single_push_targets, double_push_targets) =
-            Pawn::white_push_targets(white_pawns, empty);
+            Pawn::white_push_targets(white_pawns, occupied);
         assert_eq!(Bitboard::RANK_3 & !Bitboard::C3, single_push_targets);
         assert_eq!(
             Bitboard::RANK_4 & !Bitboard::C4 & !Bitboard::D4,
@@ -60,49 +62,49 @@ mod tests {
 
         let white_pawns = Bitboard::RANK_3;
         let (single_push_targets, double_push_targets) =
-            Pawn::white_push_targets(white_pawns, empty);
+            Pawn::white_push_targets(white_pawns, occupied);
         assert_eq!(Bitboard::RANK_4 & !Bitboard::D4, single_push_targets);
         assert_eq!(Bitboard::EMPTY, double_push_targets);
 
         let white_pawns = Bitboard::RANK_4;
         let (single_push_targets, double_push_targets) =
-            Pawn::white_push_targets(white_pawns, empty);
+            Pawn::white_push_targets(white_pawns, occupied);
         assert_eq!(Bitboard::RANK_5 & !Bitboard::E5, single_push_targets);
         assert_eq!(Bitboard::EMPTY, double_push_targets);
 
         let white_pawns = Bitboard::RANK_5;
         let (single_push_targets, double_push_targets) =
-            Pawn::white_push_targets(white_pawns, empty);
+            Pawn::white_push_targets(white_pawns, occupied);
         assert_eq!(Bitboard::RANK_6 & !Bitboard::F6, single_push_targets);
         assert_eq!(Bitboard::EMPTY, double_push_targets);
 
         let white_pawns = Bitboard::RANK_6;
         let (single_push_targets, double_push_targets) =
-            Pawn::white_push_targets(white_pawns, empty);
+            Pawn::white_push_targets(white_pawns, occupied);
         assert_eq!(Bitboard::RANK_7 & !Bitboard::G7, single_push_targets);
         assert_eq!(Bitboard::EMPTY, double_push_targets);
 
         let white_pawns = Bitboard::RANK_7;
         let (single_push_targets, double_push_targets) =
-            Pawn::white_push_targets(white_pawns, empty);
+            Pawn::white_push_targets(white_pawns, occupied);
         assert_eq!(Bitboard::RANK_8 & !Bitboard::H8, single_push_targets);
         assert_eq!(Bitboard::EMPTY, double_push_targets);
     }
 
     #[test]
     fn black_push_targets() {
-        let empty = !Bitboard::A1
-            & !Bitboard::B2
-            & !Bitboard::C3
-            & !Bitboard::D4
-            & !Bitboard::E5
-            & !Bitboard::F6
-            & !Bitboard::G7
-            & !Bitboard::H8;
+        let occupied = Bitboard::A1
+            | Bitboard::B2
+            | Bitboard::C3
+            | Bitboard::D4
+            | Bitboard::E5
+            | Bitboard::F6
+            | Bitboard::G7
+            | Bitboard::H8;
 
         let black_pawns = Bitboard::RANK_7;
         let (single_push_targets, double_push_targets) =
-            Pawn::black_push_targets(black_pawns, empty);
+            Pawn::black_push_targets(black_pawns, occupied);
         assert_eq!(Bitboard::RANK_6 & !Bitboard::F6, single_push_targets);
         assert_eq!(
             Bitboard::RANK_5 & !Bitboard::E5 & !Bitboard::F5,
@@ -111,31 +113,31 @@ mod tests {
 
         let black_pawns = Bitboard::RANK_6;
         let (single_push_targets, double_push_targets) =
-            Pawn::black_push_targets(black_pawns, empty);
+            Pawn::black_push_targets(black_pawns, occupied);
         assert_eq!(Bitboard::RANK_5 & !Bitboard::E5, single_push_targets);
         assert_eq!(Bitboard::EMPTY, double_push_targets);
 
         let black_pawns = Bitboard::RANK_5;
         let (single_push_targets, double_push_targets) =
-            Pawn::black_push_targets(black_pawns, empty);
+            Pawn::black_push_targets(black_pawns, occupied);
         assert_eq!(Bitboard::RANK_4 & !Bitboard::D4, single_push_targets);
         assert_eq!(Bitboard::EMPTY, double_push_targets);
 
         let black_pawns = Bitboard::RANK_4;
         let (single_push_targets, double_push_targets) =
-            Pawn::black_push_targets(black_pawns, empty);
+            Pawn::black_push_targets(black_pawns, occupied);
         assert_eq!(Bitboard::RANK_3 & !Bitboard::C3, single_push_targets);
         assert_eq!(Bitboard::EMPTY, double_push_targets);
 
         let black_pawns = Bitboard::RANK_3;
         let (single_push_targets, double_push_targets) =
-            Pawn::black_push_targets(black_pawns, empty);
+            Pawn::black_push_targets(black_pawns, occupied);
         assert_eq!(Bitboard::RANK_2 & !Bitboard::B2, single_push_targets);
         assert_eq!(Bitboard::EMPTY, double_push_targets);
 
         let black_pawns = Bitboard::RANK_2;
         let (single_push_targets, double_push_targets) =
-            Pawn::black_push_targets(black_pawns, empty);
+            Pawn::black_push_targets(black_pawns, occupied);
         assert_eq!(Bitboard::RANK_1 & !Bitboard::A1, single_push_targets);
         assert_eq!(Bitboard::EMPTY, double_push_targets);
     }
