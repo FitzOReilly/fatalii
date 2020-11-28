@@ -282,11 +282,31 @@ impl Bitboard {
         board
     }
 
+    fn north_east_fill(self) -> Self {
+        let mut board = self;
+        board = board | board.north_east_one();
+        let next_bits = board << 18 & !Self::RANK_1 & !Self::RANK_2;
+        board = board | next_bits;
+        let next_bits = board << 36 & !Self::RANK_1 & !Self::RANK_2 & !Self::RANK_3 & !Self::RANK_4;
+        board = board | next_bits;
+        board
+    }
+
     fn east_fill(self) -> Self {
         let mut board = self;
         board = board | board.east_one();
         board = board | board << 16;
         board = board | board << 32;
+        board
+    }
+
+    fn south_east_fill(self) -> Self {
+        let mut board = self;
+        board = board | board.south_east_one();
+        let next_bits = board << 14 & !Self::RANK_8 & !Self::RANK_7;
+        board = board | next_bits;
+        let next_bits = board << 28 & !Self::RANK_8 & !Self::RANK_7 & !Self::RANK_6 & !Self::RANK_5;
+        board = board | next_bits;
         board
     }
 
@@ -300,11 +320,31 @@ impl Bitboard {
         board
     }
 
+    fn south_west_fill(self) -> Self {
+        let mut board = self;
+        board = board | board.south_west_one();
+        let next_bits = board >> 18 & !Self::RANK_8 & !Self::RANK_7;
+        board = board | next_bits;
+        let next_bits = board >> 36 & !Self::RANK_8 & !Self::RANK_7 & !Self::RANK_6 & !Self::RANK_5;
+        board = board | next_bits;
+        board
+    }
+
     fn west_fill(self) -> Self {
         let mut board = self;
         board = board | board.west_one();
         board = board | board >> 16;
         board = board | board >> 32;
+        board
+    }
+
+    fn north_west_fill(self) -> Self {
+        let mut board = self;
+        board = board | board.north_west_one();
+        let next_bits = board >> 14 & !Self::RANK_1 & !Self::RANK_2;
+        board = board | next_bits;
+        let next_bits = board >> 28 & !Self::RANK_1 & !Self::RANK_2 & !Self::RANK_3 & !Self::RANK_4;
+        board = board | next_bits;
         board
     }
 
@@ -1036,6 +1076,41 @@ mod tests {
     }
 
     #[test]
+    fn north_east_fill() {
+        let board = Bitboard::EMPTY;
+        assert_eq!(Bitboard::EMPTY, board.north_east_fill());
+        let board = Bitboard::A1;
+        assert_eq!(
+            Bitboard::A1
+                | Bitboard::B2
+                | Bitboard::C3
+                | Bitboard::D4
+                | Bitboard::E5
+                | Bitboard::F6
+                | Bitboard::G7
+                | Bitboard::H8,
+            board.north_east_fill()
+        );
+        let board = Bitboard::B1;
+        assert_eq!(
+            Bitboard::B1
+                | Bitboard::C2
+                | Bitboard::D3
+                | Bitboard::E4
+                | Bitboard::F5
+                | Bitboard::G6
+                | Bitboard::H7,
+            board.north_east_fill()
+        );
+        let board = Bitboard::A7;
+        assert_eq!(Bitboard::A7 | Bitboard::B8, board.north_east_fill());
+        let board = Bitboard::RANK_8 | Bitboard::FILE_H;
+        assert_eq!(Bitboard::RANK_8 | Bitboard::FILE_H, board.north_east_fill());
+        let board = Bitboard::RANK_1 | Bitboard::FILE_A;
+        assert_eq!(Bitboard::UNIVERSE, board.north_east_fill());
+    }
+
+    #[test]
     fn east_fill() {
         let board = Bitboard::EMPTY;
         assert_eq!(Bitboard::EMPTY, board.east_fill());
@@ -1056,6 +1131,41 @@ mod tests {
         );
         let board = Bitboard::FILE_A;
         assert_eq!(Bitboard::UNIVERSE, board.east_fill());
+    }
+
+    #[test]
+    fn south_east_fill() {
+        let board = Bitboard::EMPTY;
+        assert_eq!(Bitboard::EMPTY, board.south_east_fill());
+        let board = Bitboard::A8;
+        assert_eq!(
+            Bitboard::A8
+                | Bitboard::B7
+                | Bitboard::C6
+                | Bitboard::D5
+                | Bitboard::E4
+                | Bitboard::F3
+                | Bitboard::G2
+                | Bitboard::H1,
+            board.south_east_fill()
+        );
+        let board = Bitboard::B8;
+        assert_eq!(
+            Bitboard::B8
+                | Bitboard::C7
+                | Bitboard::D6
+                | Bitboard::E5
+                | Bitboard::F4
+                | Bitboard::G3
+                | Bitboard::H2,
+            board.south_east_fill()
+        );
+        let board = Bitboard::A2;
+        assert_eq!(Bitboard::A2 | Bitboard::B1, board.south_east_fill());
+        let board = Bitboard::RANK_1 | Bitboard::FILE_H;
+        assert_eq!(Bitboard::RANK_1 | Bitboard::FILE_H, board.south_east_fill());
+        let board = Bitboard::RANK_8 | Bitboard::FILE_A;
+        assert_eq!(Bitboard::UNIVERSE, board.south_east_fill());
     }
 
     #[test]
@@ -1082,6 +1192,41 @@ mod tests {
     }
 
     #[test]
+    fn south_west_fill() {
+        let board = Bitboard::EMPTY;
+        assert_eq!(Bitboard::EMPTY, board.south_west_fill());
+        let board = Bitboard::H8;
+        assert_eq!(
+            Bitboard::H8
+                | Bitboard::G7
+                | Bitboard::F6
+                | Bitboard::E5
+                | Bitboard::D4
+                | Bitboard::C3
+                | Bitboard::B2
+                | Bitboard::A1,
+            board.south_west_fill()
+        );
+        let board = Bitboard::G8;
+        assert_eq!(
+            Bitboard::G8
+                | Bitboard::F7
+                | Bitboard::E6
+                | Bitboard::D5
+                | Bitboard::C4
+                | Bitboard::B3
+                | Bitboard::A2,
+            board.south_west_fill()
+        );
+        let board = Bitboard::H2;
+        assert_eq!(Bitboard::H2 | Bitboard::G1, board.south_west_fill());
+        let board = Bitboard::RANK_1 | Bitboard::FILE_A;
+        assert_eq!(Bitboard::RANK_1 | Bitboard::FILE_A, board.south_west_fill());
+        let board = Bitboard::RANK_8 | Bitboard::FILE_H;
+        assert_eq!(Bitboard::UNIVERSE, board.south_west_fill());
+    }
+
+    #[test]
     fn west_fill() {
         let board = Bitboard::EMPTY;
         assert_eq!(Bitboard::EMPTY, board.west_fill());
@@ -1102,6 +1247,41 @@ mod tests {
         );
         let board = Bitboard::FILE_H;
         assert_eq!(Bitboard::UNIVERSE, board.west_fill());
+    }
+
+    #[test]
+    fn north_west_fill() {
+        let board = Bitboard::EMPTY;
+        assert_eq!(Bitboard::EMPTY, board.north_west_fill());
+        let board = Bitboard::H1;
+        assert_eq!(
+            Bitboard::H1
+                | Bitboard::G2
+                | Bitboard::F3
+                | Bitboard::E4
+                | Bitboard::D5
+                | Bitboard::C6
+                | Bitboard::B7
+                | Bitboard::A8,
+            board.north_west_fill()
+        );
+        let board = Bitboard::G1;
+        assert_eq!(
+            Bitboard::G1
+                | Bitboard::F2
+                | Bitboard::E3
+                | Bitboard::D4
+                | Bitboard::C5
+                | Bitboard::B6
+                | Bitboard::A7,
+            board.north_west_fill()
+        );
+        let board = Bitboard::H7;
+        assert_eq!(Bitboard::H7 | Bitboard::G8, board.north_west_fill());
+        let board = Bitboard::RANK_8 | Bitboard::FILE_A;
+        assert_eq!(Bitboard::RANK_8 | Bitboard::FILE_A, board.north_west_fill());
+        let board = Bitboard::RANK_1 | Bitboard::FILE_H;
+        assert_eq!(Bitboard::UNIVERSE, board.north_west_fill());
     }
 
     #[test]
