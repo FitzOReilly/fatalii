@@ -162,18 +162,18 @@ impl Bitboard {
     pub const IDX_H8: usize = 63;
 
     pub fn to_square(rank: usize, file: usize) -> usize {
-        assert!(rank < Self::NUM_RANKS);
-        assert!(file < Self::NUM_FILES);
+        debug_assert!(rank < Self::NUM_RANKS);
+        debug_assert!(file < Self::NUM_FILES);
         file * Self::NUM_RANKS + rank
     }
 
     fn to_rank(square: usize) -> usize {
-        assert!(square < Self::NUM_SQUARES);
+        debug_assert!(square < Self::NUM_SQUARES);
         square % Self::NUM_RANKS
     }
 
     fn to_file(square: usize) -> usize {
-        assert!(square < Self::NUM_SQUARES);
+        debug_assert!(square < Self::NUM_SQUARES);
         square / Self::NUM_RANKS
     }
 
@@ -182,7 +182,7 @@ impl Bitboard {
     }
 
     pub fn north_one_if_rank_8_empty(self) -> Self {
-        assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_8);
+        debug_assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_8);
         self << 1
     }
 
@@ -191,7 +191,7 @@ impl Bitboard {
     }
 
     pub fn north_east_one_if_rank_8_empty(self) -> Self {
-        assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_8);
+        debug_assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_8);
         self << 9
     }
 
@@ -204,7 +204,7 @@ impl Bitboard {
     }
 
     pub fn south_east_one_if_rank_1_empty(self) -> Self {
-        assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_1);
+        debug_assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_1);
         self << 7
     }
 
@@ -213,7 +213,7 @@ impl Bitboard {
     }
 
     pub fn south_one_if_rank_1_empty(self) -> Self {
-        assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_1);
+        debug_assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_1);
         self >> 1
     }
 
@@ -222,7 +222,7 @@ impl Bitboard {
     }
 
     pub fn south_west_one_if_rank_1_empty(self) -> Self {
-        assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_1);
+        debug_assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_1);
         self >> 9
     }
 
@@ -235,7 +235,7 @@ impl Bitboard {
     }
 
     pub fn north_west_one_if_rank_8_empty(self) -> Self {
-        assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_8);
+        debug_assert_eq!(Bitboard::EMPTY, self & Bitboard::RANK_8);
         self >> 7
     }
 
