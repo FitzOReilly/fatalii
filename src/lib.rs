@@ -1,3 +1,4 @@
+mod bishop;
 mod bitboard;
 mod direction;
 mod king;

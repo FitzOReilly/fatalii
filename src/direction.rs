@@ -1,4 +1,4 @@
-#[repr(u8)]
+#[derive(Clone, Copy, Debug)]
 pub enum Direction {
     North = 0,
     South = 1,
