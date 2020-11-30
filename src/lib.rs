@@ -4,5 +4,6 @@ mod direction;
 mod king;
 mod knight;
 mod pawn;
+mod queen;
 mod ray;
 mod rook;
