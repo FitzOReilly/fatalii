@@ -5,3 +5,4 @@ mod king;
 mod knight;
 mod pawn;
 mod ray;
+mod rook;
