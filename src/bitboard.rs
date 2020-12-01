@@ -3,7 +3,7 @@ use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
 use std::str;
 
 // Bitboard using little endian file rank mapping (LEFR)
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Bitboard(pub u64);
 
 impl Bitboard {
@@ -578,18 +578,18 @@ impl<'a> Shr<usize> for &'a Bitboard {
 
 impl fmt::Display for Bitboard {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        const EMPTY_SQUARE: u8 = '-' as u8;
-        const OCCUPIED_SQUARE: u8 = 'X' as u8;
-        let mut squares_in_rank = [EMPTY_SQUARE; Self::NUM_FILES];
+        const EMPTY_SQUARE: u8 = b'-';
+        const OCCUPIED_SQUARE: u8 = b'X';
+        const SPACE: u8 = b' ';
+        let mut squares_in_rank = [SPACE; 2 * Self::NUM_FILES - 1];
         for rank in (0..Self::NUM_RANKS).rev() {
             for file in 0..Self::NUM_FILES {
                 let square = Self::to_square(rank, file);
                 let square_bit = Bitboard(0x1) << square;
-                if self & square_bit != Bitboard::EMPTY {
-                    squares_in_rank[file] = OCCUPIED_SQUARE;
-                } else {
-                    squares_in_rank[file] = EMPTY_SQUARE;
-                }
+                squares_in_rank[2 * file] = match self & square_bit {
+                    Self::EMPTY => EMPTY_SQUARE,
+                    _ => OCCUPIED_SQUARE,
+                };
             }
             let rank_str = str::from_utf8(&squares_in_rank).unwrap();
             writeln!(f, "{}", rank_str).unwrap();
@@ -1771,5 +1771,23 @@ mod tests {
         assert_eq!(1, Bitboard::pop_count(Bitboard(0x0000000000000100)));
         assert_eq!(32, Bitboard::pop_count(Bitboard(0xfedcba9876543210)));
         assert_eq!(64, Bitboard::pop_count(Bitboard(0xffffffffffffffff)));
+    }
+
+    #[test]
+    fn fmt() {
+        let expected_str = "\
+            - - X - - - - -\n\
+            - - X - - - - -\n\
+            - - X - - - - -\n\
+            - - X - - - - -\n\
+            - - X - - - - -\n\
+            X X X X X X X X\n\
+            - - X - - - - -\n\
+            - - X - - - - -\n\
+        ";
+        assert_eq!(
+            expected_str,
+            format!("{}", Bitboard::RANK_3 | Bitboard::FILE_C)
+        );
     }
 }
