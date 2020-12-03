@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate bitflags;
+
 mod bishop;
 mod bitboard;
 mod direction;
