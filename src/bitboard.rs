@@ -1,5 +1,5 @@
 use std::fmt;
-use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, Not, Shl, Shr};
 use std::str;
 
 // Bitboard using little endian file rank mapping (LEFR)
@@ -168,12 +168,12 @@ impl Bitboard {
         file * Self::NUM_RANKS + rank
     }
 
-    fn to_rank(square: usize) -> usize {
+    pub fn to_rank(square: usize) -> usize {
         debug_assert!(square < Self::NUM_SQUARES);
         square % Self::NUM_RANKS
     }
 
-    fn to_file(square: usize) -> usize {
+    pub fn to_file(square: usize) -> usize {
         debug_assert!(square < Self::NUM_SQUARES);
         square / Self::NUM_RANKS
     }
@@ -390,7 +390,7 @@ impl Bitboard {
         Bitboard(x)
     }
 
-    fn bit_idx(self) -> usize {
+    pub fn bit_idx(self) -> usize {
         debug_assert!(self.0.count_ones() == 1);
         const DEBRUIJN_SEQ: u64 = 0x0218a392cd3d5dbf;
         const LEN_SEQ: usize = 64;
@@ -464,6 +464,18 @@ impl<'a> BitAnd<Bitboard> for &'a Bitboard {
     }
 }
 
+impl BitAndAssign for Bitboard {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 &= rhs.0;
+    }
+}
+
+impl<'a> BitAndAssign<&'a Self> for Bitboard {
+    fn bitand_assign(&mut self, rhs: &Self) {
+        self.0 &= rhs.0;
+    }
+}
+
 impl BitOr for Bitboard {
     type Output = Self;
 
@@ -493,6 +505,18 @@ impl<'a> BitOr<Bitboard> for &'a Bitboard {
 
     fn bitor(self, rhs: Bitboard) -> Self::Output {
         Bitboard(self.0 | rhs.0)
+    }
+}
+
+impl BitOrAssign for Bitboard {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+impl<'a> BitOrAssign<&'a Self> for Bitboard {
+    fn bitor_assign(&mut self, rhs: &Self) {
+        self.0 |= rhs.0;
     }
 }
 
