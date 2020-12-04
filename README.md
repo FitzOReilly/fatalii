@@ -1,5 +1,5 @@
 # chess
 
-![Rust](https://github.com/FitzOReilly/chess/workflows/Rust/badge.svg)
+![Tests](https://github.com/FitzOReilly/chess/workflows/Tests/badge.svg)
 
-This is going to become a UCI chess engine
+This is going to become a chess engine
