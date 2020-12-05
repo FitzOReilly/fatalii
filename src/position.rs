@@ -21,6 +21,7 @@ bitflags! {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Position {
     pawns: Bitboard,
     knights: Bitboard,
@@ -33,11 +34,29 @@ pub struct Position {
     en_passant_square: Bitboard,
     side_to_move: SideToMove,
     castling_rights: CastlingRights,
-    plies_since_pawn_move_or_capture: u8,
-    move_count: u16,
+    plies_since_pawn_move_or_capture: usize,
+    move_count: usize,
 }
 
 impl Position {
+    pub fn empty() -> Self {
+        Position {
+            pawns: Bitboard::EMPTY,
+            knights: Bitboard::EMPTY,
+            bishops: Bitboard::EMPTY,
+            rooks: Bitboard::EMPTY,
+            queens: Bitboard::EMPTY,
+            kings: Bitboard::EMPTY,
+            white_pieces: Bitboard::EMPTY,
+            black_pieces: Bitboard::EMPTY,
+            en_passant_square: Bitboard::EMPTY,
+            side_to_move: SideToMove::White,
+            castling_rights: CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
+            plies_since_pawn_move_or_capture: 0,
+            move_count: 1,
+        }
+    }
+
     pub fn initial() -> Self {
         Position {
             pawns: Bitboard::RANK_2 | Bitboard::RANK_7,
@@ -68,11 +87,11 @@ impl Position {
         self.castling_rights
     }
 
-    pub fn plies_since_pawn_move_or_capture(&self) -> u8 {
+    pub fn plies_since_pawn_move_or_capture(&self) -> usize {
         self.plies_since_pawn_move_or_capture
     }
 
-    pub fn move_count(&self) -> u16 {
+    pub fn move_count(&self) -> usize {
         self.move_count
     }
 
@@ -88,11 +107,11 @@ impl Position {
         self.castling_rights = castling_rights;
     }
 
-    pub fn set_plies_since_pawn_move_or_capture(&mut self, plies: u8) {
+    pub fn set_plies_since_pawn_move_or_capture(&mut self, plies: usize) {
         self.plies_since_pawn_move_or_capture = plies;
     }
 
-    pub fn set_move_count(&mut self, move_count: u16) {
+    pub fn set_move_count(&mut self, move_count: usize) {
         self.move_count = move_count;
     }
 
@@ -251,6 +270,21 @@ mod tests {
         assert_eq!(Some(Piece::BlackQueen), pos.piece_at(Bitboard::IDX_D8));
         assert_eq!(Some(Piece::BlackKing), pos.piece_at(Bitboard::IDX_E8));
         assert_eq!(Some(Piece::BlackPawn), pos.piece_at(Bitboard::IDX_A7));
+    }
+
+    #[test]
+    fn set_piece_at() {
+        let mut pos = Position::initial();
+        pos.set_piece_at(Bitboard::IDX_E4, Some(Piece::WhitePawn));
+        let square = Bitboard::E4;
+        assert_eq!(square, square & pos.white_pieces);
+        assert_eq!(square, square & pos.pawns);
+        assert_eq!(Bitboard::EMPTY, square & pos.black_pieces);
+        assert_eq!(Bitboard::EMPTY, square & pos.knights);
+        assert_eq!(Bitboard::EMPTY, square & pos.bishops);
+        assert_eq!(Bitboard::EMPTY, square & pos.rooks);
+        assert_eq!(Bitboard::EMPTY, square & pos.queens);
+        assert_eq!(Bitboard::EMPTY, square & pos.kings);
     }
 
     #[test]
