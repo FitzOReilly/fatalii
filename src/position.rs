@@ -56,6 +56,46 @@ impl Position {
         }
     }
 
+    pub fn en_passant_square(&self) -> Bitboard {
+        self.en_passant_square
+    }
+
+    pub fn side_to_move(&self) -> SideToMove {
+        self.side_to_move
+    }
+
+    pub fn castling_rights(&self) -> CastlingRights {
+        self.castling_rights
+    }
+
+    pub fn plies_since_pawn_move_or_capture(&self) -> u8 {
+        self.plies_since_pawn_move_or_capture
+    }
+
+    pub fn move_count(&self) -> u16 {
+        self.move_count
+    }
+
+    pub fn set_en_passant_square(&mut self, square_bit: Bitboard) {
+        self.en_passant_square = square_bit;
+    }
+
+    pub fn set_side_to_move(&mut self, side: SideToMove) {
+        self.side_to_move = side;
+    }
+
+    pub fn set_castling_rights(&mut self, castling_rights: CastlingRights) {
+        self.castling_rights = castling_rights;
+    }
+
+    pub fn set_plies_since_pawn_move_or_capture(&mut self, plies: u8) {
+        self.plies_since_pawn_move_or_capture = plies;
+    }
+
+    pub fn set_move_count(&mut self, move_count: u16) {
+        self.move_count = move_count;
+    }
+
     pub fn piece_at(&self, square_index: usize) -> Option<Piece> {
         let square = Bitboard(0x1 << square_index);
         if square & self.white_pieces != Bitboard::EMPTY {
@@ -92,6 +132,71 @@ impl Position {
             None
         }
     }
+
+    pub fn set_piece_at(&mut self, square_index: usize, piece: Option<Piece>) {
+        let square = Bitboard(0x1 << square_index);
+
+        self.pawns &= !square;
+        self.knights &= !square;
+        self.bishops &= !square;
+        self.rooks &= !square;
+        self.queens &= !square;
+        self.kings &= !square;
+        self.white_pieces &= !square;
+        self.black_pieces &= !square;
+
+        match piece {
+            Some(Piece::WhitePawn) => {
+                self.white_pieces |= square;
+                self.pawns |= square;
+            }
+            Some(Piece::WhiteKnight) => {
+                self.white_pieces |= square;
+                self.knights |= square;
+            }
+            Some(Piece::WhiteBishop) => {
+                self.white_pieces |= square;
+                self.bishops |= square;
+            }
+            Some(Piece::WhiteRook) => {
+                self.white_pieces |= square;
+                self.rooks |= square;
+            }
+            Some(Piece::WhiteQueen) => {
+                self.white_pieces |= square;
+                self.queens |= square;
+            }
+            Some(Piece::WhiteKing) => {
+                self.white_pieces |= square;
+                self.kings |= square;
+            }
+            Some(Piece::BlackPawn) => {
+                self.black_pieces |= square;
+                self.pawns |= square;
+            }
+            Some(Piece::BlackKnight) => {
+                self.black_pieces |= square;
+                self.knights |= square;
+            }
+            Some(Piece::BlackBishop) => {
+                self.black_pieces |= square;
+                self.bishops |= square;
+            }
+            Some(Piece::BlackRook) => {
+                self.black_pieces |= square;
+                self.rooks |= square;
+            }
+            Some(Piece::BlackQueen) => {
+                self.black_pieces |= square;
+                self.queens |= square;
+            }
+            Some(Piece::BlackKing) => {
+                self.black_pieces |= square;
+                self.kings |= square;
+            }
+            None => {}
+        }
+    }
 }
 
 impl fmt::Display for Position {
@@ -121,14 +226,14 @@ mod tests {
     #[test]
     fn initial_position() {
         let pos = Position::initial();
-        assert_eq!(Bitboard::EMPTY, pos.en_passant_square);
-        assert_eq!(SideToMove::White, pos.side_to_move);
+        assert_eq!(Bitboard::EMPTY, pos.en_passant_square());
+        assert_eq!(SideToMove::White, pos.side_to_move());
         assert_eq!(
             CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
-            pos.castling_rights
+            pos.castling_rights()
         );
-        assert_eq!(0, pos.plies_since_pawn_move_or_capture);
-        assert_eq!(1, pos.move_count);
+        assert_eq!(0, pos.plies_since_pawn_move_or_capture());
+        assert_eq!(1, pos.move_count());
 
         assert_eq!(Some(Piece::WhiteRook), pos.piece_at(Bitboard::IDX_A1));
         assert_eq!(Some(Piece::WhiteKnight), pos.piece_at(Bitboard::IDX_B1));
