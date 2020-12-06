@@ -3,7 +3,7 @@ use crate::bitboard::Bitboard;
 pub struct King;
 
 impl King {
-    fn targets(origin: usize) -> Bitboard {
+    pub fn targets(origin: usize) -> Bitboard {
         Self::TARGETS_ALL_SQUARES[origin]
     }
 

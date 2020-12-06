@@ -3,7 +3,7 @@ use crate::bitboard::Bitboard;
 pub struct Pawn;
 
 impl Pawn {
-    fn white_push_targets(white_pawns: Bitboard, occupied: Bitboard) -> (Bitboard, Bitboard) {
+    pub fn white_push_targets(white_pawns: Bitboard, occupied: Bitboard) -> (Bitboard, Bitboard) {
         let empty = !occupied;
         let single_push_targets = white_pawns.north_one_if_rank_8_empty() & empty;
         let double_push_targets =
@@ -11,7 +11,7 @@ impl Pawn {
         (single_push_targets, double_push_targets)
     }
 
-    fn black_push_targets(black_pawns: Bitboard, occupied: Bitboard) -> (Bitboard, Bitboard) {
+    pub fn black_push_targets(black_pawns: Bitboard, occupied: Bitboard) -> (Bitboard, Bitboard) {
         let empty = !occupied;
         let single_push_targets = black_pawns.south_one_if_rank_1_empty() & empty;
         let double_push_targets =
@@ -19,19 +19,19 @@ impl Pawn {
         (single_push_targets, double_push_targets)
     }
 
-    fn white_east_attack_targets(white_pawns: Bitboard) -> Bitboard {
+    pub fn white_east_attack_targets(white_pawns: Bitboard) -> Bitboard {
         white_pawns.north_east_one_if_rank_8_empty()
     }
 
-    fn white_west_attack_targets(white_pawns: Bitboard) -> Bitboard {
+    pub fn white_west_attack_targets(white_pawns: Bitboard) -> Bitboard {
         white_pawns.north_west_one_if_rank_8_empty()
     }
 
-    fn black_east_attack_targets(black_pawns: Bitboard) -> Bitboard {
+    pub fn black_east_attack_targets(black_pawns: Bitboard) -> Bitboard {
         black_pawns.south_east_one_if_rank_1_empty()
     }
 
-    fn black_west_attack_targets(black_pawns: Bitboard) -> Bitboard {
+    pub fn black_west_attack_targets(black_pawns: Bitboard) -> Bitboard {
         black_pawns.south_west_one_if_rank_1_empty()
     }
 }

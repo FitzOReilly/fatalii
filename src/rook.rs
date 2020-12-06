@@ -4,7 +4,7 @@ use crate::ray::Ray;
 pub struct Rook;
 
 impl Rook {
-    fn targets(origin: usize, occupied: Bitboard) -> Bitboard {
+    pub fn targets(origin: usize, occupied: Bitboard) -> Bitboard {
         Ray::north_targets(origin, occupied)
             | Ray::east_targets(origin, occupied)
             | Ray::south_targets(origin, occupied)

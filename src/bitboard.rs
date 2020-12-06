@@ -3,13 +3,23 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, Not, Shl, Shr};
 use std::str;
 
 // Bitboard using little endian file rank mapping (LEFR)
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Bitboard(pub u64);
 
 impl Bitboard {
     pub const NUM_RANKS: usize = 8;
     pub const NUM_FILES: usize = 8;
     pub const NUM_SQUARES: usize = Self::NUM_RANKS * Self::NUM_FILES;
+
+    pub const IDX_SHIFT_NORTH: i8 = 1;
+    pub const IDX_SHIFT_SOUTH: i8 = -1;
+    pub const IDX_SHIFT_NORTH_EAST: i8 = 9;
+    pub const IDX_SHIFT_NORTH_WEST: i8 = -7;
+    pub const IDX_SHIFT_SOUTH_EAST: i8 = 7;
+    pub const IDX_SHIFT_SOUTH_WEST: i8 = -9;
+
+    pub const WHITE_PROMOTION_RANK: Self = Self::RANK_8;
+    pub const BLACK_PROMOTION_RANK: Self = Self::RANK_1;
 
     pub const EMPTY: Self = Bitboard(0x0000000000000000);
     pub const UNIVERSE: Self = Bitboard(0xffffffffffffffff);
@@ -408,7 +418,7 @@ impl Bitboard {
         self.least_significant_1_bit().bit_idx()
     }
 
-    fn bit_scan_forward_reset(&mut self) -> usize {
+    pub fn bit_scan_forward_reset(&mut self) -> usize {
         debug_assert!(*self != Bitboard::EMPTY);
         let ls1b = self.least_significant_1_bit();
         let bit_idx = ls1b.bit_idx();
