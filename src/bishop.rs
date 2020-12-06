@@ -4,7 +4,7 @@ use crate::ray::Ray;
 pub struct Bishop;
 
 impl Bishop {
-    fn targets(origin: usize, occupied: Bitboard) -> Bitboard {
+    pub fn targets(origin: usize, occupied: Bitboard) -> Bitboard {
         Ray::north_east_targets(origin, occupied)
             | Ray::south_east_targets(origin, occupied)
             | Ray::south_west_targets(origin, occupied)

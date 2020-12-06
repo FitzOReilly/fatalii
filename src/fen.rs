@@ -2,7 +2,7 @@ use crate::bitboard::Bitboard;
 use crate::piece::Piece;
 use crate::position::CastlingRights;
 use crate::position::Position;
-use crate::position::SideToMove;
+use crate::side::Side;
 
 pub struct Fen;
 
@@ -50,8 +50,8 @@ impl Fen {
 
     fn from_side_to_move(fen: &mut String, pos: &Position) {
         fen.push(match pos.side_to_move() {
-            SideToMove::White => 'w',
-            SideToMove::Black => 'b',
+            Side::White => 'w',
+            Side::Black => 'b',
         });
     }
 
@@ -133,8 +133,8 @@ impl Fen {
     fn to_side_to_move(pos: &mut Position, fen: &str) {
         let c = fen.bytes().next().unwrap();
         match c {
-            b'w' => pos.set_side_to_move(SideToMove::White),
-            b'b' => pos.set_side_to_move(SideToMove::Black),
+            b'w' => pos.set_side_to_move(Side::White),
+            b'b' => pos.set_side_to_move(Side::Black),
             _ => panic!("Invalid side to move `{}`", fen),
         }
     }
@@ -203,7 +203,7 @@ mod tests {
         pos.set_piece_at(Bitboard::IDX_E2, None);
         pos.set_piece_at(Bitboard::IDX_E4, Some(Piece::WhitePawn));
         pos.set_en_passant_square(Bitboard::E3);
-        pos.set_side_to_move(SideToMove::Black);
+        pos.set_side_to_move(Side::Black);
         let fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
         assert_eq!(fen, Fen::from_position(&pos));
         assert_eq!(
@@ -218,7 +218,7 @@ mod tests {
         pos.set_piece_at(Bitboard::IDX_C7, None);
         pos.set_piece_at(Bitboard::IDX_C5, Some(Piece::BlackPawn));
         pos.set_en_passant_square(Bitboard::C6);
-        pos.set_side_to_move(SideToMove::White);
+        pos.set_side_to_move(Side::White);
         pos.set_move_count(2);
         let fen = "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2";
         assert_eq!(fen, Fen::from_position(&pos));
@@ -234,7 +234,7 @@ mod tests {
         pos.set_piece_at(Bitboard::IDX_G1, None);
         pos.set_piece_at(Bitboard::IDX_F3, Some(Piece::WhiteKnight));
         pos.set_en_passant_square(Bitboard::EMPTY);
-        pos.set_side_to_move(SideToMove::Black);
+        pos.set_side_to_move(Side::Black);
         pos.set_plies_since_pawn_move_or_capture(1);
         let fen = "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2";
         assert_eq!(fen, Fen::from_position(&pos));

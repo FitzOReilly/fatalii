@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Piece {
     WhitePawn,
     WhiteKnight,
@@ -12,6 +12,16 @@ pub enum Piece {
     BlackRook,
     BlackQueen,
     BlackKing,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Type {
+    Pawn = 0,
+    Knight = 1,
+    Bishop = 2,
+    Rook = 3,
+    Queen = 4,
+    King = 5,
 }
 
 impl Piece {
