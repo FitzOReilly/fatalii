@@ -62,7 +62,7 @@ impl Position {
             black_pieces: Bitboard::EMPTY,
             en_passant_square: Bitboard::EMPTY,
             side_to_move: Side::White,
-            castling_rights: CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
+            castling_rights: CastlingRights::empty(),
             plies_since_pawn_move_or_capture: 0,
             move_count: 1,
         }
