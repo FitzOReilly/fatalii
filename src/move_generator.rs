@@ -7,6 +7,7 @@ use crate::piece;
 use crate::position::{CastlingRights, Position};
 use crate::queen::Queen;
 use crate::rook::Rook;
+use crate::side::Side;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum MoveType {
@@ -26,7 +27,7 @@ enum MoveType {
     QueenPromoCapture = 15,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Move {
     from: u8,
     to: u8,
@@ -43,11 +44,48 @@ impl Move {
             move_type,
         }
     }
+
+    fn origin(&self) -> usize {
+        self.from as usize
+    }
+
+    fn target(&self) -> usize {
+        self.to as usize
+    }
+
+    fn move_type(&self) -> MoveType {
+        self.move_type
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct IrreversibleProperties {
+    en_passant_square: Bitboard,
+    castling_rights: CastlingRights,
+    plies_since_pawn_move_or_capture: usize,
+    captured_piece: Option<piece::Piece>,
+}
+
+impl IrreversibleProperties {
+    fn new(
+        en_passant_square: Bitboard,
+        castling_rights: CastlingRights,
+        plies_since_pawn_move_or_capture: usize,
+        captured_piece: Option<piece::Piece>,
+    ) -> IrreversibleProperties {
+        IrreversibleProperties {
+            en_passant_square,
+            castling_rights,
+            plies_since_pawn_move_or_capture,
+            captured_piece,
+        }
+    }
 }
 
 struct MoveGenerator {
     pos: Position,
     move_list: Vec<Move>,
+    irreversible_properties: Vec<IrreversibleProperties>,
 }
 
 impl MoveGenerator {
@@ -79,20 +117,21 @@ impl MoveGenerator {
         MoveGenerator {
             pos,
             move_list: Vec::new(),
+            irreversible_properties: Vec::new(),
         }
     }
 
     fn add_move_if_legal(&mut self, m: Move) {
         let mut pos = self.pos.clone();
-        let from_idx = m.from as usize;
-        let to_idx = m.to as usize;
+        let origin = m.origin();
+        let target = m.target();
         // Promotion piece type is ignored here because it doesn't change the opposing side's
         // attacks
-        pos.set_piece_at(to_idx, pos.piece_at(from_idx));
-        pos.set_piece_at(from_idx, None);
+        pos.set_piece_at(target, pos.piece_at(origin));
+        pos.set_piece_at(origin, None);
         if m.move_type == MoveType::EnPassantCapture {
             let side_idx = pos.side_to_move() as usize;
-            let captured_idx = (to_idx as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
+            let captured_idx = (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
             pos.set_piece_at(captured_idx, None);
         }
 
@@ -110,6 +149,165 @@ impl MoveGenerator {
         self.generate_sliding_piece_moves(piece::Type::Queen, Queen::targets);
         self.generate_king_moves();
         self.generate_castles();
+    }
+
+    fn do_move(&mut self, m: Move) {
+        let origin = m.origin();
+        let target = m.target();
+        let moving_piece = self.pos.piece_at(origin);
+
+        let captured_piece = match m.move_type() {
+            MoveType::EnPassantCapture => self.pos.piece_at(
+                (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[self.pos.side_to_move() as usize])
+                    as usize,
+            ),
+            _ => self.pos.piece_at(target),
+        };
+        self.irreversible_properties
+            .push(IrreversibleProperties::new(
+                self.pos.en_passant_square(),
+                self.pos.castling_rights(),
+                self.pos.plies_since_pawn_move_or_capture(),
+                captured_piece,
+            ));
+
+        let side_to_move = self.pos.side_to_move();
+        let target_piece = match side_to_move {
+            Side::White => match m.move_type() {
+                MoveType::KnightPromo => Some(piece::Piece::WhiteKnight),
+                MoveType::BishopPromo => Some(piece::Piece::WhiteBishop),
+                MoveType::RookPromo => Some(piece::Piece::WhiteRook),
+                MoveType::QueenPromo => Some(piece::Piece::WhiteQueen),
+                MoveType::KnightPromoCapture => {
+                    self.remove_castling_rights(target);
+                    Some(piece::Piece::WhiteKnight)
+                }
+                MoveType::BishopPromoCapture => {
+                    self.remove_castling_rights(target);
+                    Some(piece::Piece::WhiteBishop)
+                }
+                MoveType::RookPromoCapture => {
+                    self.remove_castling_rights(target);
+                    Some(piece::Piece::WhiteRook)
+                }
+                MoveType::QueenPromoCapture => {
+                    self.remove_castling_rights(target);
+                    Some(piece::Piece::WhiteQueen)
+                }
+                _ => moving_piece,
+            },
+            Side::Black => match m.move_type() {
+                MoveType::KnightPromo => Some(piece::Piece::BlackKnight),
+                MoveType::BishopPromo => Some(piece::Piece::BlackBishop),
+                MoveType::RookPromo => Some(piece::Piece::BlackRook),
+                MoveType::QueenPromo => Some(piece::Piece::BlackQueen),
+                MoveType::KnightPromoCapture => {
+                    self.remove_castling_rights(target);
+                    Some(piece::Piece::BlackKnight)
+                }
+                MoveType::BishopPromoCapture => {
+                    self.remove_castling_rights(target);
+                    Some(piece::Piece::BlackBishop)
+                }
+                MoveType::RookPromoCapture => {
+                    self.remove_castling_rights(target);
+                    Some(piece::Piece::BlackRook)
+                }
+                MoveType::QueenPromoCapture => {
+                    self.remove_castling_rights(target);
+                    Some(piece::Piece::BlackQueen)
+                }
+                _ => moving_piece,
+            },
+        };
+
+        self.pos.set_piece_at(target, target_piece);
+        self.pos.set_piece_at(origin, None);
+
+        self.pos.set_en_passant_square(Bitboard::EMPTY);
+        self.pos
+            .set_plies_since_pawn_move_or_capture(self.pos.plies_since_pawn_move_or_capture() + 1);
+        match m.move_type {
+            MoveType::EnPassantCapture => {
+                let side_idx = self.pos.side_to_move() as usize;
+                let captured_idx = (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
+                self.pos.set_piece_at(captured_idx, None);
+                self.pos.set_plies_since_pawn_move_or_capture(0);
+            }
+            MoveType::DoublePawnPush => {
+                let side_idx = self.pos.side_to_move() as usize;
+                let en_passant_idx = (origin as i8 + Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
+                self.pos
+                    .set_en_passant_square(Bitboard(0x1 << en_passant_idx));
+                self.pos.set_plies_since_pawn_move_or_capture(0);
+            }
+            MoveType::Capture => {
+                self.pos.set_plies_since_pawn_move_or_capture(0);
+                self.remove_castling_rights(target);
+            }
+            _ => {}
+        }
+
+        if moving_piece == Some(piece::Piece::WhitePawn)
+            || moving_piece == Some(piece::Piece::BlackPawn)
+        {
+            self.pos.set_plies_since_pawn_move_or_capture(0);
+        }
+
+        self.remove_castling_rights(origin);
+
+        let move_count = self.pos.move_count();
+        self.pos.set_move_count(move_count + side_to_move as usize);
+        self.pos.set_side_to_move(!side_to_move);
+    }
+
+    fn undo_move(&mut self, m: Move) {
+        let origin = m.origin();
+        let target = m.target();
+        let moving_piece = self.pos.piece_at(target);
+
+        let is_promotion = m.move_type == MoveType::KnightPromo
+            || m.move_type == MoveType::BishopPromo
+            || m.move_type == MoveType::RookPromo
+            || m.move_type == MoveType::QueenPromo;
+        let is_promo_capture = m.move_type == MoveType::KnightPromoCapture
+            || m.move_type == MoveType::BishopPromoCapture
+            || m.move_type == MoveType::RookPromoCapture
+            || m.move_type == MoveType::QueenPromoCapture;
+
+        let origin_piece = if is_promotion || is_promo_capture {
+            match !self.pos.side_to_move() {
+                Side::White => Some(piece::Piece::WhitePawn),
+                Side::Black => Some(piece::Piece::BlackPawn),
+            }
+        } else {
+            moving_piece
+        };
+
+        self.pos.set_piece_at(origin, origin_piece);
+        self.pos.set_piece_at(target, None);
+
+        self.pos.set_side_to_move(!self.pos.side_to_move());
+        self.pos
+            .set_move_count(self.pos.move_count() - self.pos.side_to_move() as usize);
+
+        debug_assert!(!self.irreversible_properties.is_empty());
+        let irr = self.irreversible_properties.pop().unwrap();
+        self.pos.set_en_passant_square(irr.en_passant_square);
+        self.pos.set_castling_rights(irr.castling_rights);
+        self.pos
+            .set_plies_since_pawn_move_or_capture(irr.plies_since_pawn_move_or_capture);
+        if m.move_type() == MoveType::Capture {
+            self.pos.set_piece_at(target, irr.captured_piece);
+        }
+        if m.move_type() == MoveType::EnPassantCapture {
+            let side_idx = self.pos.side_to_move() as usize;
+            let captured_idx = (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
+            self.pos.set_piece_at(captured_idx, irr.captured_piece);
+        }
+        if is_promo_capture {
+            self.pos.set_piece_at(target, irr.captured_piece);
+        }
     }
 
     fn generate_pawn_moves(&mut self) {
@@ -383,12 +581,34 @@ impl MoveGenerator {
             }
         }
     }
+
+    fn remove_castling_rights(&mut self, square: usize) {
+        let removed_castling_rights = match square {
+            Bitboard::IDX_A1 => CastlingRights::WHITE_QUEENSIDE,
+            Bitboard::IDX_H1 => CastlingRights::WHITE_KINGSIDE,
+            Bitboard::IDX_E1 => CastlingRights::WHITE_BOTH,
+            Bitboard::IDX_A8 => CastlingRights::BLACK_QUEENSIDE,
+            Bitboard::IDX_H8 => CastlingRights::BLACK_KINGSIDE,
+            Bitboard::IDX_E8 => CastlingRights::BLACK_BOTH,
+            _ => CastlingRights::empty(),
+        };
+        self.pos
+            .set_castling_rights(self.pos.castling_rights() & !removed_castling_rights);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::side::Side;
+
+    #[test]
+    fn move_properties() {
+        let m = Move::new(Bitboard::IDX_E2, Bitboard::IDX_E4, MoveType::DoublePawnPush);
+        assert_eq!(Bitboard::IDX_E2, m.origin());
+        assert_eq!(Bitboard::IDX_E4, m.target());
+        assert_eq!(MoveType::DoublePawnPush, m.move_type());
+    }
 
     #[test]
     fn initial_position() {
@@ -1296,5 +1516,527 @@ mod tests {
             Bitboard::IDX_E2,
             MoveType::Quiet
         )));
+    }
+
+    #[test]
+    fn do_and_undo_move_initial_position() {
+        let pos = Position::initial();
+        let mut movegen = MoveGenerator::new(pos);
+        let mut pos_history = Vec::new();
+        let mut move_history = Vec::new();
+
+        // Position after 1. e4
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(Bitboard::IDX_E2, Bitboard::IDX_E4, MoveType::DoublePawnPush);
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Bitboard::E4,
+            movegen.pos.side_occupancy(Side::White) & (Bitboard::E2 | Bitboard::E4)
+        );
+        assert_eq!(Bitboard::E3, movegen.pos.en_passant_square());
+        assert_eq!(Side::Black, movegen.pos.side_to_move());
+        assert_eq!(
+            CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
+            movegen.pos.castling_rights()
+        );
+        assert_eq!(0, movegen.pos.plies_since_pawn_move_or_capture());
+        assert_eq!(1, movegen.pos.move_count());
+
+        // Position after 1. e4 c5
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(Bitboard::IDX_C7, Bitboard::IDX_C5, MoveType::DoublePawnPush);
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Bitboard::C5,
+            movegen.pos.side_occupancy(Side::Black) & (Bitboard::C7 | Bitboard::C5)
+        );
+        assert_eq!(Bitboard::C6, movegen.pos.en_passant_square());
+        assert_eq!(Side::White, movegen.pos.side_to_move());
+        assert_eq!(
+            CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
+            movegen.pos.castling_rights()
+        );
+        assert_eq!(0, movegen.pos.plies_since_pawn_move_or_capture());
+        assert_eq!(2, movegen.pos.move_count());
+
+        // Position after 1. e4 c5 2. Nf3
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(Bitboard::IDX_G1, Bitboard::IDX_F3, MoveType::Quiet);
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Bitboard::F3,
+            movegen.pos.side_occupancy(Side::White) & (Bitboard::G1 | Bitboard::F3)
+        );
+        assert_eq!(Bitboard::EMPTY, movegen.pos.en_passant_square());
+        assert_eq!(Side::Black, movegen.pos.side_to_move());
+        assert_eq!(
+            CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
+            movegen.pos.castling_rights()
+        );
+        assert_eq!(1, movegen.pos.plies_since_pawn_move_or_capture());
+        assert_eq!(2, movegen.pos.move_count());
+
+        // Position after 1. e4 c5 2. Nf3 d6
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(Bitboard::IDX_D7, Bitboard::IDX_D6, MoveType::Quiet);
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Bitboard::D6,
+            movegen.pos.side_occupancy(Side::Black) & (Bitboard::D7 | Bitboard::D6)
+        );
+        assert_eq!(Bitboard::EMPTY, movegen.pos.en_passant_square());
+        assert_eq!(Side::White, movegen.pos.side_to_move());
+        assert_eq!(
+            CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
+            movegen.pos.castling_rights()
+        );
+        assert_eq!(0, movegen.pos.plies_since_pawn_move_or_capture());
+        assert_eq!(3, movegen.pos.move_count());
+
+        // Position after 1. e4 c5 2. Nf3
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Position after 1. e4 c5
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Position after 1. e4
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Initial position
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+    }
+
+    #[test]
+    fn do_and_undo_move_castling_rights() {
+        let mut pos = Position::empty();
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
+        pos.set_piece_at(Bitboard::IDX_A1, Some(piece::Piece::WhiteRook));
+        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::WhiteRook));
+        pos.set_piece_at(Bitboard::IDX_B7, Some(piece::Piece::WhitePawn));
+        pos.set_piece_at(Bitboard::IDX_G7, Some(piece::Piece::WhitePawn));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
+        pos.set_piece_at(Bitboard::IDX_A8, Some(piece::Piece::BlackRook));
+        pos.set_piece_at(Bitboard::IDX_H8, Some(piece::Piece::BlackRook));
+        pos.set_piece_at(Bitboard::IDX_B2, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_G2, Some(piece::Piece::BlackPawn));
+        pos.set_castling_rights(CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH);
+        let mut movegen = MoveGenerator::new(pos);
+        let mut pos_history = Vec::new();
+        let mut move_history = Vec::new();
+
+        // Position after 1. 0-0
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(Bitboard::IDX_E1, Bitboard::IDX_G1, MoveType::KingsideCastle);
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Bitboard::G1,
+            movegen.pos.side_occupancy(Side::White) & (Bitboard::E1 | Bitboard::G1)
+        );
+        assert_eq!(CastlingRights::BLACK_BOTH, movegen.pos.castling_rights());
+
+        // Position after 1. 0-0 Ke7
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(Bitboard::IDX_E8, Bitboard::IDX_E7, MoveType::Quiet);
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Bitboard::E7,
+            movegen.pos.side_occupancy(Side::Black) & (Bitboard::E8 | Bitboard::E7)
+        );
+        assert_eq!(CastlingRights::empty(), movegen.pos.castling_rights());
+
+        // Position after 1. 0-0
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Starting position
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Position after 1. Ra2
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(Bitboard::IDX_A1, Bitboard::IDX_A2, MoveType::Quiet);
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            CastlingRights::WHITE_KINGSIDE | CastlingRights::BLACK_BOTH,
+            movegen.pos.castling_rights()
+        );
+
+        // Position after 1. Ra2 Rxh1
+        // White loses kingside castling rights after the rook on h1 gets captured
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(Bitboard::IDX_H8, Bitboard::IDX_H1, MoveType::Capture);
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            CastlingRights::BLACK_QUEENSIDE,
+            movegen.pos.castling_rights()
+        );
+
+        // Position after 1. Ra2
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Starting position
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Position after 1. bxa8=N
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(
+            Bitboard::IDX_B7,
+            Bitboard::IDX_A8,
+            MoveType::KnightPromoCapture,
+        );
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            CastlingRights::WHITE_BOTH | CastlingRights::BLACK_KINGSIDE,
+            movegen.pos.castling_rights()
+        );
+
+        // Position after 1. bxa8=N bxa1=B
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(
+            Bitboard::IDX_B2,
+            Bitboard::IDX_A1,
+            MoveType::BishopPromoCapture,
+        );
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            CastlingRights::WHITE_KINGSIDE | CastlingRights::BLACK_KINGSIDE,
+            movegen.pos.castling_rights()
+        );
+
+        // Position after 1. bxa8=N bxa1=B 2. gxh8=R+
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(
+            Bitboard::IDX_G7,
+            Bitboard::IDX_H8,
+            MoveType::RookPromoCapture,
+        );
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            CastlingRights::WHITE_KINGSIDE,
+            movegen.pos.castling_rights()
+        );
+
+        // Position after 1. bxa8=N bxa1=B
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Position after 1. bxa8=N bxa1=B 2. gxh8=B
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(
+            Bitboard::IDX_G7,
+            Bitboard::IDX_H8,
+            MoveType::BishopPromoCapture,
+        );
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            CastlingRights::WHITE_KINGSIDE,
+            movegen.pos.castling_rights()
+        );
+
+        // Position after 1. bxa8=N bxa1=B 2. gxh8=B+ gxh1=Q+
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(
+            Bitboard::IDX_G2,
+            Bitboard::IDX_H1,
+            MoveType::QueenPromoCapture,
+        );
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(CastlingRights::empty(), movegen.pos.castling_rights());
+
+        // Position after 1. bxa8=N bxa1=B 2. gxh8=B
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Position after 1. bxa8=N bxa1=B
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Position after 1. bxa8=N
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Starting position
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+    }
+
+    #[test]
+    fn do_and_undo_move_en_passant() {
+        let mut pos = Position::empty();
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
+        pos.set_piece_at(Bitboard::IDX_D5, Some(piece::Piece::WhitePawn));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
+        pos.set_piece_at(Bitboard::IDX_C5, Some(piece::Piece::BlackPawn));
+        pos.set_en_passant_square(Bitboard::C6);
+        let mut movegen = MoveGenerator::new(pos);
+        let mut pos_history = Vec::new();
+        let mut move_history = Vec::new();
+
+        // Position after 1. dxc6
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(
+            Bitboard::IDX_D5,
+            Bitboard::IDX_C6,
+            MoveType::EnPassantCapture,
+        );
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Bitboard::C6,
+            movegen.pos.side_occupancy(Side::White) & (Bitboard::D5 | Bitboard::C6)
+        );
+        assert_eq!(
+            Bitboard::EMPTY,
+            movegen.pos.side_occupancy(Side::Black) & Bitboard::C5
+        );
+
+        // Starting position
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+    }
+
+    #[test]
+    fn do_and_undo_move_promotions() {
+        let mut pos = Position::empty();
+        pos.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::WhiteKing));
+        pos.set_piece_at(Bitboard::IDX_A7, Some(piece::Piece::WhitePawn));
+        pos.set_piece_at(Bitboard::IDX_H7, Some(piece::Piece::WhitePawn));
+        pos.set_piece_at(Bitboard::IDX_E7, Some(piece::Piece::BlackKing));
+        pos.set_piece_at(Bitboard::IDX_A2, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_H2, Some(piece::Piece::BlackPawn));
+        let mut movegen = MoveGenerator::new(pos);
+        let mut pos_history = Vec::new();
+        let mut move_history = Vec::new();
+
+        // Position after 1. a8=Q
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(Bitboard::IDX_A7, Bitboard::IDX_A8, MoveType::QueenPromo);
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Some(piece::Piece::WhiteQueen),
+            movegen.pos.piece_at(Bitboard::IDX_A8)
+        );
+
+        // Position after 1. a8=Q a1=R
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(Bitboard::IDX_A2, Bitboard::IDX_A1, MoveType::RookPromo);
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Some(piece::Piece::BlackRook),
+            movegen.pos.piece_at(Bitboard::IDX_A1)
+        );
+
+        // Position after 1. a8=Q a1=R 2. h8=B
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(Bitboard::IDX_H7, Bitboard::IDX_H8, MoveType::BishopPromo);
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Some(piece::Piece::WhiteBishop),
+            movegen.pos.piece_at(Bitboard::IDX_H8)
+        );
+
+        // Position after 1. a8=Q a1=R 2. h8=B h1=N
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(Bitboard::IDX_H2, Bitboard::IDX_H1, MoveType::KnightPromo);
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Some(piece::Piece::BlackKnight),
+            movegen.pos.piece_at(Bitboard::IDX_H1)
+        );
+
+        // Position after 1. a8=Q a1=R 2. h8=B
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Position after 1. a8=Q a1=R
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Position after 1. a8=Q
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Starting position
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+    }
+
+    #[test]
+    fn do_and_undo_move_promotion_captures() {
+        let mut pos = Position::empty();
+        pos.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::WhiteKing));
+        pos.set_piece_at(Bitboard::IDX_A7, Some(piece::Piece::WhitePawn));
+        pos.set_piece_at(Bitboard::IDX_H7, Some(piece::Piece::WhitePawn));
+        pos.set_piece_at(Bitboard::IDX_B1, Some(piece::Piece::WhiteKnight));
+        pos.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WhiteKnight));
+        pos.set_piece_at(Bitboard::IDX_E7, Some(piece::Piece::BlackKing));
+        pos.set_piece_at(Bitboard::IDX_A2, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_H2, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_B8, Some(piece::Piece::BlackKnight));
+        pos.set_piece_at(Bitboard::IDX_G8, Some(piece::Piece::BlackKnight));
+        let mut movegen = MoveGenerator::new(pos);
+        let mut pos_history = Vec::new();
+        let mut move_history = Vec::new();
+
+        // Position after 1. axb8=Q
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(
+            Bitboard::IDX_A7,
+            Bitboard::IDX_B8,
+            MoveType::QueenPromoCapture,
+        );
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Some(piece::Piece::WhiteQueen),
+            movegen.pos.piece_at(Bitboard::IDX_B8)
+        );
+
+        // Position after 1. axb8=Q axb1=R
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(
+            Bitboard::IDX_A2,
+            Bitboard::IDX_B1,
+            MoveType::RookPromoCapture,
+        );
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Some(piece::Piece::BlackRook),
+            movegen.pos.piece_at(Bitboard::IDX_B1)
+        );
+
+        // Position after 1. axb8=Q axb1=R 2. hxg8=B
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(
+            Bitboard::IDX_H7,
+            Bitboard::IDX_G8,
+            MoveType::BishopPromoCapture,
+        );
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Some(piece::Piece::WhiteBishop),
+            movegen.pos.piece_at(Bitboard::IDX_G8)
+        );
+
+        // Position after 1. axb8=Q axb1=R 2. hxg8=B hxg1=N+
+        pos_history.push(movegen.pos.clone());
+        let m = Move::new(
+            Bitboard::IDX_H2,
+            Bitboard::IDX_G1,
+            MoveType::KnightPromoCapture,
+        );
+        move_history.push(m);
+        movegen.do_move(m);
+        assert_eq!(
+            Some(piece::Piece::BlackKnight),
+            movegen.pos.piece_at(Bitboard::IDX_G1)
+        );
+
+        // Position after 1. axb8=Q axb1=R 2. hxg8=B
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Position after 1. axb8=Q axb1=R
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Position after 1. axb8=Q
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
+
+        // Starting position
+        movegen.undo_move(move_history.pop().expect("Expected Some(Move), got None"));
+        let prev_pos = pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, &movegen.pos);
     }
 }
