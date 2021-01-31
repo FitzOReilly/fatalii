@@ -10,7 +10,7 @@ use crate::rook::Rook;
 use crate::side::Side;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-enum MoveType {
+pub enum MoveType {
     Quiet = 0,
     DoublePawnPush = 1,
     KingsideCastle = 2,
@@ -28,14 +28,14 @@ enum MoveType {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Move {
+pub struct Move {
     from: u8,
     to: u8,
     move_type: MoveType,
 }
 
 impl Move {
-    fn new(from: usize, to: usize, move_type: MoveType) -> Move {
+    pub fn new(from: usize, to: usize, move_type: MoveType) -> Move {
         debug_assert!(from < Bitboard::NUM_SQUARES);
         debug_assert!(to < Bitboard::NUM_SQUARES);
         Move {
@@ -82,7 +82,7 @@ impl IrreversibleProperties {
     }
 }
 
-struct MoveGenerator {
+pub struct MoveGenerator {
     pos: Position,
     move_list: Vec<Move>,
     irreversible_properties: Vec<IrreversibleProperties>,
@@ -113,12 +113,16 @@ impl MoveGenerator {
         Bitboard::IDX_SHIFT_SOUTH_WEST,
     ];
 
-    fn new(pos: Position) -> MoveGenerator {
+    pub fn new(pos: Position) -> MoveGenerator {
         MoveGenerator {
             pos,
             move_list: Vec::new(),
             irreversible_properties: Vec::new(),
         }
+    }
+
+    pub fn move_list(&self) -> Vec<Move> {
+        self.move_list.clone()
     }
 
     fn add_move_if_legal(&mut self, m: Move) {
@@ -140,7 +144,7 @@ impl MoveGenerator {
         }
     }
 
-    fn generate_moves(&mut self) {
+    pub fn generate_moves(&mut self) {
         self.move_list.clear();
         self.generate_pawn_moves();
         self.generate_knight_moves();
@@ -151,7 +155,7 @@ impl MoveGenerator {
         self.generate_castles();
     }
 
-    fn do_move(&mut self, m: Move) {
+    pub fn do_move(&mut self, m: Move) {
         let origin = m.origin();
         let target = m.target();
         let moving_piece = self.pos.piece_at(origin);
@@ -261,7 +265,7 @@ impl MoveGenerator {
         self.pos.set_side_to_move(!side_to_move);
     }
 
-    fn undo_move(&mut self, m: Move) {
+    pub fn undo_move(&mut self, m: Move) {
         let origin = m.origin();
         let target = m.target();
         let moving_piece = self.pos.piece_at(target);

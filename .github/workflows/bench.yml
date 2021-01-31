@@ -1,0 +1,20 @@
+name: Benchmarks
+
+on: [pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --release --verbose
+    - name: Run expensive tests
+      run: cargo test --release --verbose -- --ignored
+    - name: Run benchmarks
+      run: cargo bench --verbose
