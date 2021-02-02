@@ -178,48 +178,48 @@ impl MoveGenerator {
         let side_to_move = self.pos.side_to_move();
         let target_piece = match side_to_move {
             Side::White => match m.move_type() {
-                MoveType::KnightPromo => Some(piece::Piece::WhiteKnight),
-                MoveType::BishopPromo => Some(piece::Piece::WhiteBishop),
-                MoveType::RookPromo => Some(piece::Piece::WhiteRook),
-                MoveType::QueenPromo => Some(piece::Piece::WhiteQueen),
+                MoveType::KnightPromo => Some(piece::Piece::WHITE_KNIGHT),
+                MoveType::BishopPromo => Some(piece::Piece::WHITE_BISHOP),
+                MoveType::RookPromo => Some(piece::Piece::WHITE_ROOK),
+                MoveType::QueenPromo => Some(piece::Piece::WHITE_QUEEN),
                 MoveType::KnightPromoCapture => {
                     self.remove_castling_rights(target);
-                    Some(piece::Piece::WhiteKnight)
+                    Some(piece::Piece::WHITE_KNIGHT)
                 }
                 MoveType::BishopPromoCapture => {
                     self.remove_castling_rights(target);
-                    Some(piece::Piece::WhiteBishop)
+                    Some(piece::Piece::WHITE_BISHOP)
                 }
                 MoveType::RookPromoCapture => {
                     self.remove_castling_rights(target);
-                    Some(piece::Piece::WhiteRook)
+                    Some(piece::Piece::WHITE_ROOK)
                 }
                 MoveType::QueenPromoCapture => {
                     self.remove_castling_rights(target);
-                    Some(piece::Piece::WhiteQueen)
+                    Some(piece::Piece::WHITE_QUEEN)
                 }
                 _ => moving_piece,
             },
             Side::Black => match m.move_type() {
-                MoveType::KnightPromo => Some(piece::Piece::BlackKnight),
-                MoveType::BishopPromo => Some(piece::Piece::BlackBishop),
-                MoveType::RookPromo => Some(piece::Piece::BlackRook),
-                MoveType::QueenPromo => Some(piece::Piece::BlackQueen),
+                MoveType::KnightPromo => Some(piece::Piece::BLACK_KNIGHT),
+                MoveType::BishopPromo => Some(piece::Piece::BLACK_BISHOP),
+                MoveType::RookPromo => Some(piece::Piece::BLACK_ROOK),
+                MoveType::QueenPromo => Some(piece::Piece::BLACK_QUEEN),
                 MoveType::KnightPromoCapture => {
                     self.remove_castling_rights(target);
-                    Some(piece::Piece::BlackKnight)
+                    Some(piece::Piece::BLACK_KNIGHT)
                 }
                 MoveType::BishopPromoCapture => {
                     self.remove_castling_rights(target);
-                    Some(piece::Piece::BlackBishop)
+                    Some(piece::Piece::BLACK_BISHOP)
                 }
                 MoveType::RookPromoCapture => {
                     self.remove_castling_rights(target);
-                    Some(piece::Piece::BlackRook)
+                    Some(piece::Piece::BLACK_ROOK)
                 }
                 MoveType::QueenPromoCapture => {
                     self.remove_castling_rights(target);
-                    Some(piece::Piece::BlackQueen)
+                    Some(piece::Piece::BLACK_QUEEN)
                 }
                 _ => moving_piece,
             },
@@ -252,8 +252,8 @@ impl MoveGenerator {
             _ => {}
         }
 
-        if moving_piece == Some(piece::Piece::WhitePawn)
-            || moving_piece == Some(piece::Piece::BlackPawn)
+        if moving_piece == Some(piece::Piece::WHITE_PAWN)
+            || moving_piece == Some(piece::Piece::BLACK_PAWN)
         {
             self.pos.set_plies_since_pawn_move_or_capture(0);
         }
@@ -281,8 +281,8 @@ impl MoveGenerator {
 
         let origin_piece = if is_promotion || is_promo_capture {
             match !self.pos.side_to_move() {
-                Side::White => Some(piece::Piece::WhitePawn),
-                Side::Black => Some(piece::Piece::BlackPawn),
+                Side::White => Some(piece::Piece::WHITE_PAWN),
+                Side::Black => Some(piece::Piece::BLACK_PAWN),
             }
         } else {
             moving_piece
@@ -490,11 +490,11 @@ impl MoveGenerator {
 
         if castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
             debug_assert_eq!(
-                Some(piece::Piece::WhiteKing),
+                Some(piece::Piece::WHITE_KING),
                 self.pos.piece_at(Bitboard::IDX_E1)
             );
             debug_assert_eq!(
-                Some(piece::Piece::WhiteRook),
+                Some(piece::Piece::WHITE_ROOK),
                 self.pos.piece_at(Bitboard::IDX_H1)
             );
             let squares_passable =
@@ -512,11 +512,11 @@ impl MoveGenerator {
         }
         if castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
             debug_assert_eq!(
-                Some(piece::Piece::WhiteKing),
+                Some(piece::Piece::WHITE_KING),
                 self.pos.piece_at(Bitboard::IDX_E1)
             );
             debug_assert_eq!(
-                Some(piece::Piece::WhiteRook),
+                Some(piece::Piece::WHITE_ROOK),
                 self.pos.piece_at(Bitboard::IDX_A1)
             );
             let squares_passable = self.pos.occupancy()
@@ -541,11 +541,11 @@ impl MoveGenerator {
 
         if castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
             debug_assert_eq!(
-                Some(piece::Piece::BlackKing),
+                Some(piece::Piece::BLACK_KING),
                 self.pos.piece_at(Bitboard::IDX_E8)
             );
             debug_assert_eq!(
-                Some(piece::Piece::BlackRook),
+                Some(piece::Piece::BLACK_ROOK),
                 self.pos.piece_at(Bitboard::IDX_H8)
             );
             let squares_passable =
@@ -563,11 +563,11 @@ impl MoveGenerator {
         }
         if castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
             debug_assert_eq!(
-                Some(piece::Piece::BlackKing),
+                Some(piece::Piece::BLACK_KING),
                 self.pos.piece_at(Bitboard::IDX_E8)
             );
             debug_assert_eq!(
-                Some(piece::Piece::BlackRook),
+                Some(piece::Piece::BLACK_ROOK),
                 self.pos.piece_at(Bitboard::IDX_A8)
             );
             let squares_passable = self.pos.occupancy()
@@ -654,7 +654,7 @@ mod tests {
     fn position_after_1_e4() {
         let mut pos = Position::initial();
         pos.set_piece_at(Bitboard::IDX_E2, None);
-        pos.set_piece_at(Bitboard::IDX_E4, Some(piece::Piece::WhitePawn));
+        pos.set_piece_at(Bitboard::IDX_E4, Some(piece::Piece::WHITE_PAWN));
         pos.set_en_passant_square(Bitboard::E3);
         pos.set_side_to_move(Side::Black);
         let mut movegen = MoveGenerator::new(pos);
@@ -694,14 +694,14 @@ mod tests {
     #[test]
     fn white_pawn_captures() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_A2, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_H2, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_A3, Some(piece::Piece::BlackPawn));
-        pos.set_piece_at(Bitboard::IDX_B3, Some(piece::Piece::BlackPawn));
-        pos.set_piece_at(Bitboard::IDX_G3, Some(piece::Piece::BlackPawn));
-        pos.set_piece_at(Bitboard::IDX_H3, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_A2, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_H2, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_A3, Some(piece::Piece::BLACK_PAWN));
+        pos.set_piece_at(Bitboard::IDX_B3, Some(piece::Piece::BLACK_PAWN));
+        pos.set_piece_at(Bitboard::IDX_G3, Some(piece::Piece::BLACK_PAWN));
+        pos.set_piece_at(Bitboard::IDX_H3, Some(piece::Piece::BLACK_PAWN));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos);
@@ -727,14 +727,14 @@ mod tests {
     #[test]
     fn black_pawn_captures() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_A7, Some(piece::Piece::BlackPawn));
-        pos.set_piece_at(Bitboard::IDX_H7, Some(piece::Piece::BlackPawn));
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_A6, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_B6, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_G6, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_H6, Some(piece::Piece::WhitePawn));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_A7, Some(piece::Piece::BLACK_PAWN));
+        pos.set_piece_at(Bitboard::IDX_H7, Some(piece::Piece::BLACK_PAWN));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_A6, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_B6, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_G6, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_H6, Some(piece::Piece::WHITE_PAWN));
         pos.set_side_to_move(Side::Black);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos);
@@ -760,9 +760,9 @@ mod tests {
     #[test]
     fn king_moves() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_F2, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_F2, Some(piece::Piece::BLACK_PAWN));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos);
@@ -785,11 +785,11 @@ mod tests {
     #[test]
     fn knight_moves() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_B1, Some(piece::Piece::WhiteKnight));
-        pos.set_piece_at(Bitboard::IDX_C3, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_A3, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_B1, Some(piece::Piece::WHITE_KNIGHT));
+        pos.set_piece_at(Bitboard::IDX_C3, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_A3, Some(piece::Piece::BLACK_PAWN));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos);
@@ -818,10 +818,10 @@ mod tests {
     #[test]
     fn bishop_moves() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_C3, Some(piece::Piece::WhiteBishop));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_G7, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_C3, Some(piece::Piece::WHITE_BISHOP));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_G7, Some(piece::Piece::BLACK_PAWN));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos);
@@ -855,10 +855,10 @@ mod tests {
     #[test]
     fn rook_moves() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_E3, Some(piece::Piece::WhiteRook));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_E7, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_E3, Some(piece::Piece::WHITE_ROOK));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_E7, Some(piece::Piece::BLACK_PAWN));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos);
@@ -895,12 +895,12 @@ mod tests {
     #[test]
     fn queen_moves() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_E3, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_C3, Some(piece::Piece::WhiteQueen));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_C7, Some(piece::Piece::BlackPawn));
-        pos.set_piece_at(Bitboard::IDX_G7, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_E3, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_C3, Some(piece::Piece::WHITE_QUEEN));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_C7, Some(piece::Piece::BLACK_PAWN));
+        pos.set_piece_at(Bitboard::IDX_G7, Some(piece::Piece::BLACK_PAWN));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos);
@@ -946,11 +946,11 @@ mod tests {
     #[test]
     fn white_promotions() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_B7, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_A8, Some(piece::Piece::BlackRook));
-        pos.set_piece_at(Bitboard::IDX_C8, Some(piece::Piece::BlackBishop));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_B7, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_A8, Some(piece::Piece::BLACK_ROOK));
+        pos.set_piece_at(Bitboard::IDX_C8, Some(piece::Piece::BLACK_BISHOP));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos);
@@ -1019,11 +1019,11 @@ mod tests {
     #[test]
     fn black_promotions() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_B2, Some(piece::Piece::BlackPawn));
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_A1, Some(piece::Piece::WhiteRook));
-        pos.set_piece_at(Bitboard::IDX_C1, Some(piece::Piece::WhiteBishop));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_B2, Some(piece::Piece::BLACK_PAWN));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_A1, Some(piece::Piece::WHITE_ROOK));
+        pos.set_piece_at(Bitboard::IDX_C1, Some(piece::Piece::WHITE_BISHOP));
         pos.set_side_to_move(Side::Black);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos);
@@ -1092,10 +1092,10 @@ mod tests {
     #[test]
     fn white_en_passant_captures() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_D5, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_C5, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_D5, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_C5, Some(piece::Piece::BLACK_PAWN));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         pos.set_en_passant_square(Bitboard::C6);
@@ -1127,10 +1127,10 @@ mod tests {
     #[test]
     fn black_en_passant_captures() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_D4, Some(piece::Piece::BlackPawn));
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_C4, Some(piece::Piece::WhitePawn));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_D4, Some(piece::Piece::BLACK_PAWN));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_C4, Some(piece::Piece::WHITE_PAWN));
         pos.set_side_to_move(Side::Black);
         pos.set_castling_rights(CastlingRights::empty());
         pos.set_en_passant_square(Bitboard::C3);
@@ -1170,10 +1170,10 @@ mod tests {
         );
 
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_A1, Some(piece::Piece::WhiteRook));
-        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::WhiteRook));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_A1, Some(piece::Piece::WHITE_ROOK));
+        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::WHITE_ROOK));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos.clone());
@@ -1201,8 +1201,8 @@ mod tests {
 
         // Square between king and rook blocked
         let mut pos_blocked = pos.clone();
-        pos_blocked.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WhiteKnight));
-        pos_blocked.set_piece_at(Bitboard::IDX_B1, Some(piece::Piece::BlackKnight));
+        pos_blocked.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WHITE_KNIGHT));
+        pos_blocked.set_piece_at(Bitboard::IDX_B1, Some(piece::Piece::BLACK_KNIGHT));
         let mut movegen = MoveGenerator::new(pos_blocked);
         movegen.generate_moves();
         assert!(!movegen.move_list.contains(&kingside_castle));
@@ -1210,7 +1210,7 @@ mod tests {
 
         // King attacked
         let mut pos_in_check = pos.clone();
-        pos_in_check.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::BlackRook));
+        pos_in_check.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::BLACK_ROOK));
         let mut movegen = MoveGenerator::new(pos_in_check);
         movegen.generate_moves();
         assert!(!movegen.move_list.contains(&kingside_castle));
@@ -1218,7 +1218,7 @@ mod tests {
 
         // Square traversed by king attacked
         let mut pos_traverse_attacked = pos.clone();
-        pos_traverse_attacked.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::BlackBishop));
+        pos_traverse_attacked.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::BLACK_BISHOP));
         let mut movegen = MoveGenerator::new(pos_traverse_attacked);
         movegen.generate_moves();
         assert!(!movegen.move_list.contains(&kingside_castle));
@@ -1226,7 +1226,7 @@ mod tests {
 
         // Target square attacked
         let mut pos_target_attacked = pos.clone();
-        pos_target_attacked.set_piece_at(Bitboard::IDX_E3, Some(piece::Piece::BlackBishop));
+        pos_target_attacked.set_piece_at(Bitboard::IDX_E3, Some(piece::Piece::BLACK_BISHOP));
         let mut movegen = MoveGenerator::new(pos_target_attacked);
         movegen.generate_moves();
         assert!(!movegen.move_list.contains(&kingside_castle));
@@ -1234,8 +1234,8 @@ mod tests {
 
         // Rook attacked (castling is legal)
         let mut pos_target_attacked = pos.clone();
-        pos_target_attacked.set_piece_at(Bitboard::IDX_E4, Some(piece::Piece::BlackBishop));
-        pos_target_attacked.set_piece_at(Bitboard::IDX_E5, Some(piece::Piece::BlackBishop));
+        pos_target_attacked.set_piece_at(Bitboard::IDX_E4, Some(piece::Piece::BLACK_BISHOP));
+        pos_target_attacked.set_piece_at(Bitboard::IDX_E5, Some(piece::Piece::BLACK_BISHOP));
         let mut movegen = MoveGenerator::new(pos_target_attacked);
         movegen.generate_moves();
         assert!(movegen.move_list.contains(&kingside_castle));
@@ -1253,10 +1253,10 @@ mod tests {
         );
 
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_A8, Some(piece::Piece::BlackRook));
-        pos.set_piece_at(Bitboard::IDX_H8, Some(piece::Piece::BlackRook));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_A8, Some(piece::Piece::BLACK_ROOK));
+        pos.set_piece_at(Bitboard::IDX_H8, Some(piece::Piece::BLACK_ROOK));
         pos.set_side_to_move(Side::Black);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos.clone());
@@ -1284,8 +1284,8 @@ mod tests {
 
         // Square between king and rook blocked
         let mut pos_blocked = pos.clone();
-        pos_blocked.set_piece_at(Bitboard::IDX_G8, Some(piece::Piece::BlackKnight));
-        pos_blocked.set_piece_at(Bitboard::IDX_B8, Some(piece::Piece::WhiteKnight));
+        pos_blocked.set_piece_at(Bitboard::IDX_G8, Some(piece::Piece::BLACK_KNIGHT));
+        pos_blocked.set_piece_at(Bitboard::IDX_B8, Some(piece::Piece::WHITE_KNIGHT));
         let mut movegen = MoveGenerator::new(pos_blocked);
         movegen.generate_moves();
         assert!(!movegen.move_list.contains(&kingside_castle));
@@ -1293,7 +1293,7 @@ mod tests {
 
         // King attacked
         let mut pos_in_check = pos.clone();
-        pos_in_check.set_piece_at(Bitboard::IDX_E7, Some(piece::Piece::WhiteRook));
+        pos_in_check.set_piece_at(Bitboard::IDX_E7, Some(piece::Piece::WHITE_ROOK));
         let mut movegen = MoveGenerator::new(pos_in_check);
         movegen.generate_moves();
         assert!(!movegen.move_list.contains(&kingside_castle));
@@ -1301,7 +1301,7 @@ mod tests {
 
         // Square traversed by king attacked
         let mut pos_traverse_attacked = pos.clone();
-        pos_traverse_attacked.set_piece_at(Bitboard::IDX_E7, Some(piece::Piece::WhiteBishop));
+        pos_traverse_attacked.set_piece_at(Bitboard::IDX_E7, Some(piece::Piece::WHITE_BISHOP));
         let mut movegen = MoveGenerator::new(pos_traverse_attacked);
         movegen.generate_moves();
         assert!(!movegen.move_list.contains(&kingside_castle));
@@ -1309,7 +1309,7 @@ mod tests {
 
         // Target square attacked
         let mut pos_target_attacked = pos.clone();
-        pos_target_attacked.set_piece_at(Bitboard::IDX_E6, Some(piece::Piece::WhiteBishop));
+        pos_target_attacked.set_piece_at(Bitboard::IDX_E6, Some(piece::Piece::WHITE_BISHOP));
         let mut movegen = MoveGenerator::new(pos_target_attacked);
         movegen.generate_moves();
         assert!(!movegen.move_list.contains(&kingside_castle));
@@ -1317,8 +1317,8 @@ mod tests {
 
         // Rook attacked (castling is legal)
         let mut pos_target_attacked = pos.clone();
-        pos_target_attacked.set_piece_at(Bitboard::IDX_E4, Some(piece::Piece::WhiteBishop));
-        pos_target_attacked.set_piece_at(Bitboard::IDX_E5, Some(piece::Piece::WhiteBishop));
+        pos_target_attacked.set_piece_at(Bitboard::IDX_E4, Some(piece::Piece::WHITE_BISHOP));
+        pos_target_attacked.set_piece_at(Bitboard::IDX_E5, Some(piece::Piece::WHITE_BISHOP));
         let mut movegen = MoveGenerator::new(pos_target_attacked);
         movegen.generate_moves();
         assert!(movegen.move_list.contains(&kingside_castle));
@@ -1328,11 +1328,11 @@ mod tests {
     #[test]
     fn king_not_left_in_check_after_pawn_moves() {
         let mut pos_pawn = Position::empty();
-        pos_pawn.set_piece_at(Bitboard::IDX_D2, Some(piece::Piece::WhiteKing));
-        pos_pawn.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::WhitePawn));
-        pos_pawn.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos_pawn.set_piece_at(Bitboard::IDX_H2, Some(piece::Piece::BlackRook));
-        pos_pawn.set_piece_at(Bitboard::IDX_F3, Some(piece::Piece::BlackRook));
+        pos_pawn.set_piece_at(Bitboard::IDX_D2, Some(piece::Piece::WHITE_KING));
+        pos_pawn.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::WHITE_PAWN));
+        pos_pawn.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos_pawn.set_piece_at(Bitboard::IDX_H2, Some(piece::Piece::BLACK_ROOK));
+        pos_pawn.set_piece_at(Bitboard::IDX_F3, Some(piece::Piece::BLACK_ROOK));
         pos_pawn.set_side_to_move(Side::White);
         pos_pawn.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos_pawn.clone());
@@ -1354,11 +1354,11 @@ mod tests {
         )));
 
         let mut pos_pawn_promo = Position::empty();
-        pos_pawn_promo.set_piece_at(Bitboard::IDX_A7, Some(piece::Piece::WhiteKing));
-        pos_pawn_promo.set_piece_at(Bitboard::IDX_B7, Some(piece::Piece::WhitePawn));
-        pos_pawn_promo.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos_pawn_promo.set_piece_at(Bitboard::IDX_H7, Some(piece::Piece::BlackRook));
-        pos_pawn_promo.set_piece_at(Bitboard::IDX_C8, Some(piece::Piece::BlackRook));
+        pos_pawn_promo.set_piece_at(Bitboard::IDX_A7, Some(piece::Piece::WHITE_KING));
+        pos_pawn_promo.set_piece_at(Bitboard::IDX_B7, Some(piece::Piece::WHITE_PAWN));
+        pos_pawn_promo.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos_pawn_promo.set_piece_at(Bitboard::IDX_H7, Some(piece::Piece::BLACK_ROOK));
+        pos_pawn_promo.set_piece_at(Bitboard::IDX_C8, Some(piece::Piece::BLACK_ROOK));
         pos_pawn_promo.set_side_to_move(Side::White);
         pos_pawn_promo.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos_pawn_promo);
@@ -1375,11 +1375,11 @@ mod tests {
         )));
 
         let mut pos_pawn_en_passant = Position::empty();
-        pos_pawn_en_passant.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::WhiteKing));
-        pos_pawn_en_passant.set_piece_at(Bitboard::IDX_C5, Some(piece::Piece::WhitePawn));
-        pos_pawn_en_passant.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos_pawn_en_passant.set_piece_at(Bitboard::IDX_A6, Some(piece::Piece::BlackBishop));
-        pos_pawn_en_passant.set_piece_at(Bitboard::IDX_B5, Some(piece::Piece::BlackPawn));
+        pos_pawn_en_passant.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::WHITE_KING));
+        pos_pawn_en_passant.set_piece_at(Bitboard::IDX_C5, Some(piece::Piece::WHITE_PAWN));
+        pos_pawn_en_passant.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos_pawn_en_passant.set_piece_at(Bitboard::IDX_A6, Some(piece::Piece::BLACK_BISHOP));
+        pos_pawn_en_passant.set_piece_at(Bitboard::IDX_B5, Some(piece::Piece::BLACK_PAWN));
         pos_pawn_en_passant.set_side_to_move(Side::White);
         pos_pawn_en_passant.set_castling_rights(CastlingRights::empty());
         pos_pawn_en_passant.set_en_passant_square(Bitboard::B6);
@@ -1395,10 +1395,10 @@ mod tests {
     #[test]
     fn king_not_left_in_check_after_knight_moves() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WhiteKnight));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::BlackRook));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WHITE_KNIGHT));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::BLACK_ROOK));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos);
@@ -1423,10 +1423,10 @@ mod tests {
     #[test]
     fn king_not_left_in_check_after_bishop_moves() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WhiteBishop));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::BlackRook));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WHITE_BISHOP));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::BLACK_ROOK));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos);
@@ -1446,10 +1446,10 @@ mod tests {
     #[test]
     fn king_not_left_in_check_after_rook_moves() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WhiteRook));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::BlackRook));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WHITE_ROOK));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::BLACK_ROOK));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos);
@@ -1474,10 +1474,10 @@ mod tests {
     #[test]
     fn king_not_left_in_check_after_queen_moves() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WhiteQueen));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::BlackRook));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WHITE_QUEEN));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::BLACK_ROOK));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos);
@@ -1507,10 +1507,10 @@ mod tests {
     #[test]
     fn king_does_not_move_into_check() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WhiteRook));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_H2, Some(piece::Piece::BlackRook));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WHITE_ROOK));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_H2, Some(piece::Piece::BLACK_ROOK));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         let mut movegen = MoveGenerator::new(pos);
@@ -1633,16 +1633,16 @@ mod tests {
     #[test]
     fn do_and_undo_move_castling_rights() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_A1, Some(piece::Piece::WhiteRook));
-        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::WhiteRook));
-        pos.set_piece_at(Bitboard::IDX_B7, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_G7, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_A8, Some(piece::Piece::BlackRook));
-        pos.set_piece_at(Bitboard::IDX_H8, Some(piece::Piece::BlackRook));
-        pos.set_piece_at(Bitboard::IDX_B2, Some(piece::Piece::BlackPawn));
-        pos.set_piece_at(Bitboard::IDX_G2, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_A1, Some(piece::Piece::WHITE_ROOK));
+        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::WHITE_ROOK));
+        pos.set_piece_at(Bitboard::IDX_B7, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_G7, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_A8, Some(piece::Piece::BLACK_ROOK));
+        pos.set_piece_at(Bitboard::IDX_H8, Some(piece::Piece::BLACK_ROOK));
+        pos.set_piece_at(Bitboard::IDX_B2, Some(piece::Piece::BLACK_PAWN));
+        pos.set_piece_at(Bitboard::IDX_G2, Some(piece::Piece::BLACK_PAWN));
         pos.set_castling_rights(CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH);
         let mut movegen = MoveGenerator::new(pos);
         let mut pos_history = Vec::new();
@@ -1825,10 +1825,10 @@ mod tests {
     #[test]
     fn do_and_undo_move_en_passant() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_D5, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_C5, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_D5, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_C5, Some(piece::Piece::BLACK_PAWN));
         pos.set_en_passant_square(Bitboard::C6);
         let mut movegen = MoveGenerator::new(pos);
         let mut pos_history = Vec::new();
@@ -1863,12 +1863,12 @@ mod tests {
     #[test]
     fn do_and_undo_move_promotions() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_A7, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_H7, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_E7, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_A2, Some(piece::Piece::BlackPawn));
-        pos.set_piece_at(Bitboard::IDX_H2, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_A7, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_H7, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_E7, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_A2, Some(piece::Piece::BLACK_PAWN));
+        pos.set_piece_at(Bitboard::IDX_H2, Some(piece::Piece::BLACK_PAWN));
         let mut movegen = MoveGenerator::new(pos);
         let mut pos_history = Vec::new();
         let mut move_history = Vec::new();
@@ -1879,7 +1879,7 @@ mod tests {
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
-            Some(piece::Piece::WhiteQueen),
+            Some(piece::Piece::WHITE_QUEEN),
             movegen.pos.piece_at(Bitboard::IDX_A8)
         );
 
@@ -1889,7 +1889,7 @@ mod tests {
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
-            Some(piece::Piece::BlackRook),
+            Some(piece::Piece::BLACK_ROOK),
             movegen.pos.piece_at(Bitboard::IDX_A1)
         );
 
@@ -1899,7 +1899,7 @@ mod tests {
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
-            Some(piece::Piece::WhiteBishop),
+            Some(piece::Piece::WHITE_BISHOP),
             movegen.pos.piece_at(Bitboard::IDX_H8)
         );
 
@@ -1909,7 +1909,7 @@ mod tests {
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
-            Some(piece::Piece::BlackKnight),
+            Some(piece::Piece::BLACK_KNIGHT),
             movegen.pos.piece_at(Bitboard::IDX_H1)
         );
 
@@ -1945,16 +1945,16 @@ mod tests {
     #[test]
     fn do_and_undo_move_promotion_captures() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_A7, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_H7, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_B1, Some(piece::Piece::WhiteKnight));
-        pos.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WhiteKnight));
-        pos.set_piece_at(Bitboard::IDX_E7, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_A2, Some(piece::Piece::BlackPawn));
-        pos.set_piece_at(Bitboard::IDX_H2, Some(piece::Piece::BlackPawn));
-        pos.set_piece_at(Bitboard::IDX_B8, Some(piece::Piece::BlackKnight));
-        pos.set_piece_at(Bitboard::IDX_G8, Some(piece::Piece::BlackKnight));
+        pos.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_A7, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_H7, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_B1, Some(piece::Piece::WHITE_KNIGHT));
+        pos.set_piece_at(Bitboard::IDX_G1, Some(piece::Piece::WHITE_KNIGHT));
+        pos.set_piece_at(Bitboard::IDX_E7, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_A2, Some(piece::Piece::BLACK_PAWN));
+        pos.set_piece_at(Bitboard::IDX_H2, Some(piece::Piece::BLACK_PAWN));
+        pos.set_piece_at(Bitboard::IDX_B8, Some(piece::Piece::BLACK_KNIGHT));
+        pos.set_piece_at(Bitboard::IDX_G8, Some(piece::Piece::BLACK_KNIGHT));
         let mut movegen = MoveGenerator::new(pos);
         let mut pos_history = Vec::new();
         let mut move_history = Vec::new();
@@ -1969,7 +1969,7 @@ mod tests {
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
-            Some(piece::Piece::WhiteQueen),
+            Some(piece::Piece::WHITE_QUEEN),
             movegen.pos.piece_at(Bitboard::IDX_B8)
         );
 
@@ -1983,7 +1983,7 @@ mod tests {
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
-            Some(piece::Piece::BlackRook),
+            Some(piece::Piece::BLACK_ROOK),
             movegen.pos.piece_at(Bitboard::IDX_B1)
         );
 
@@ -1997,7 +1997,7 @@ mod tests {
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
-            Some(piece::Piece::WhiteBishop),
+            Some(piece::Piece::WHITE_BISHOP),
             movegen.pos.piece_at(Bitboard::IDX_G8)
         );
 
@@ -2011,7 +2011,7 @@ mod tests {
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
-            Some(piece::Piece::BlackKnight),
+            Some(piece::Piece::BLACK_KNIGHT),
             movegen.pos.piece_at(Bitboard::IDX_G1)
         );
 
