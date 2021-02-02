@@ -201,7 +201,7 @@ mod tests {
 
         // Position after 1. e4
         pos.set_piece_at(Bitboard::IDX_E2, None);
-        pos.set_piece_at(Bitboard::IDX_E4, Some(Piece::WhitePawn));
+        pos.set_piece_at(Bitboard::IDX_E4, Some(Piece::WHITE_PAWN));
         pos.set_en_passant_square(Bitboard::E3);
         pos.set_side_to_move(Side::Black);
         let fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
@@ -216,7 +216,7 @@ mod tests {
 
         // Position after 1. e4 c5
         pos.set_piece_at(Bitboard::IDX_C7, None);
-        pos.set_piece_at(Bitboard::IDX_C5, Some(Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_C5, Some(Piece::BLACK_PAWN));
         pos.set_en_passant_square(Bitboard::C6);
         pos.set_side_to_move(Side::White);
         pos.set_move_count(2);
@@ -232,7 +232,7 @@ mod tests {
 
         // Position after 1. e4 c5 2. Nf3
         pos.set_piece_at(Bitboard::IDX_G1, None);
-        pos.set_piece_at(Bitboard::IDX_F3, Some(Piece::WhiteKnight));
+        pos.set_piece_at(Bitboard::IDX_F3, Some(Piece::WHITE_KNIGHT));
         pos.set_en_passant_square(Bitboard::EMPTY);
         pos.set_side_to_move(Side::Black);
         pos.set_plies_since_pawn_move_or_capture(1);

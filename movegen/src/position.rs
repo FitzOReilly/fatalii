@@ -130,33 +130,33 @@ impl Position {
         let square = Bitboard(0x1 << square_index);
         if square & self.white_pieces != Bitboard::EMPTY {
             if square & self.pawns != Bitboard::EMPTY {
-                Some(Piece::WhitePawn)
+                Some(Piece::WHITE_PAWN)
             } else if square & self.knights != Bitboard::EMPTY {
-                Some(Piece::WhiteKnight)
+                Some(Piece::WHITE_KNIGHT)
             } else if square & self.bishops != Bitboard::EMPTY {
-                Some(Piece::WhiteBishop)
+                Some(Piece::WHITE_BISHOP)
             } else if square & self.rooks != Bitboard::EMPTY {
-                Some(Piece::WhiteRook)
+                Some(Piece::WHITE_ROOK)
             } else if square & self.queens != Bitboard::EMPTY {
-                Some(Piece::WhiteQueen)
+                Some(Piece::WHITE_QUEEN)
             } else {
                 debug_assert_ne!(square & self.kings, Bitboard::EMPTY);
-                Some(Piece::WhiteKing)
+                Some(Piece::WHITE_KING)
             }
         } else if square & self.black_pieces != Bitboard::EMPTY {
             if square & self.pawns != Bitboard::EMPTY {
-                Some(Piece::BlackPawn)
+                Some(Piece::BLACK_PAWN)
             } else if square & self.knights != Bitboard::EMPTY {
-                Some(Piece::BlackKnight)
+                Some(Piece::BLACK_KNIGHT)
             } else if square & self.bishops != Bitboard::EMPTY {
-                Some(Piece::BlackBishop)
+                Some(Piece::BLACK_BISHOP)
             } else if square & self.rooks != Bitboard::EMPTY {
-                Some(Piece::BlackRook)
+                Some(Piece::BLACK_ROOK)
             } else if square & self.queens != Bitboard::EMPTY {
-                Some(Piece::BlackQueen)
+                Some(Piece::BLACK_QUEEN)
             } else {
                 debug_assert_ne!(square & self.kings, Bitboard::EMPTY);
-                Some(Piece::BlackKing)
+                Some(Piece::BLACK_KING)
             }
         } else {
             None
@@ -176,55 +176,55 @@ impl Position {
         self.black_pieces &= !square;
 
         match piece {
-            Some(Piece::WhitePawn) => {
+            Some(Piece::WHITE_PAWN) => {
                 self.white_pieces |= square;
                 self.pawns |= square;
             }
-            Some(Piece::WhiteKnight) => {
+            Some(Piece::WHITE_KNIGHT) => {
                 self.white_pieces |= square;
                 self.knights |= square;
             }
-            Some(Piece::WhiteBishop) => {
+            Some(Piece::WHITE_BISHOP) => {
                 self.white_pieces |= square;
                 self.bishops |= square;
             }
-            Some(Piece::WhiteRook) => {
+            Some(Piece::WHITE_ROOK) => {
                 self.white_pieces |= square;
                 self.rooks |= square;
             }
-            Some(Piece::WhiteQueen) => {
+            Some(Piece::WHITE_QUEEN) => {
                 self.white_pieces |= square;
                 self.queens |= square;
             }
-            Some(Piece::WhiteKing) => {
+            Some(Piece::WHITE_KING) => {
                 self.white_pieces |= square;
                 self.kings |= square;
             }
-            Some(Piece::BlackPawn) => {
+            Some(Piece::BLACK_PAWN) => {
                 self.black_pieces |= square;
                 self.pawns |= square;
             }
-            Some(Piece::BlackKnight) => {
+            Some(Piece::BLACK_KNIGHT) => {
                 self.black_pieces |= square;
                 self.knights |= square;
             }
-            Some(Piece::BlackBishop) => {
+            Some(Piece::BLACK_BISHOP) => {
                 self.black_pieces |= square;
                 self.bishops |= square;
             }
-            Some(Piece::BlackRook) => {
+            Some(Piece::BLACK_ROOK) => {
                 self.black_pieces |= square;
                 self.rooks |= square;
             }
-            Some(Piece::BlackQueen) => {
+            Some(Piece::BLACK_QUEEN) => {
                 self.black_pieces |= square;
                 self.queens |= square;
             }
-            Some(Piece::BlackKing) => {
+            Some(Piece::BLACK_KING) => {
                 self.black_pieces |= square;
                 self.kings |= square;
             }
-            None => {}
+            _ => {}
         }
     }
 
@@ -340,22 +340,22 @@ mod tests {
         assert_eq!(0, pos.plies_since_pawn_move_or_capture());
         assert_eq!(1, pos.move_count());
 
-        assert_eq!(Some(Piece::WhiteRook), pos.piece_at(Bitboard::IDX_A1));
-        assert_eq!(Some(Piece::WhiteKnight), pos.piece_at(Bitboard::IDX_B1));
-        assert_eq!(Some(Piece::WhiteBishop), pos.piece_at(Bitboard::IDX_C1));
-        assert_eq!(Some(Piece::WhiteQueen), pos.piece_at(Bitboard::IDX_D1));
-        assert_eq!(Some(Piece::WhiteKing), pos.piece_at(Bitboard::IDX_E1));
-        assert_eq!(Some(Piece::WhitePawn), pos.piece_at(Bitboard::IDX_A2));
+        assert_eq!(Some(Piece::WHITE_ROOK), pos.piece_at(Bitboard::IDX_A1));
+        assert_eq!(Some(Piece::WHITE_KNIGHT), pos.piece_at(Bitboard::IDX_B1));
+        assert_eq!(Some(Piece::WHITE_BISHOP), pos.piece_at(Bitboard::IDX_C1));
+        assert_eq!(Some(Piece::WHITE_QUEEN), pos.piece_at(Bitboard::IDX_D1));
+        assert_eq!(Some(Piece::WHITE_KING), pos.piece_at(Bitboard::IDX_E1));
+        assert_eq!(Some(Piece::WHITE_PAWN), pos.piece_at(Bitboard::IDX_A2));
 
         assert_eq!(None, pos.piece_at(Bitboard::IDX_A3));
         assert_eq!(None, pos.piece_at(Bitboard::IDX_H6));
 
-        assert_eq!(Some(Piece::BlackRook), pos.piece_at(Bitboard::IDX_A8));
-        assert_eq!(Some(Piece::BlackKnight), pos.piece_at(Bitboard::IDX_B8));
-        assert_eq!(Some(Piece::BlackBishop), pos.piece_at(Bitboard::IDX_C8));
-        assert_eq!(Some(Piece::BlackQueen), pos.piece_at(Bitboard::IDX_D8));
-        assert_eq!(Some(Piece::BlackKing), pos.piece_at(Bitboard::IDX_E8));
-        assert_eq!(Some(Piece::BlackPawn), pos.piece_at(Bitboard::IDX_A7));
+        assert_eq!(Some(Piece::BLACK_ROOK), pos.piece_at(Bitboard::IDX_A8));
+        assert_eq!(Some(Piece::BLACK_KNIGHT), pos.piece_at(Bitboard::IDX_B8));
+        assert_eq!(Some(Piece::BLACK_BISHOP), pos.piece_at(Bitboard::IDX_C8));
+        assert_eq!(Some(Piece::BLACK_QUEEN), pos.piece_at(Bitboard::IDX_D8));
+        assert_eq!(Some(Piece::BLACK_KING), pos.piece_at(Bitboard::IDX_E8));
+        assert_eq!(Some(Piece::BLACK_PAWN), pos.piece_at(Bitboard::IDX_A7));
 
         assert_eq!(
             Bitboard::RANK_2,
@@ -449,7 +449,7 @@ mod tests {
     #[test]
     fn set_piece_at() {
         let mut pos = Position::initial();
-        pos.set_piece_at(Bitboard::IDX_E4, Some(Piece::WhitePawn));
+        pos.set_piece_at(Bitboard::IDX_E4, Some(Piece::WHITE_PAWN));
         let square = Bitboard::E4;
         assert_eq!(
             square,
@@ -521,23 +521,23 @@ mod tests {
     #[test]
     fn is_in_check() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WhiteKing));
-        pos.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::WhitePawn));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BlackKing));
-        pos.set_piece_at(Bitboard::IDX_D7, Some(piece::Piece::BlackPawn));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_D7, Some(piece::Piece::BLACK_PAWN));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         assert!(!pos.is_in_check(Side::White));
         assert!(!pos.is_in_check(Side::Black));
 
         // Pawn blocks the check
-        pos.set_piece_at(Bitboard::IDX_E4, Some(piece::Piece::BlackRook));
-        pos.set_piece_at(Bitboard::IDX_B5, Some(piece::Piece::WhiteBishop));
+        pos.set_piece_at(Bitboard::IDX_E4, Some(piece::Piece::BLACK_ROOK));
+        pos.set_piece_at(Bitboard::IDX_B5, Some(piece::Piece::WHITE_BISHOP));
         assert!(!pos.is_in_check(Side::White));
         assert!(!pos.is_in_check(Side::Black));
 
-        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::BlackRook));
-        pos.set_piece_at(Bitboard::IDX_H5, Some(piece::Piece::WhiteBishop));
+        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::BLACK_ROOK));
+        pos.set_piece_at(Bitboard::IDX_H5, Some(piece::Piece::WHITE_BISHOP));
         assert!(pos.is_in_check(Side::White));
         assert!(pos.is_in_check(Side::Black));
     }
