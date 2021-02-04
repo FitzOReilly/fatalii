@@ -1,6 +1,17 @@
 use crate::side::Side;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Type {
+    Pawn = 0,
+    Knight = 1,
+    Bishop = 2,
+    Rook = 3,
+    Queen = 4,
+    King = 5,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Piece(u8);
 
 impl Piece {
@@ -17,33 +28,20 @@ impl Piece {
     pub const BLACK_QUEEN: Self = Self::new(Side::Black, Type::Queen);
     pub const BLACK_KING: Self = Self::new(Side::Black, Type::King);
 
-    const fn new(s: Side, t: Type) -> Self {
+    pub const fn new(s: Side, t: Type) -> Self {
         // Bit 0: piece side
         // Bits 1-3: piece type
         Piece(s as u8 | (t as u8) << 1)
     }
 
-    fn piece_side(&self) -> Side {
+    pub fn piece_side(&self) -> Side {
         unsafe { std::mem::transmute::<u8, Side>(self.0 & 0x1) }
     }
 
-    fn piece_type(&self) -> Type {
+    pub fn piece_type(&self) -> Type {
         unsafe { std::mem::transmute::<u8, Type>(self.0 >> 1) }
     }
-}
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum Type {
-    Pawn = 0,
-    Knight = 1,
-    Bishop = 2,
-    Rook = 3,
-    Queen = 4,
-    King = 5,
-}
-
-impl Piece {
     pub fn from_ascii(c: u8) -> Result<Self, String> {
         match c {
             b'P' => Ok(Piece::WHITE_PAWN),
