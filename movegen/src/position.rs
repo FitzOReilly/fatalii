@@ -25,14 +25,8 @@ bitflags! {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Position {
-    pawns: Bitboard,
-    knights: Bitboard,
-    bishops: Bitboard,
-    rooks: Bitboard,
-    queens: Bitboard,
-    kings: Bitboard,
-    white_pieces: Bitboard,
-    black_pieces: Bitboard,
+    piece_side_occupancies: [Bitboard; 2],
+    piece_type_occupancies: [Bitboard; 6],
     en_passant_square: Bitboard,
     side_to_move: Side,
     castling_rights: CastlingRights,
@@ -50,16 +44,10 @@ impl Position {
         Pawn::black_west_attack_targets,
     ];
 
-    pub fn empty() -> Self {
+    pub const fn empty() -> Self {
         Position {
-            pawns: Bitboard::EMPTY,
-            knights: Bitboard::EMPTY,
-            bishops: Bitboard::EMPTY,
-            rooks: Bitboard::EMPTY,
-            queens: Bitboard::EMPTY,
-            kings: Bitboard::EMPTY,
-            white_pieces: Bitboard::EMPTY,
-            black_pieces: Bitboard::EMPTY,
+            piece_side_occupancies: [Bitboard::EMPTY; 2],
+            piece_type_occupancies: [Bitboard::EMPTY; 6],
             en_passant_square: Bitboard::EMPTY,
             side_to_move: Side::White,
             castling_rights: CastlingRights::empty(),
@@ -69,21 +57,30 @@ impl Position {
     }
 
     pub fn initial() -> Self {
-        Position {
-            pawns: Bitboard::RANK_2 | Bitboard::RANK_7,
-            knights: Bitboard::B1 | Bitboard::G1 | Bitboard::B8 | Bitboard::G8,
-            bishops: Bitboard::C1 | Bitboard::F1 | Bitboard::C8 | Bitboard::F8,
-            rooks: Bitboard::A1 | Bitboard::H1 | Bitboard::A8 | Bitboard::H8,
-            queens: Bitboard::D1 | Bitboard::D8,
-            kings: Bitboard::E1 | Bitboard::E8,
-            white_pieces: Bitboard::RANK_1 | Bitboard::RANK_2,
-            black_pieces: Bitboard::RANK_7 | Bitboard::RANK_8,
+        let mut pos = Position {
+            piece_side_occupancies: [Bitboard::EMPTY; 2],
+            piece_type_occupancies: [Bitboard::EMPTY; 6],
             en_passant_square: Bitboard::EMPTY,
             side_to_move: Side::White,
             castling_rights: CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
             plies_since_pawn_move_or_capture: 0,
             move_count: 1,
-        }
+        };
+
+        pos.piece_side_occupancies[Side::White as usize] = Bitboard::RANK_1 | Bitboard::RANK_2;
+        pos.piece_side_occupancies[Side::Black as usize] = Bitboard::RANK_7 | Bitboard::RANK_8;
+        pos.piece_type_occupancies[piece::Type::Pawn as usize] =
+            Bitboard::RANK_2 | Bitboard::RANK_7;
+        pos.piece_type_occupancies[piece::Type::Knight as usize] =
+            Bitboard::B1 | Bitboard::G1 | Bitboard::B8 | Bitboard::G8;
+        pos.piece_type_occupancies[piece::Type::Bishop as usize] =
+            Bitboard::C1 | Bitboard::F1 | Bitboard::C8 | Bitboard::F8;
+        pos.piece_type_occupancies[piece::Type::Rook as usize] =
+            Bitboard::A1 | Bitboard::H1 | Bitboard::A8 | Bitboard::H8;
+        pos.piece_type_occupancies[piece::Type::Queen as usize] = Bitboard::D1 | Bitboard::D8;
+        pos.piece_type_occupancies[piece::Type::King as usize] = Bitboard::E1 | Bitboard::E8;
+
+        pos
     }
 
     pub fn en_passant_square(&self) -> Bitboard {
@@ -128,126 +125,82 @@ impl Position {
 
     pub fn piece_at(&self, square_index: usize) -> Option<Piece> {
         let square = Bitboard(0x1 << square_index);
-        if square & self.white_pieces != Bitboard::EMPTY {
-            if square & self.pawns != Bitboard::EMPTY {
-                Some(Piece::WHITE_PAWN)
-            } else if square & self.knights != Bitboard::EMPTY {
-                Some(Piece::WHITE_KNIGHT)
-            } else if square & self.bishops != Bitboard::EMPTY {
-                Some(Piece::WHITE_BISHOP)
-            } else if square & self.rooks != Bitboard::EMPTY {
-                Some(Piece::WHITE_ROOK)
-            } else if square & self.queens != Bitboard::EMPTY {
-                Some(Piece::WHITE_QUEEN)
-            } else {
-                debug_assert_ne!(square & self.kings, Bitboard::EMPTY);
-                Some(Piece::WHITE_KING)
-            }
-        } else if square & self.black_pieces != Bitboard::EMPTY {
-            if square & self.pawns != Bitboard::EMPTY {
-                Some(Piece::BLACK_PAWN)
-            } else if square & self.knights != Bitboard::EMPTY {
-                Some(Piece::BLACK_KNIGHT)
-            } else if square & self.bishops != Bitboard::EMPTY {
-                Some(Piece::BLACK_BISHOP)
-            } else if square & self.rooks != Bitboard::EMPTY {
-                Some(Piece::BLACK_ROOK)
-            } else if square & self.queens != Bitboard::EMPTY {
-                Some(Piece::BLACK_QUEEN)
-            } else {
-                debug_assert_ne!(square & self.kings, Bitboard::EMPTY);
-                Some(Piece::BLACK_KING)
-            }
+        let side = if square & self.piece_side_occupancies[Side::White as usize] != Bitboard::EMPTY
+        {
+            Some(Side::White)
+        } else if square & self.piece_side_occupancies[Side::Black as usize] != Bitboard::EMPTY {
+            Some(Side::Black)
         } else {
             None
-        }
+        };
+
+        let piece = match side {
+            Some(piece_side) => {
+                let piece_type = if square & self.piece_type_occupancies[piece::Type::Pawn as usize]
+                    != Bitboard::EMPTY
+                {
+                    piece::Type::Pawn
+                } else if square & self.piece_type_occupancies[piece::Type::Knight as usize]
+                    != Bitboard::EMPTY
+                {
+                    piece::Type::Knight
+                } else if square & self.piece_type_occupancies[piece::Type::Bishop as usize]
+                    != Bitboard::EMPTY
+                {
+                    piece::Type::Bishop
+                } else if square & self.piece_type_occupancies[piece::Type::Rook as usize]
+                    != Bitboard::EMPTY
+                {
+                    piece::Type::Rook
+                } else if square & self.piece_type_occupancies[piece::Type::Queen as usize]
+                    != Bitboard::EMPTY
+                {
+                    piece::Type::Queen
+                } else {
+                    debug_assert_ne!(
+                        square & self.piece_type_occupancies[piece::Type::King as usize],
+                        Bitboard::EMPTY
+                    );
+                    piece::Type::King
+                };
+                Some(Piece::new(piece_side, piece_type))
+            }
+            None => None,
+        };
+
+        piece
     }
 
     pub fn set_piece_at(&mut self, square_index: usize, piece: Option<Piece>) {
         let square = Bitboard(0x1 << square_index);
 
-        self.pawns &= !square;
-        self.knights &= !square;
-        self.bishops &= !square;
-        self.rooks &= !square;
-        self.queens &= !square;
-        self.kings &= !square;
-        self.white_pieces &= !square;
-        self.black_pieces &= !square;
+        for pso in self.piece_side_occupancies.iter_mut() {
+            *pso &= !square;
+        }
+        for pto in self.piece_type_occupancies.iter_mut() {
+            *pto &= !square;
+        }
 
         match piece {
-            Some(Piece::WHITE_PAWN) => {
-                self.white_pieces |= square;
-                self.pawns |= square;
+            Some(p) => {
+                self.piece_side_occupancies[p.piece_side() as usize] |= square;
+                self.piece_type_occupancies[p.piece_type() as usize] |= square;
             }
-            Some(Piece::WHITE_KNIGHT) => {
-                self.white_pieces |= square;
-                self.knights |= square;
-            }
-            Some(Piece::WHITE_BISHOP) => {
-                self.white_pieces |= square;
-                self.bishops |= square;
-            }
-            Some(Piece::WHITE_ROOK) => {
-                self.white_pieces |= square;
-                self.rooks |= square;
-            }
-            Some(Piece::WHITE_QUEEN) => {
-                self.white_pieces |= square;
-                self.queens |= square;
-            }
-            Some(Piece::WHITE_KING) => {
-                self.white_pieces |= square;
-                self.kings |= square;
-            }
-            Some(Piece::BLACK_PAWN) => {
-                self.black_pieces |= square;
-                self.pawns |= square;
-            }
-            Some(Piece::BLACK_KNIGHT) => {
-                self.black_pieces |= square;
-                self.knights |= square;
-            }
-            Some(Piece::BLACK_BISHOP) => {
-                self.black_pieces |= square;
-                self.bishops |= square;
-            }
-            Some(Piece::BLACK_ROOK) => {
-                self.black_pieces |= square;
-                self.rooks |= square;
-            }
-            Some(Piece::BLACK_QUEEN) => {
-                self.black_pieces |= square;
-                self.queens |= square;
-            }
-            Some(Piece::BLACK_KING) => {
-                self.black_pieces |= square;
-                self.kings |= square;
-            }
-            _ => {}
+            None => {}
         }
     }
 
     pub fn occupancy(&self) -> Bitboard {
-        self.white_pieces | self.black_pieces
+        self.piece_side_occupancies[Side::White as usize]
+            | self.piece_side_occupancies[Side::Black as usize]
     }
 
     pub fn side_occupancy(&self, side: Side) -> Bitboard {
-        match side {
-            Side::White => self.white_pieces,
-            Side::Black => self.black_pieces,
-        }
+        self.piece_side_occupancies[side as usize]
     }
 
     pub fn piece_type_occupancy(&self, piece_type: piece::Type) -> Bitboard {
-        match piece_type {
-            piece::Type::Pawn => self.pawns,
-            piece::Type::Knight => self.knights,
-            piece::Type::Bishop => self.bishops,
-            piece::Type::Rook => self.rooks,
-            piece::Type::Queen => self.queens,
-            piece::Type::King => self.kings,
-        }
+        self.piece_type_occupancies[piece_type as usize]
     }
 
     pub fn piece_occupancy(&self, side: Side, piece_type: piece::Type) -> Bitboard {
@@ -476,6 +429,9 @@ mod tests {
             Bitboard::EMPTY,
             square & pos.piece_type_occupancy(piece::Type::King)
         );
+        assert_eq!(square, square & pos.occupancy());
+        pos.set_piece_at(Bitboard::IDX_E4, None);
+        assert_eq!(Bitboard::EMPTY, square & pos.occupancy());
     }
 
     #[test]
