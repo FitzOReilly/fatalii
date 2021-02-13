@@ -3,12 +3,13 @@ use crate::side::Side;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Type {
-    Pawn = 0,
-    Knight = 1,
-    Bishop = 2,
-    Rook = 3,
-    Queen = 4,
-    King = 5,
+    // The pieces are encoded this way to make the 4 possible promotion pieces fit into 2 bits.
+    Pawn = 5,
+    Knight = 0,
+    Bishop = 1,
+    Rook = 2,
+    Queen = 3,
+    King = 4,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
