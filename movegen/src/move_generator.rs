@@ -7,24 +7,44 @@ use crate::piece;
 use crate::position::{CastlingRights, Position};
 use crate::queen::Queen;
 use crate::rook::Rook;
-use crate::side::Side;
+
+bitflags! {
+    pub struct MoveTypeFlags: u8 {
+        const QUIET              = 0b00000000;
+        const DOUBLE_PAWN_PUSH   = 0b00000100;
+        const CASTLE_KINGSIDE    = 0b00001000;
+        const CASTLE_QUEENSIDE   = 0b00010000;
+        const CAPTURE            = 0b00100000;
+        const EN_PASSANT_CAPTURE = 0b01000000 | Self::CAPTURE.bits;
+        const PROMOTION          = 0b10000000;
+
+        const PROMOTION_CAPTURE = Self::CAPTURE.bits | Self::PROMOTION.bits;
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum MoveType {
-    Quiet = 0,
-    DoublePawnPush = 1,
-    KingsideCastle = 2,
-    QueensideCastle = 3,
-    Capture = 4,
-    EnPassantCapture = 5,
-    KnightPromo = 8,
-    BishopPromo = 9,
-    RookPromo = 10,
-    QueenPromo = 11,
-    KnightPromoCapture = 12,
-    BishopPromoCapture = 13,
-    RookPromoCapture = 14,
-    QueenPromoCapture = 15,
+pub struct MoveType(u8);
+
+impl MoveType {
+    fn new(flags: MoveTypeFlags, promo_piece: piece::Type) -> Self {
+        // Bits 0-1: promotion piece
+        // Bits 2-7: move type flags
+        debug_assert!(promo_piece as u8 <= 0b11);
+        MoveType(flags.bits | promo_piece as u8)
+    }
+
+    fn new_no_promo(flags: MoveTypeFlags) -> Self {
+        debug_assert!((flags & MoveTypeFlags::PROMOTION).bits == 0);
+        MoveType(flags.bits)
+    }
+
+    const fn flags(&self) -> MoveTypeFlags {
+        unsafe { MoveTypeFlags::from_bits_unchecked(self.0 & 0b11111100) }
+    }
+
+    fn promo_piece(&self) -> piece::Type {
+        unsafe { std::mem::transmute::<u8, piece::Type>(self.0 & 0b11) }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -133,7 +153,7 @@ impl MoveGenerator {
         // attacks
         pos.set_piece_at(target, pos.piece_at(origin));
         pos.set_piece_at(origin, None);
-        if m.move_type == MoveType::EnPassantCapture {
+        if m.move_type().flags() == MoveTypeFlags::EN_PASSANT_CAPTURE {
             let side_idx = pos.side_to_move() as usize;
             let captured_idx = (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
             pos.set_piece_at(captured_idx, None);
@@ -158,15 +178,18 @@ impl MoveGenerator {
     pub fn do_move(&mut self, m: Move) {
         let origin = m.origin();
         let target = m.target();
-        let moving_piece = self.pos.piece_at(origin);
+        let moving_piece = self.pos.piece_at(origin).unwrap();
+        let side_to_move = self.pos.side_to_move();
+        let side_idx = side_to_move as usize;
 
-        let captured_piece = match m.move_type() {
-            MoveType::EnPassantCapture => self.pos.piece_at(
-                (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[self.pos.side_to_move() as usize])
-                    as usize,
-            ),
-            _ => self.pos.piece_at(target),
+        let is_en_passant = m.move_type().flags() == MoveTypeFlags::EN_PASSANT_CAPTURE;
+        let capture_square = if is_en_passant {
+            (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize
+        } else {
+            target
         };
+        let captured_piece = self.pos.piece_at(capture_square);
+
         self.irreversible_properties
             .push(IrreversibleProperties::new(
                 self.pos.en_passant_square(),
@@ -175,120 +198,65 @@ impl MoveGenerator {
                 captured_piece,
             ));
 
-        let side_to_move = self.pos.side_to_move();
-        let target_piece = match side_to_move {
-            Side::White => match m.move_type() {
-                MoveType::KnightPromo => Some(piece::Piece::WHITE_KNIGHT),
-                MoveType::BishopPromo => Some(piece::Piece::WHITE_BISHOP),
-                MoveType::RookPromo => Some(piece::Piece::WHITE_ROOK),
-                MoveType::QueenPromo => Some(piece::Piece::WHITE_QUEEN),
-                MoveType::KnightPromoCapture => {
-                    self.remove_castling_rights(target);
-                    Some(piece::Piece::WHITE_KNIGHT)
-                }
-                MoveType::BishopPromoCapture => {
-                    self.remove_castling_rights(target);
-                    Some(piece::Piece::WHITE_BISHOP)
-                }
-                MoveType::RookPromoCapture => {
-                    self.remove_castling_rights(target);
-                    Some(piece::Piece::WHITE_ROOK)
-                }
-                MoveType::QueenPromoCapture => {
-                    self.remove_castling_rights(target);
-                    Some(piece::Piece::WHITE_QUEEN)
-                }
-                _ => moving_piece,
-            },
-            Side::Black => match m.move_type() {
-                MoveType::KnightPromo => Some(piece::Piece::BLACK_KNIGHT),
-                MoveType::BishopPromo => Some(piece::Piece::BLACK_BISHOP),
-                MoveType::RookPromo => Some(piece::Piece::BLACK_ROOK),
-                MoveType::QueenPromo => Some(piece::Piece::BLACK_QUEEN),
-                MoveType::KnightPromoCapture => {
-                    self.remove_castling_rights(target);
-                    Some(piece::Piece::BLACK_KNIGHT)
-                }
-                MoveType::BishopPromoCapture => {
-                    self.remove_castling_rights(target);
-                    Some(piece::Piece::BLACK_BISHOP)
-                }
-                MoveType::RookPromoCapture => {
-                    self.remove_castling_rights(target);
-                    Some(piece::Piece::BLACK_ROOK)
-                }
-                MoveType::QueenPromoCapture => {
-                    self.remove_castling_rights(target);
-                    Some(piece::Piece::BLACK_QUEEN)
-                }
-                _ => moving_piece,
-            },
+        let is_capture = m.move_type().flags().contains(MoveTypeFlags::CAPTURE);
+        let is_promotion = m.move_type().flags().contains(MoveTypeFlags::PROMOTION);
+
+        let target_piece = if is_promotion {
+            piece::Piece::new(side_to_move, m.move_type().promo_piece())
+        } else {
+            moving_piece
         };
 
-        self.pos.set_piece_at(target, target_piece);
+        self.pos.set_piece_at(target, Some(target_piece));
         self.pos.set_piece_at(origin, None);
 
-        self.pos.set_en_passant_square(Bitboard::EMPTY);
-        self.pos
-            .set_plies_since_pawn_move_or_capture(self.pos.plies_since_pawn_move_or_capture() + 1);
-        match m.move_type {
-            MoveType::EnPassantCapture => {
-                let side_idx = self.pos.side_to_move() as usize;
+        let en_passant_square = match m.move_type().flags() {
+            MoveTypeFlags::DOUBLE_PAWN_PUSH => {
+                let en_passant_idx = (origin as i8 + Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
+                Bitboard(0x1 << en_passant_idx)
+            }
+            _ => Bitboard::EMPTY,
+        };
+        self.pos.set_en_passant_square(en_passant_square);
+
+        if is_capture {
+            if is_en_passant {
                 let captured_idx = (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
                 self.pos.set_piece_at(captured_idx, None);
-                self.pos.set_plies_since_pawn_move_or_capture(0);
             }
-            MoveType::DoublePawnPush => {
-                let side_idx = self.pos.side_to_move() as usize;
-                let en_passant_idx = (origin as i8 + Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
-                self.pos
-                    .set_en_passant_square(Bitboard(0x1 << en_passant_idx));
-                self.pos.set_plies_since_pawn_move_or_capture(0);
-            }
-            MoveType::Capture => {
-                self.pos.set_plies_since_pawn_move_or_capture(0);
-                self.remove_castling_rights(target);
-            }
-            _ => {}
+            self.remove_castling_rights(target);
         }
 
-        if moving_piece == Some(piece::Piece::WHITE_PAWN)
-            || moving_piece == Some(piece::Piece::BLACK_PAWN)
-        {
+        if is_capture || moving_piece.piece_type() == piece::Type::Pawn {
             self.pos.set_plies_since_pawn_move_or_capture(0);
+        } else {
+            self.pos.set_plies_since_pawn_move_or_capture(
+                self.pos.plies_since_pawn_move_or_capture() + 1,
+            );
         }
 
         self.remove_castling_rights(origin);
 
         let move_count = self.pos.move_count();
-        self.pos.set_move_count(move_count + side_to_move as usize);
+        self.pos.set_move_count(move_count + side_idx);
         self.pos.set_side_to_move(!side_to_move);
     }
 
     pub fn undo_move(&mut self, m: Move) {
         let origin = m.origin();
         let target = m.target();
-        let moving_piece = self.pos.piece_at(target);
+        let moving_piece = self.pos.piece_at(target).unwrap();
 
-        let is_promotion = m.move_type == MoveType::KnightPromo
-            || m.move_type == MoveType::BishopPromo
-            || m.move_type == MoveType::RookPromo
-            || m.move_type == MoveType::QueenPromo;
-        let is_promo_capture = m.move_type == MoveType::KnightPromoCapture
-            || m.move_type == MoveType::BishopPromoCapture
-            || m.move_type == MoveType::RookPromoCapture
-            || m.move_type == MoveType::QueenPromoCapture;
+        let is_capture = m.move_type().flags().contains(MoveTypeFlags::CAPTURE);
+        let is_promotion = m.move_type().flags().contains(MoveTypeFlags::PROMOTION);
 
-        let origin_piece = if is_promotion || is_promo_capture {
-            match !self.pos.side_to_move() {
-                Side::White => Some(piece::Piece::WHITE_PAWN),
-                Side::Black => Some(piece::Piece::BLACK_PAWN),
-            }
+        let origin_piece = if is_promotion {
+            piece::Piece::new(moving_piece.piece_side(), piece::Type::Pawn)
         } else {
             moving_piece
         };
 
-        self.pos.set_piece_at(origin, origin_piece);
+        self.pos.set_piece_at(origin, Some(origin_piece));
         self.pos.set_piece_at(target, None);
 
         self.pos.set_side_to_move(!self.pos.side_to_move());
@@ -301,16 +269,19 @@ impl MoveGenerator {
         self.pos.set_castling_rights(irr.castling_rights);
         self.pos
             .set_plies_since_pawn_move_or_capture(irr.plies_since_pawn_move_or_capture);
-        if m.move_type() == MoveType::Capture {
-            self.pos.set_piece_at(target, irr.captured_piece);
-        }
-        if m.move_type() == MoveType::EnPassantCapture {
-            let side_idx = self.pos.side_to_move() as usize;
-            let captured_idx = (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
-            self.pos.set_piece_at(captured_idx, irr.captured_piece);
-        }
-        if is_promo_capture {
-            self.pos.set_piece_at(target, irr.captured_piece);
+
+        if is_capture {
+            let is_en_passant = m
+                .move_type()
+                .flags()
+                .contains(MoveTypeFlags::EN_PASSANT_CAPTURE);
+            let capture_square = if is_en_passant {
+                let side_idx = self.pos.side_to_move() as usize;
+                (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize
+            } else {
+                target
+            };
+            self.pos.set_piece_at(capture_square, irr.captured_piece);
         }
     }
 
@@ -334,26 +305,38 @@ impl MoveGenerator {
         while promo_targets != Bitboard::EMPTY {
             let target = promo_targets.bit_scan_forward_reset();
             let origin = (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
-            for move_type in [
-                MoveType::QueenPromo,
-                MoveType::RookPromo,
-                MoveType::BishopPromo,
-                MoveType::KnightPromo,
+            for promo_piece in [
+                piece::Type::Queen,
+                piece::Type::Rook,
+                piece::Type::Bishop,
+                piece::Type::Knight,
             ]
             .iter()
             {
-                self.add_move_if_legal(Move::new(origin, target, *move_type));
+                self.add_move_if_legal(Move::new(
+                    origin,
+                    target,
+                    MoveType::new(MoveTypeFlags::PROMOTION, *promo_piece),
+                ));
             }
         }
         while non_promo_targets != Bitboard::EMPTY {
             let target = non_promo_targets.bit_scan_forward_reset();
             let origin = (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
-            self.add_move_if_legal(Move::new(origin, target, MoveType::Quiet));
+            self.add_move_if_legal(Move::new(
+                origin,
+                target,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ));
         }
         while double_push_targets != Bitboard::EMPTY {
             let target = double_push_targets.bit_scan_forward_reset();
             let origin = (target as i8 - 2 * Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
-            self.add_move_if_legal(Move::new(origin, target, MoveType::DoublePawnPush));
+            self.add_move_if_legal(Move::new(
+                origin,
+                target,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ));
         }
     }
 
@@ -397,27 +380,35 @@ impl MoveGenerator {
         while promo_captures != Bitboard::EMPTY {
             let target = promo_captures.bit_scan_forward_reset();
             let origin = (target as i8 - idx_shift) as usize;
-            for move_type in [
-                MoveType::QueenPromoCapture,
-                MoveType::RookPromoCapture,
-                MoveType::BishopPromoCapture,
-                MoveType::KnightPromoCapture,
+            for promo_piece in [
+                piece::Type::Queen,
+                piece::Type::Rook,
+                piece::Type::Bishop,
+                piece::Type::Knight,
             ]
             .iter()
             {
-                self.add_move_if_legal(Move::new(origin, target, *move_type));
+                self.add_move_if_legal(Move::new(
+                    origin,
+                    target,
+                    MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, *promo_piece),
+                ));
             }
         }
 
         while non_promo_captures != Bitboard::EMPTY {
             let target = non_promo_captures.bit_scan_forward_reset();
             let origin = (target as i8 - idx_shift) as usize;
-            let move_type = if Bitboard(0x1 << target) == en_passant_square {
-                MoveType::EnPassantCapture
+            let move_type_flags = if Bitboard(0x1 << target) == en_passant_square {
+                MoveTypeFlags::EN_PASSANT_CAPTURE
             } else {
-                MoveType::Capture
+                MoveTypeFlags::CAPTURE
             };
-            self.add_move_if_legal(Move::new(origin, target, move_type));
+            self.add_move_if_legal(Move::new(
+                origin,
+                target,
+                MoveType::new_no_promo(move_type_flags),
+            ));
         }
     }
 
@@ -467,11 +458,19 @@ impl MoveGenerator {
         let mut quiets = targets & !captures;
         while captures != Bitboard::EMPTY {
             let target = captures.bit_scan_forward_reset();
-            self.add_move_if_legal(Move::new(origin, target, MoveType::Capture));
+            self.add_move_if_legal(Move::new(
+                origin,
+                target,
+                MoveType::new_no_promo(MoveTypeFlags::CAPTURE),
+            ));
         }
         while quiets != Bitboard::EMPTY {
             let target = quiets.bit_scan_forward_reset();
-            self.add_move_if_legal(Move::new(origin, target, MoveType::Quiet));
+            self.add_move_if_legal(Move::new(
+                origin,
+                target,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ));
         }
     }
 
@@ -506,7 +505,7 @@ impl MoveGenerator {
                 self.move_list.push(Move::new(
                     Bitboard::IDX_E1,
                     Bitboard::IDX_G1,
-                    MoveType::KingsideCastle,
+                    MoveType::new_no_promo(MoveTypeFlags::CASTLE_KINGSIDE),
                 ));
             }
         }
@@ -529,7 +528,7 @@ impl MoveGenerator {
                 self.move_list.push(Move::new(
                     Bitboard::IDX_E1,
                     Bitboard::IDX_C1,
-                    MoveType::QueensideCastle,
+                    MoveType::new_no_promo(MoveTypeFlags::CASTLE_QUEENSIDE),
                 ));
             }
         }
@@ -557,7 +556,7 @@ impl MoveGenerator {
                 self.move_list.push(Move::new(
                     Bitboard::IDX_E8,
                     Bitboard::IDX_G8,
-                    MoveType::KingsideCastle,
+                    MoveType::new_no_promo(MoveTypeFlags::CASTLE_KINGSIDE),
                 ));
             }
         }
@@ -580,7 +579,7 @@ impl MoveGenerator {
                 self.move_list.push(Move::new(
                     Bitboard::IDX_E8,
                     Bitboard::IDX_C8,
-                    MoveType::QueensideCastle,
+                    MoveType::new_no_promo(MoveTypeFlags::CASTLE_QUEENSIDE),
                 ));
             }
         }
@@ -608,10 +607,17 @@ mod tests {
 
     #[test]
     fn move_properties() {
-        let m = Move::new(Bitboard::IDX_E2, Bitboard::IDX_E4, MoveType::DoublePawnPush);
+        let m = Move::new(
+            Bitboard::IDX_E2,
+            Bitboard::IDX_E4,
+            MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+        );
         assert_eq!(Bitboard::IDX_E2, m.origin());
         assert_eq!(Bitboard::IDX_E4, m.target());
-        assert_eq!(MoveType::DoublePawnPush, m.move_type());
+        assert_eq!(
+            MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            m.move_type()
+        );
     }
 
     #[test]
@@ -621,27 +627,107 @@ mod tests {
 
         let expected_moves = [
             // Pawn
-            Move::new(Bitboard::IDX_A2, Bitboard::IDX_A3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_B2, Bitboard::IDX_B3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C2, Bitboard::IDX_C3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_D2, Bitboard::IDX_D3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E2, Bitboard::IDX_E3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_F2, Bitboard::IDX_F3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_G2, Bitboard::IDX_G3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_H2, Bitboard::IDX_H3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_A2, Bitboard::IDX_A4, MoveType::DoublePawnPush),
-            Move::new(Bitboard::IDX_B2, Bitboard::IDX_B4, MoveType::DoublePawnPush),
-            Move::new(Bitboard::IDX_C2, Bitboard::IDX_C4, MoveType::DoublePawnPush),
-            Move::new(Bitboard::IDX_D2, Bitboard::IDX_D4, MoveType::DoublePawnPush),
-            Move::new(Bitboard::IDX_E2, Bitboard::IDX_E4, MoveType::DoublePawnPush),
-            Move::new(Bitboard::IDX_F2, Bitboard::IDX_F4, MoveType::DoublePawnPush),
-            Move::new(Bitboard::IDX_G2, Bitboard::IDX_G4, MoveType::DoublePawnPush),
-            Move::new(Bitboard::IDX_H2, Bitboard::IDX_H4, MoveType::DoublePawnPush),
+            Move::new(
+                Bitboard::IDX_A2,
+                Bitboard::IDX_A3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_B2,
+                Bitboard::IDX_B3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C2,
+                Bitboard::IDX_C3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_D2,
+                Bitboard::IDX_D3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E2,
+                Bitboard::IDX_E3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_F2,
+                Bitboard::IDX_F3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_G2,
+                Bitboard::IDX_G3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_H2,
+                Bitboard::IDX_H3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_A2,
+                Bitboard::IDX_A4,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
+            Move::new(
+                Bitboard::IDX_B2,
+                Bitboard::IDX_B4,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
+            Move::new(
+                Bitboard::IDX_C2,
+                Bitboard::IDX_C4,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
+            Move::new(
+                Bitboard::IDX_D2,
+                Bitboard::IDX_D4,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
+            Move::new(
+                Bitboard::IDX_E2,
+                Bitboard::IDX_E4,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
+            Move::new(
+                Bitboard::IDX_F2,
+                Bitboard::IDX_F4,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
+            Move::new(
+                Bitboard::IDX_G2,
+                Bitboard::IDX_G4,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
+            Move::new(
+                Bitboard::IDX_H2,
+                Bitboard::IDX_H4,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
             // Knight
-            Move::new(Bitboard::IDX_B1, Bitboard::IDX_A3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_B1, Bitboard::IDX_C3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_G1, Bitboard::IDX_F3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_G1, Bitboard::IDX_H3, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_B1,
+                Bitboard::IDX_A3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_B1,
+                Bitboard::IDX_C3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_G1,
+                Bitboard::IDX_F3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_G1,
+                Bitboard::IDX_H3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
         ];
 
         assert_eq!(expected_moves.len(), movegen.move_list.len());
@@ -662,27 +748,107 @@ mod tests {
 
         let expected_moves = [
             // Pawn
-            Move::new(Bitboard::IDX_A7, Bitboard::IDX_A6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_B7, Bitboard::IDX_B6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C7, Bitboard::IDX_C6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_D7, Bitboard::IDX_D6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E7, Bitboard::IDX_E6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_F7, Bitboard::IDX_F6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_G7, Bitboard::IDX_G6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_H7, Bitboard::IDX_H6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_A7, Bitboard::IDX_A5, MoveType::DoublePawnPush),
-            Move::new(Bitboard::IDX_B7, Bitboard::IDX_B5, MoveType::DoublePawnPush),
-            Move::new(Bitboard::IDX_C7, Bitboard::IDX_C5, MoveType::DoublePawnPush),
-            Move::new(Bitboard::IDX_D7, Bitboard::IDX_D5, MoveType::DoublePawnPush),
-            Move::new(Bitboard::IDX_E7, Bitboard::IDX_E5, MoveType::DoublePawnPush),
-            Move::new(Bitboard::IDX_F7, Bitboard::IDX_F5, MoveType::DoublePawnPush),
-            Move::new(Bitboard::IDX_G7, Bitboard::IDX_G5, MoveType::DoublePawnPush),
-            Move::new(Bitboard::IDX_H7, Bitboard::IDX_H5, MoveType::DoublePawnPush),
+            Move::new(
+                Bitboard::IDX_A7,
+                Bitboard::IDX_A6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_B7,
+                Bitboard::IDX_B6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C7,
+                Bitboard::IDX_C6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_D7,
+                Bitboard::IDX_D6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E7,
+                Bitboard::IDX_E6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_F7,
+                Bitboard::IDX_F6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_G7,
+                Bitboard::IDX_G6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_H7,
+                Bitboard::IDX_H6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_A7,
+                Bitboard::IDX_A5,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
+            Move::new(
+                Bitboard::IDX_B7,
+                Bitboard::IDX_B5,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
+            Move::new(
+                Bitboard::IDX_C7,
+                Bitboard::IDX_C5,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
+            Move::new(
+                Bitboard::IDX_D7,
+                Bitboard::IDX_D5,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
+            Move::new(
+                Bitboard::IDX_E7,
+                Bitboard::IDX_E5,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
+            Move::new(
+                Bitboard::IDX_F7,
+                Bitboard::IDX_F5,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
+            Move::new(
+                Bitboard::IDX_G7,
+                Bitboard::IDX_G5,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
+            Move::new(
+                Bitboard::IDX_H7,
+                Bitboard::IDX_H5,
+                MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+            ),
             // Knight
-            Move::new(Bitboard::IDX_B8, Bitboard::IDX_A6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_B8, Bitboard::IDX_C6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_G8, Bitboard::IDX_F6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_G8, Bitboard::IDX_H6, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_B8,
+                Bitboard::IDX_A6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_B8,
+                Bitboard::IDX_C6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_G8,
+                Bitboard::IDX_F6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_G8,
+                Bitboard::IDX_H6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
         ];
 
         assert_eq!(expected_moves.len(), movegen.move_list.len());
@@ -709,13 +875,37 @@ mod tests {
 
         let expected_moves = [
             // King
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_E2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F1, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_E2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
             // Pawn
-            Move::new(Bitboard::IDX_A2, Bitboard::IDX_B3, MoveType::Capture),
-            Move::new(Bitboard::IDX_H2, Bitboard::IDX_G3, MoveType::Capture),
+            Move::new(
+                Bitboard::IDX_A2,
+                Bitboard::IDX_B3,
+                MoveType::new_no_promo(MoveTypeFlags::CAPTURE),
+            ),
+            Move::new(
+                Bitboard::IDX_H2,
+                Bitboard::IDX_G3,
+                MoveType::new_no_promo(MoveTypeFlags::CAPTURE),
+            ),
         ];
 
         assert_eq!(expected_moves.len(), movegen.move_list.len());
@@ -742,13 +932,37 @@ mod tests {
 
         let expected_moves = [
             // King
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_D8, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_D7, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_E7, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_F8, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_E8,
+                Bitboard::IDX_D8,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E8,
+                Bitboard::IDX_D7,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E8,
+                Bitboard::IDX_E7,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E8,
+                Bitboard::IDX_F8,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
             // Pawn
-            Move::new(Bitboard::IDX_A7, Bitboard::IDX_B6, MoveType::Capture),
-            Move::new(Bitboard::IDX_H7, Bitboard::IDX_G6, MoveType::Capture),
+            Move::new(
+                Bitboard::IDX_A7,
+                Bitboard::IDX_B6,
+                MoveType::new_no_promo(MoveTypeFlags::CAPTURE),
+            ),
+            Move::new(
+                Bitboard::IDX_H7,
+                Bitboard::IDX_G6,
+                MoveType::new_no_promo(MoveTypeFlags::CAPTURE),
+            ),
         ];
 
         assert_eq!(expected_moves.len(), movegen.move_list.len());
@@ -769,11 +983,31 @@ mod tests {
         movegen.generate_moves();
 
         let expected_moves = [
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_E2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F2, MoveType::Capture),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_E2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F2,
+                MoveType::new_no_promo(MoveTypeFlags::CAPTURE),
+            ),
         ];
 
         assert_eq!(expected_moves.len(), movegen.move_list.len());
@@ -797,16 +1031,48 @@ mod tests {
 
         let expected_moves = [
             // King
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_E2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F2, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_E2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
             // Pawn
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_C4, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_C4,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
             // Knight
-            Move::new(Bitboard::IDX_B1, Bitboard::IDX_D2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_B1, Bitboard::IDX_A3, MoveType::Capture),
+            Move::new(
+                Bitboard::IDX_B1,
+                Bitboard::IDX_D2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_B1,
+                Bitboard::IDX_A3,
+                MoveType::new_no_promo(MoveTypeFlags::CAPTURE),
+            ),
         ];
 
         assert_eq!(expected_moves.len(), movegen.move_list.len());
@@ -829,21 +1095,77 @@ mod tests {
 
         let expected_moves = [
             // King
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_E2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F2, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_E2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
             // Bishop
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_B2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_A1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_D2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_B4, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_A5, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_D4, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_E5, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_F6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_G7, MoveType::Capture),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_B2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_A1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_D2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_B4,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_A5,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_D4,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_E5,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_F6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_G7,
+                MoveType::new_no_promo(MoveTypeFlags::CAPTURE),
+            ),
         ];
 
         assert_eq!(expected_moves.len(), movegen.move_list.len());
@@ -866,24 +1188,92 @@ mod tests {
 
         let expected_moves = [
             // King
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_E2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F2, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_E2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
             // Rook
-            Move::new(Bitboard::IDX_E3, Bitboard::IDX_E2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E3, Bitboard::IDX_D3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E3, Bitboard::IDX_C3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E3, Bitboard::IDX_B3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E3, Bitboard::IDX_A3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E3, Bitboard::IDX_F3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E3, Bitboard::IDX_G3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E3, Bitboard::IDX_H3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E3, Bitboard::IDX_E4, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E3, Bitboard::IDX_E5, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E3, Bitboard::IDX_E6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E3, Bitboard::IDX_E7, MoveType::Capture),
+            Move::new(
+                Bitboard::IDX_E3,
+                Bitboard::IDX_E2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E3,
+                Bitboard::IDX_D3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E3,
+                Bitboard::IDX_C3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E3,
+                Bitboard::IDX_B3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E3,
+                Bitboard::IDX_A3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E3,
+                Bitboard::IDX_F3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E3,
+                Bitboard::IDX_G3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E3,
+                Bitboard::IDX_H3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E3,
+                Bitboard::IDX_E4,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E3,
+                Bitboard::IDX_E5,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E3,
+                Bitboard::IDX_E6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E3,
+                Bitboard::IDX_E7,
+                MoveType::new_no_promo(MoveTypeFlags::CAPTURE),
+            ),
         ];
 
         assert_eq!(expected_moves.len(), movegen.move_list.len());
@@ -908,33 +1298,129 @@ mod tests {
 
         let expected_moves = [
             // King
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_E2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F2, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_E2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
             // Pawn
-            Move::new(Bitboard::IDX_E3, Bitboard::IDX_E4, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_E3,
+                Bitboard::IDX_E4,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
             // Queen ranks and files
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_C2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_C1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_B3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_A3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_D3, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_C4, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_C5, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_C6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_C7, MoveType::Capture),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_C2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_C1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_B3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_A3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_D3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_C4,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_C5,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_C6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_C7,
+                MoveType::new_no_promo(MoveTypeFlags::CAPTURE),
+            ),
             // Queen diagonals
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_B2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_A1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_D2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_B4, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_A5, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_D4, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_E5, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_F6, MoveType::Quiet),
-            Move::new(Bitboard::IDX_C3, Bitboard::IDX_G7, MoveType::Capture),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_B2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_A1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_D2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_B4,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_A5,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_D4,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_E5,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_F6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_C3,
+                Bitboard::IDX_G7,
+                MoveType::new_no_promo(MoveTypeFlags::CAPTURE),
+            ),
         ];
 
         assert_eq!(expected_moves.len(), movegen.move_list.len());
@@ -958,55 +1444,91 @@ mod tests {
 
         let expected_moves = [
             // King
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_E2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F2, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_E2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
             // Pawns
             Move::new(
                 Bitboard::IDX_B7,
                 Bitboard::IDX_A8,
-                MoveType::KnightPromoCapture,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Knight),
             ),
             Move::new(
                 Bitboard::IDX_B7,
                 Bitboard::IDX_A8,
-                MoveType::BishopPromoCapture,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Bishop),
             ),
             Move::new(
                 Bitboard::IDX_B7,
                 Bitboard::IDX_A8,
-                MoveType::RookPromoCapture,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Rook),
             ),
             Move::new(
                 Bitboard::IDX_B7,
                 Bitboard::IDX_A8,
-                MoveType::QueenPromoCapture,
-            ),
-            Move::new(Bitboard::IDX_B7, Bitboard::IDX_B8, MoveType::KnightPromo),
-            Move::new(Bitboard::IDX_B7, Bitboard::IDX_B8, MoveType::BishopPromo),
-            Move::new(Bitboard::IDX_B7, Bitboard::IDX_B8, MoveType::RookPromo),
-            Move::new(Bitboard::IDX_B7, Bitboard::IDX_B8, MoveType::QueenPromo),
-            Move::new(
-                Bitboard::IDX_B7,
-                Bitboard::IDX_C8,
-                MoveType::KnightPromoCapture,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Queen),
             ),
             Move::new(
                 Bitboard::IDX_B7,
-                Bitboard::IDX_C8,
-                MoveType::BishopPromoCapture,
+                Bitboard::IDX_B8,
+                MoveType::new(MoveTypeFlags::PROMOTION, piece::Type::Knight),
+            ),
+            Move::new(
+                Bitboard::IDX_B7,
+                Bitboard::IDX_B8,
+                MoveType::new(MoveTypeFlags::PROMOTION, piece::Type::Bishop),
+            ),
+            Move::new(
+                Bitboard::IDX_B7,
+                Bitboard::IDX_B8,
+                MoveType::new(MoveTypeFlags::PROMOTION, piece::Type::Rook),
+            ),
+            Move::new(
+                Bitboard::IDX_B7,
+                Bitboard::IDX_B8,
+                MoveType::new(MoveTypeFlags::PROMOTION, piece::Type::Queen),
             ),
             Move::new(
                 Bitboard::IDX_B7,
                 Bitboard::IDX_C8,
-                MoveType::RookPromoCapture,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Knight),
             ),
             Move::new(
                 Bitboard::IDX_B7,
                 Bitboard::IDX_C8,
-                MoveType::QueenPromoCapture,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Bishop),
+            ),
+            Move::new(
+                Bitboard::IDX_B7,
+                Bitboard::IDX_C8,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Rook),
+            ),
+            Move::new(
+                Bitboard::IDX_B7,
+                Bitboard::IDX_C8,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Queen),
             ),
         ];
 
@@ -1031,55 +1553,91 @@ mod tests {
 
         let expected_moves = [
             // King
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_D7, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_D8, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_E7, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_F7, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_F8, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_E8,
+                Bitboard::IDX_D7,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E8,
+                Bitboard::IDX_D8,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E8,
+                Bitboard::IDX_E7,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E8,
+                Bitboard::IDX_F7,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E8,
+                Bitboard::IDX_F8,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
             // Pawns
             Move::new(
                 Bitboard::IDX_B2,
                 Bitboard::IDX_A1,
-                MoveType::KnightPromoCapture,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Knight),
             ),
             Move::new(
                 Bitboard::IDX_B2,
                 Bitboard::IDX_A1,
-                MoveType::BishopPromoCapture,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Bishop),
             ),
             Move::new(
                 Bitboard::IDX_B2,
                 Bitboard::IDX_A1,
-                MoveType::RookPromoCapture,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Rook),
             ),
             Move::new(
                 Bitboard::IDX_B2,
                 Bitboard::IDX_A1,
-                MoveType::QueenPromoCapture,
-            ),
-            Move::new(Bitboard::IDX_B2, Bitboard::IDX_B1, MoveType::KnightPromo),
-            Move::new(Bitboard::IDX_B2, Bitboard::IDX_B1, MoveType::BishopPromo),
-            Move::new(Bitboard::IDX_B2, Bitboard::IDX_B1, MoveType::RookPromo),
-            Move::new(Bitboard::IDX_B2, Bitboard::IDX_B1, MoveType::QueenPromo),
-            Move::new(
-                Bitboard::IDX_B2,
-                Bitboard::IDX_C1,
-                MoveType::KnightPromoCapture,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Queen),
             ),
             Move::new(
                 Bitboard::IDX_B2,
-                Bitboard::IDX_C1,
-                MoveType::BishopPromoCapture,
+                Bitboard::IDX_B1,
+                MoveType::new(MoveTypeFlags::PROMOTION, piece::Type::Knight),
+            ),
+            Move::new(
+                Bitboard::IDX_B2,
+                Bitboard::IDX_B1,
+                MoveType::new(MoveTypeFlags::PROMOTION, piece::Type::Bishop),
+            ),
+            Move::new(
+                Bitboard::IDX_B2,
+                Bitboard::IDX_B1,
+                MoveType::new(MoveTypeFlags::PROMOTION, piece::Type::Rook),
+            ),
+            Move::new(
+                Bitboard::IDX_B2,
+                Bitboard::IDX_B1,
+                MoveType::new(MoveTypeFlags::PROMOTION, piece::Type::Queen),
             ),
             Move::new(
                 Bitboard::IDX_B2,
                 Bitboard::IDX_C1,
-                MoveType::RookPromoCapture,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Knight),
             ),
             Move::new(
                 Bitboard::IDX_B2,
                 Bitboard::IDX_C1,
-                MoveType::QueenPromoCapture,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Bishop),
+            ),
+            Move::new(
+                Bitboard::IDX_B2,
+                Bitboard::IDX_C1,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Rook),
+            ),
+            Move::new(
+                Bitboard::IDX_B2,
+                Bitboard::IDX_C1,
+                MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Queen),
             ),
         ];
 
@@ -1104,17 +1662,41 @@ mod tests {
 
         let expected_moves = [
             // King
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D1, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_D2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_E2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F2, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_F1, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_D2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_E2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F2,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E1,
+                Bitboard::IDX_F1,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
             // Pawn
-            Move::new(Bitboard::IDX_D5, Bitboard::IDX_D6, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_D5,
+                Bitboard::IDX_D6,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
             Move::new(
                 Bitboard::IDX_D5,
                 Bitboard::IDX_C6,
-                MoveType::EnPassantCapture,
+                MoveType::new_no_promo(MoveTypeFlags::EN_PASSANT_CAPTURE),
             ),
         ];
 
@@ -1139,17 +1721,41 @@ mod tests {
 
         let expected_moves = [
             // King
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_D8, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_D7, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_E7, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_F7, MoveType::Quiet),
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_F8, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_E8,
+                Bitboard::IDX_D8,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E8,
+                Bitboard::IDX_D7,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E8,
+                Bitboard::IDX_E7,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E8,
+                Bitboard::IDX_F7,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
+            Move::new(
+                Bitboard::IDX_E8,
+                Bitboard::IDX_F8,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
             // Pawn
-            Move::new(Bitboard::IDX_D4, Bitboard::IDX_D3, MoveType::Quiet),
+            Move::new(
+                Bitboard::IDX_D4,
+                Bitboard::IDX_D3,
+                MoveType::new_no_promo(MoveTypeFlags::QUIET),
+            ),
             Move::new(
                 Bitboard::IDX_D4,
                 Bitboard::IDX_C3,
-                MoveType::EnPassantCapture,
+                MoveType::new_no_promo(MoveTypeFlags::EN_PASSANT_CAPTURE),
             ),
         ];
 
@@ -1161,12 +1767,15 @@ mod tests {
 
     #[test]
     fn white_castles() {
-        let kingside_castle =
-            Move::new(Bitboard::IDX_E1, Bitboard::IDX_G1, MoveType::KingsideCastle);
+        let kingside_castle = Move::new(
+            Bitboard::IDX_E1,
+            Bitboard::IDX_G1,
+            MoveType::new_no_promo(MoveTypeFlags::CASTLE_KINGSIDE),
+        );
         let queenside_castle = Move::new(
             Bitboard::IDX_E1,
             Bitboard::IDX_C1,
-            MoveType::QueensideCastle,
+            MoveType::new_no_promo(MoveTypeFlags::CASTLE_QUEENSIDE),
         );
 
         let mut pos = Position::empty();
@@ -1244,12 +1853,15 @@ mod tests {
 
     #[test]
     fn black_castles() {
-        let kingside_castle =
-            Move::new(Bitboard::IDX_E8, Bitboard::IDX_G8, MoveType::KingsideCastle);
+        let kingside_castle = Move::new(
+            Bitboard::IDX_E8,
+            Bitboard::IDX_G8,
+            MoveType::new_no_promo(MoveTypeFlags::CASTLE_KINGSIDE),
+        );
         let queenside_castle = Move::new(
             Bitboard::IDX_E8,
             Bitboard::IDX_C8,
-            MoveType::QueensideCastle,
+            MoveType::new_no_promo(MoveTypeFlags::CASTLE_QUEENSIDE),
         );
 
         let mut pos = Position::empty();
@@ -1340,17 +1952,17 @@ mod tests {
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_E2,
             Bitboard::IDX_E3,
-            MoveType::Quiet
+            MoveType::new_no_promo(MoveTypeFlags::QUIET)
         )));
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_E2,
             Bitboard::IDX_E4,
-            MoveType::DoublePawnPush
+            MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH)
         )));
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_E2,
             Bitboard::IDX_F3,
-            MoveType::Capture
+            MoveType::new_no_promo(MoveTypeFlags::CAPTURE)
         )));
 
         let mut pos_pawn_promo = Position::empty();
@@ -1366,12 +1978,12 @@ mod tests {
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_B7,
             Bitboard::IDX_B8,
-            MoveType::QueenPromo
+            MoveType::new(MoveTypeFlags::PROMOTION, piece::Type::Queen)
         )));
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_B7,
             Bitboard::IDX_C8,
-            MoveType::QueenPromoCapture
+            MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Queen)
         )));
 
         let mut pos_pawn_en_passant = Position::empty();
@@ -1388,7 +2000,7 @@ mod tests {
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_C5,
             Bitboard::IDX_B6,
-            MoveType::EnPassantCapture
+            MoveType::new_no_promo(MoveTypeFlags::EN_PASSANT_CAPTURE)
         )));
     }
 
@@ -1406,17 +2018,17 @@ mod tests {
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_G1,
             Bitboard::IDX_E2,
-            MoveType::Quiet
+            MoveType::new_no_promo(MoveTypeFlags::QUIET)
         )));
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_G1,
             Bitboard::IDX_F3,
-            MoveType::Quiet
+            MoveType::new_no_promo(MoveTypeFlags::QUIET)
         )));
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_G1,
             Bitboard::IDX_H3,
-            MoveType::Quiet
+            MoveType::new_no_promo(MoveTypeFlags::QUIET)
         )));
     }
 
@@ -1434,12 +2046,12 @@ mod tests {
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_G1,
             Bitboard::IDX_F2,
-            MoveType::Quiet
+            MoveType::new_no_promo(MoveTypeFlags::QUIET)
         )));
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_G1,
             Bitboard::IDX_H2,
-            MoveType::Quiet
+            MoveType::new_no_promo(MoveTypeFlags::QUIET)
         )));
     }
 
@@ -1457,17 +2069,17 @@ mod tests {
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_G1,
             Bitboard::IDX_G2,
-            MoveType::Quiet
+            MoveType::new_no_promo(MoveTypeFlags::QUIET)
         )));
         assert!(movegen.move_list.contains(&Move::new(
             Bitboard::IDX_G1,
             Bitboard::IDX_F1,
-            MoveType::Quiet
+            MoveType::new_no_promo(MoveTypeFlags::QUIET)
         )));
         assert!(movegen.move_list.contains(&Move::new(
             Bitboard::IDX_G1,
             Bitboard::IDX_H1,
-            MoveType::Capture
+            MoveType::new_no_promo(MoveTypeFlags::CAPTURE)
         )));
     }
 
@@ -1485,22 +2097,22 @@ mod tests {
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_G1,
             Bitboard::IDX_F2,
-            MoveType::Quiet
+            MoveType::new_no_promo(MoveTypeFlags::QUIET)
         )));
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_G1,
             Bitboard::IDX_G2,
-            MoveType::Quiet
+            MoveType::new_no_promo(MoveTypeFlags::QUIET)
         )));
         assert!(movegen.move_list.contains(&Move::new(
             Bitboard::IDX_G1,
             Bitboard::IDX_F1,
-            MoveType::Quiet
+            MoveType::new_no_promo(MoveTypeFlags::QUIET)
         )));
         assert!(movegen.move_list.contains(&Move::new(
             Bitboard::IDX_G1,
             Bitboard::IDX_H1,
-            MoveType::Capture
+            MoveType::new_no_promo(MoveTypeFlags::CAPTURE)
         )));
     }
 
@@ -1518,7 +2130,7 @@ mod tests {
         assert!(!movegen.move_list.contains(&Move::new(
             Bitboard::IDX_E1,
             Bitboard::IDX_E2,
-            MoveType::Quiet
+            MoveType::new_no_promo(MoveTypeFlags::QUIET)
         )));
     }
 
@@ -1531,7 +2143,11 @@ mod tests {
 
         // Position after 1. e4
         pos_history.push(movegen.pos.clone());
-        let m = Move::new(Bitboard::IDX_E2, Bitboard::IDX_E4, MoveType::DoublePawnPush);
+        let m = Move::new(
+            Bitboard::IDX_E2,
+            Bitboard::IDX_E4,
+            MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+        );
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
@@ -1549,7 +2165,11 @@ mod tests {
 
         // Position after 1. e4 c5
         pos_history.push(movegen.pos.clone());
-        let m = Move::new(Bitboard::IDX_C7, Bitboard::IDX_C5, MoveType::DoublePawnPush);
+        let m = Move::new(
+            Bitboard::IDX_C7,
+            Bitboard::IDX_C5,
+            MoveType::new_no_promo(MoveTypeFlags::DOUBLE_PAWN_PUSH),
+        );
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
@@ -1567,7 +2187,11 @@ mod tests {
 
         // Position after 1. e4 c5 2. Nf3
         pos_history.push(movegen.pos.clone());
-        let m = Move::new(Bitboard::IDX_G1, Bitboard::IDX_F3, MoveType::Quiet);
+        let m = Move::new(
+            Bitboard::IDX_G1,
+            Bitboard::IDX_F3,
+            MoveType::new_no_promo(MoveTypeFlags::QUIET),
+        );
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
@@ -1585,7 +2209,11 @@ mod tests {
 
         // Position after 1. e4 c5 2. Nf3 d6
         pos_history.push(movegen.pos.clone());
-        let m = Move::new(Bitboard::IDX_D7, Bitboard::IDX_D6, MoveType::Quiet);
+        let m = Move::new(
+            Bitboard::IDX_D7,
+            Bitboard::IDX_D6,
+            MoveType::new_no_promo(MoveTypeFlags::QUIET),
+        );
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
@@ -1650,7 +2278,11 @@ mod tests {
 
         // Position after 1. 0-0
         pos_history.push(movegen.pos.clone());
-        let m = Move::new(Bitboard::IDX_E1, Bitboard::IDX_G1, MoveType::KingsideCastle);
+        let m = Move::new(
+            Bitboard::IDX_E1,
+            Bitboard::IDX_G1,
+            MoveType::new_no_promo(MoveTypeFlags::CASTLE_KINGSIDE),
+        );
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
@@ -1661,7 +2293,11 @@ mod tests {
 
         // Position after 1. 0-0 Ke7
         pos_history.push(movegen.pos.clone());
-        let m = Move::new(Bitboard::IDX_E8, Bitboard::IDX_E7, MoveType::Quiet);
+        let m = Move::new(
+            Bitboard::IDX_E8,
+            Bitboard::IDX_E7,
+            MoveType::new_no_promo(MoveTypeFlags::QUIET),
+        );
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
@@ -1686,7 +2322,11 @@ mod tests {
 
         // Position after 1. Ra2
         pos_history.push(movegen.pos.clone());
-        let m = Move::new(Bitboard::IDX_A1, Bitboard::IDX_A2, MoveType::Quiet);
+        let m = Move::new(
+            Bitboard::IDX_A1,
+            Bitboard::IDX_A2,
+            MoveType::new_no_promo(MoveTypeFlags::QUIET),
+        );
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
@@ -1697,7 +2337,11 @@ mod tests {
         // Position after 1. Ra2 Rxh1
         // White loses kingside castling rights after the rook on h1 gets captured
         pos_history.push(movegen.pos.clone());
-        let m = Move::new(Bitboard::IDX_H8, Bitboard::IDX_H1, MoveType::Capture);
+        let m = Move::new(
+            Bitboard::IDX_H8,
+            Bitboard::IDX_H1,
+            MoveType::new_no_promo(MoveTypeFlags::CAPTURE),
+        );
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
@@ -1724,7 +2368,7 @@ mod tests {
         let m = Move::new(
             Bitboard::IDX_B7,
             Bitboard::IDX_A8,
-            MoveType::KnightPromoCapture,
+            MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Knight),
         );
         move_history.push(m);
         movegen.do_move(m);
@@ -1738,7 +2382,7 @@ mod tests {
         let m = Move::new(
             Bitboard::IDX_B2,
             Bitboard::IDX_A1,
-            MoveType::BishopPromoCapture,
+            MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Bishop),
         );
         move_history.push(m);
         movegen.do_move(m);
@@ -1752,7 +2396,7 @@ mod tests {
         let m = Move::new(
             Bitboard::IDX_G7,
             Bitboard::IDX_H8,
-            MoveType::RookPromoCapture,
+            MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Rook),
         );
         move_history.push(m);
         movegen.do_move(m);
@@ -1773,7 +2417,7 @@ mod tests {
         let m = Move::new(
             Bitboard::IDX_G7,
             Bitboard::IDX_H8,
-            MoveType::BishopPromoCapture,
+            MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Bishop),
         );
         move_history.push(m);
         movegen.do_move(m);
@@ -1787,7 +2431,7 @@ mod tests {
         let m = Move::new(
             Bitboard::IDX_G2,
             Bitboard::IDX_H1,
-            MoveType::QueenPromoCapture,
+            MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Queen),
         );
         move_history.push(m);
         movegen.do_move(m);
@@ -1839,7 +2483,7 @@ mod tests {
         let m = Move::new(
             Bitboard::IDX_D5,
             Bitboard::IDX_C6,
-            MoveType::EnPassantCapture,
+            MoveType::new_no_promo(MoveTypeFlags::EN_PASSANT_CAPTURE),
         );
         move_history.push(m);
         movegen.do_move(m);
@@ -1875,7 +2519,11 @@ mod tests {
 
         // Position after 1. a8=Q
         pos_history.push(movegen.pos.clone());
-        let m = Move::new(Bitboard::IDX_A7, Bitboard::IDX_A8, MoveType::QueenPromo);
+        let m = Move::new(
+            Bitboard::IDX_A7,
+            Bitboard::IDX_A8,
+            MoveType::new(MoveTypeFlags::PROMOTION, piece::Type::Queen),
+        );
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
@@ -1885,7 +2533,11 @@ mod tests {
 
         // Position after 1. a8=Q a1=R
         pos_history.push(movegen.pos.clone());
-        let m = Move::new(Bitboard::IDX_A2, Bitboard::IDX_A1, MoveType::RookPromo);
+        let m = Move::new(
+            Bitboard::IDX_A2,
+            Bitboard::IDX_A1,
+            MoveType::new(MoveTypeFlags::PROMOTION, piece::Type::Rook),
+        );
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
@@ -1895,7 +2547,11 @@ mod tests {
 
         // Position after 1. a8=Q a1=R 2. h8=B
         pos_history.push(movegen.pos.clone());
-        let m = Move::new(Bitboard::IDX_H7, Bitboard::IDX_H8, MoveType::BishopPromo);
+        let m = Move::new(
+            Bitboard::IDX_H7,
+            Bitboard::IDX_H8,
+            MoveType::new(MoveTypeFlags::PROMOTION, piece::Type::Bishop),
+        );
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
@@ -1905,7 +2561,11 @@ mod tests {
 
         // Position after 1. a8=Q a1=R 2. h8=B h1=N
         pos_history.push(movegen.pos.clone());
-        let m = Move::new(Bitboard::IDX_H2, Bitboard::IDX_H1, MoveType::KnightPromo);
+        let m = Move::new(
+            Bitboard::IDX_H2,
+            Bitboard::IDX_H1,
+            MoveType::new(MoveTypeFlags::PROMOTION, piece::Type::Knight),
+        );
         move_history.push(m);
         movegen.do_move(m);
         assert_eq!(
@@ -1964,7 +2624,7 @@ mod tests {
         let m = Move::new(
             Bitboard::IDX_A7,
             Bitboard::IDX_B8,
-            MoveType::QueenPromoCapture,
+            MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Queen),
         );
         move_history.push(m);
         movegen.do_move(m);
@@ -1978,7 +2638,7 @@ mod tests {
         let m = Move::new(
             Bitboard::IDX_A2,
             Bitboard::IDX_B1,
-            MoveType::RookPromoCapture,
+            MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Rook),
         );
         move_history.push(m);
         movegen.do_move(m);
@@ -1992,7 +2652,7 @@ mod tests {
         let m = Move::new(
             Bitboard::IDX_H7,
             Bitboard::IDX_G8,
-            MoveType::BishopPromoCapture,
+            MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Bishop),
         );
         move_history.push(m);
         movegen.do_move(m);
@@ -2006,7 +2666,7 @@ mod tests {
         let m = Move::new(
             Bitboard::IDX_H2,
             Bitboard::IDX_G1,
-            MoveType::KnightPromoCapture,
+            MoveType::new(MoveTypeFlags::PROMOTION_CAPTURE, piece::Type::Knight),
         );
         move_history.push(m);
         movegen.do_move(m);
