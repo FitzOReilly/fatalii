@@ -10,6 +10,7 @@ mod direction;
 mod fen;
 mod king;
 mod knight;
+mod r#move;
 mod pawn;
 mod piece;
 mod queen;
