@@ -35,15 +35,6 @@ pub struct Position {
 }
 
 impl Position {
-    const PAWN_EAST_ATTACKS: [fn(Bitboard) -> Bitboard; 2] = [
-        Pawn::white_east_attack_targets,
-        Pawn::black_east_attack_targets,
-    ];
-    const PAWN_WEST_ATTACKS: [fn(Bitboard) -> Bitboard; 2] = [
-        Pawn::white_west_attack_targets,
-        Pawn::black_west_attack_targets,
-    ];
-
     pub const fn empty() -> Self {
         Position {
             piece_side_occupancies: [Bitboard::EMPTY; 2],
@@ -237,8 +228,7 @@ impl Position {
 
     fn pawn_attacks(&self, side: Side) -> Bitboard {
         let pawns = self.piece_occupancy(side, piece::Type::Pawn);
-        let side_idx = side as usize;
-        Self::PAWN_EAST_ATTACKS[side_idx](pawns) | Self::PAWN_WEST_ATTACKS[side_idx](pawns)
+        Pawn::attack_targets(pawns, side)
     }
 
     fn piece_attacks(

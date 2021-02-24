@@ -8,6 +8,7 @@ use crate::position::{CastlingRights, Position};
 use crate::queen::Queen;
 use crate::r#move::{Move, MoveType};
 use crate::rook::Rook;
+use crate::side::Side;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct IrreversibleProperties {
@@ -40,30 +41,6 @@ pub struct MoveGenerator {
 }
 
 impl MoveGenerator {
-    const PAWN_PUSHES: [fn(Bitboard, Bitboard) -> (Bitboard, Bitboard); 2] =
-        [Pawn::white_push_targets, Pawn::black_push_targets];
-    const PAWN_PUSH_IDX_SHIFT: [i8; 2] = [Bitboard::IDX_SHIFT_NORTH, Bitboard::IDX_SHIFT_SOUTH];
-    const PAWN_PROMO_RANK: [Bitboard; 2] = [
-        Bitboard::WHITE_PROMOTION_RANK,
-        Bitboard::BLACK_PROMOTION_RANK,
-    ];
-    const PAWN_EAST_ATTACKS: [fn(Bitboard) -> Bitboard; 2] = [
-        Pawn::white_east_attack_targets,
-        Pawn::black_east_attack_targets,
-    ];
-    const PAWN_EAST_ATTACK_IDX_SHIFT: [i8; 2] = [
-        Bitboard::IDX_SHIFT_NORTH_EAST,
-        Bitboard::IDX_SHIFT_SOUTH_EAST,
-    ];
-    const PAWN_WEST_ATTACKS: [fn(Bitboard) -> Bitboard; 2] = [
-        Pawn::white_west_attack_targets,
-        Pawn::black_west_attack_targets,
-    ];
-    const PAWN_WEST_ATTACK_IDX_SHIFT: [i8; 2] = [
-        Bitboard::IDX_SHIFT_NORTH_WEST,
-        Bitboard::IDX_SHIFT_SOUTH_WEST,
-    ];
-
     pub fn new(pos: Position) -> MoveGenerator {
         MoveGenerator {
             pos,
@@ -85,8 +62,7 @@ impl MoveGenerator {
         pos.set_piece_at(target, pos.piece_at(origin));
         pos.set_piece_at(origin, None);
         if m.is_en_passant() {
-            let side_idx = pos.side_to_move() as usize;
-            let captured_idx = (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
+            let captured_idx = Pawn::idx_push_origin(target, pos.side_to_move());
             pos.set_piece_at(captured_idx, None);
         }
 
@@ -111,10 +87,9 @@ impl MoveGenerator {
         let target = m.target();
         let moving_piece = self.pos.piece_at(origin).unwrap();
         let side_to_move = self.pos.side_to_move();
-        let side_idx = side_to_move as usize;
 
         let capture_square = if m.is_en_passant() {
-            (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize
+            Pawn::idx_push_origin(target, side_to_move)
         } else {
             target
         };
@@ -139,7 +114,7 @@ impl MoveGenerator {
 
         let en_passant_square = match m.move_type() {
             MoveType::DOUBLE_PAWN_PUSH => {
-                let en_passant_idx = (origin as i8 + Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
+                let en_passant_idx = Pawn::idx_push_origin(target, side_to_move);
                 Bitboard(0x1 << en_passant_idx)
             }
             _ => Bitboard::EMPTY,
@@ -148,7 +123,7 @@ impl MoveGenerator {
 
         if m.is_capture() {
             if m.is_en_passant() {
-                let captured_idx = (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
+                let captured_idx = Pawn::idx_push_origin(target, side_to_move);
                 self.pos.set_piece_at(captured_idx, None);
             }
             self.remove_castling_rights(target);
@@ -165,7 +140,7 @@ impl MoveGenerator {
         self.remove_castling_rights(origin);
 
         let move_count = self.pos.move_count();
-        self.pos.set_move_count(move_count + side_idx);
+        self.pos.set_move_count(move_count + side_to_move as usize);
         self.pos.set_side_to_move(!side_to_move);
     }
 
@@ -196,8 +171,7 @@ impl MoveGenerator {
 
         if m.is_capture() {
             let capture_square = if m.is_en_passant() {
-                let side_idx = self.pos.side_to_move() as usize;
-                (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize
+                Pawn::idx_push_origin(target, self.pos.side_to_move())
             } else {
                 target
             };
@@ -209,22 +183,22 @@ impl MoveGenerator {
         let pawns = self
             .pos
             .piece_occupancy(self.pos.side_to_move(), piece::Type::Pawn);
-        let side_idx = self.pos.side_to_move() as usize;
+        let side = self.pos.side_to_move();
 
-        self.generate_pawn_pushes(pawns, side_idx);
-        self.generate_pawn_captures(pawns, side_idx);
+        self.generate_pawn_pushes(pawns, side);
+        self.generate_pawn_captures(pawns, side);
     }
 
-    fn generate_pawn_pushes(&mut self, pawns: Bitboard, side_idx: usize) {
+    fn generate_pawn_pushes(&mut self, pawns: Bitboard, side: Side) {
         let (single_push_targets, mut double_push_targets) =
-            Self::PAWN_PUSHES[side_idx](pawns, self.pos.occupancy());
+            Pawn::push_targets(pawns, self.pos.occupancy(), side);
 
-        let mut promo_targets = single_push_targets & Self::PAWN_PROMO_RANK[side_idx];
+        let mut promo_targets = single_push_targets & Pawn::promotion_rank(side);
         let mut non_promo_targets = single_push_targets & !promo_targets;
 
         while promo_targets != Bitboard::EMPTY {
             let target = promo_targets.bit_scan_forward_reset();
-            let origin = (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
+            let origin = Pawn::idx_push_origin(target, side);
             for promo_piece in [
                 piece::Type::Queen,
                 piece::Type::Rook,
@@ -242,36 +216,36 @@ impl MoveGenerator {
         }
         while non_promo_targets != Bitboard::EMPTY {
             let target = non_promo_targets.bit_scan_forward_reset();
-            let origin = (target as i8 - Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
+            let origin = Pawn::idx_push_origin(target, side);
             self.add_move_if_legal(Move::new(origin, target, MoveType::QUIET));
         }
         while double_push_targets != Bitboard::EMPTY {
             let target = double_push_targets.bit_scan_forward_reset();
-            let origin = (target as i8 - 2 * Self::PAWN_PUSH_IDX_SHIFT[side_idx]) as usize;
+            let origin = Pawn::idx_double_push_origin(target, side);
             self.add_move_if_legal(Move::new(origin, target, MoveType::DOUBLE_PAWN_PUSH));
         }
     }
 
-    fn generate_pawn_captures(&mut self, pawns: Bitboard, side_idx: usize) {
+    fn generate_pawn_captures(&mut self, pawns: Bitboard, side: Side) {
         let opponents = self.pos.side_occupancy(!self.pos.side_to_move());
         let en_passant_square = self.pos.en_passant_square();
 
         self.generate_pawn_captures_one_side(
             pawns,
             opponents,
+            side,
             en_passant_square,
-            Self::PAWN_EAST_ATTACKS[side_idx],
-            Self::PAWN_PROMO_RANK[side_idx],
-            Self::PAWN_EAST_ATTACK_IDX_SHIFT[side_idx],
+            Pawn::east_attack_targets,
+            Pawn::idx_east_attack_origin,
         );
 
         self.generate_pawn_captures_one_side(
             pawns,
             opponents,
+            side,
             en_passant_square,
-            Self::PAWN_WEST_ATTACKS[side_idx],
-            Self::PAWN_PROMO_RANK[side_idx],
-            Self::PAWN_WEST_ATTACK_IDX_SHIFT[side_idx],
+            Pawn::west_attack_targets,
+            Pawn::idx_west_attack_origin,
         );
     }
 
@@ -279,19 +253,20 @@ impl MoveGenerator {
         &mut self,
         pawns: Bitboard,
         opponents: Bitboard,
+        side_to_move: Side,
         en_passant_square: Bitboard,
-        attacks: fn(Bitboard) -> Bitboard,
-        promo_rank: Bitboard,
-        idx_shift: i8,
+        attacks: fn(Bitboard, Side) -> Bitboard,
+        idx_attack_origin: fn(usize, Side) -> usize,
     ) {
-        let targets = attacks(pawns);
+        let promo_rank = Pawn::promotion_rank(side_to_move);
+        let targets = attacks(pawns, side_to_move);
         let captures = targets & (opponents | en_passant_square);
         let mut promo_captures = captures & promo_rank;
         let mut non_promo_captures = captures & !promo_captures;
 
         while promo_captures != Bitboard::EMPTY {
             let target = promo_captures.bit_scan_forward_reset();
-            let origin = (target as i8 - idx_shift) as usize;
+            let origin = idx_attack_origin(target, side_to_move);
             for promo_piece in [
                 piece::Type::Queen,
                 piece::Type::Rook,
@@ -310,7 +285,7 @@ impl MoveGenerator {
 
         while non_promo_captures != Bitboard::EMPTY {
             let target = non_promo_captures.bit_scan_forward_reset();
-            let origin = (target as i8 - idx_shift) as usize;
+            let origin = idx_attack_origin(target, side_to_move);
             let move_type = if Bitboard(0x1 << target) == en_passant_square {
                 MoveType::EN_PASSANT_CAPTURE
             } else {
