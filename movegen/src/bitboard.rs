@@ -11,16 +11,6 @@ impl Bitboard {
     pub const NUM_FILES: usize = 8;
     pub const NUM_SQUARES: usize = Self::NUM_RANKS * Self::NUM_FILES;
 
-    pub const IDX_SHIFT_NORTH: i8 = 1;
-    pub const IDX_SHIFT_SOUTH: i8 = -1;
-    pub const IDX_SHIFT_NORTH_EAST: i8 = 9;
-    pub const IDX_SHIFT_NORTH_WEST: i8 = -7;
-    pub const IDX_SHIFT_SOUTH_EAST: i8 = 7;
-    pub const IDX_SHIFT_SOUTH_WEST: i8 = -9;
-
-    pub const WHITE_PROMOTION_RANK: Self = Self::RANK_8;
-    pub const BLACK_PROMOTION_RANK: Self = Self::RANK_1;
-
     pub const EMPTY: Self = Bitboard(0x0000000000000000);
     pub const UNIVERSE: Self = Bitboard(0xffffffffffffffff);
 
@@ -280,6 +270,50 @@ impl Bitboard {
 
     pub fn north_two_west_one(self) -> Self {
         self >> 6 & !(Self::RANK_1 | Self::RANK_2)
+    }
+
+    pub fn idx_north_one(square_idx: usize) -> usize {
+        debug_assert!(Self::to_rank(square_idx) < Self::NUM_RANKS);
+        square_idx + 1
+    }
+
+    pub fn idx_north_two(square_idx: usize) -> usize {
+        debug_assert!(Self::to_rank(square_idx) < Self::NUM_RANKS - 1);
+        square_idx + 2
+    }
+
+    pub fn idx_north_east_one(square_idx: usize) -> usize {
+        debug_assert!(Self::to_rank(square_idx) < Self::NUM_RANKS);
+        debug_assert!(Self::to_file(square_idx) < Self::NUM_FILES);
+        square_idx + 9
+    }
+
+    pub fn idx_north_west_one(square_idx: usize) -> usize {
+        debug_assert!(Self::to_rank(square_idx) < Self::NUM_RANKS);
+        debug_assert!(Self::to_file(square_idx) > 0);
+        square_idx - 7
+    }
+
+    pub fn idx_south_one(square_idx: usize) -> usize {
+        debug_assert!(Self::to_rank(square_idx) > 0);
+        square_idx - 1
+    }
+
+    pub fn idx_south_two(square_idx: usize) -> usize {
+        debug_assert!(Self::to_rank(square_idx) > 1);
+        square_idx - 2
+    }
+
+    pub fn idx_south_east_one(square_idx: usize) -> usize {
+        debug_assert!(Self::to_rank(square_idx) > 0);
+        debug_assert!(Self::to_file(square_idx) < Self::NUM_FILES);
+        square_idx + 7
+    }
+
+    pub fn idx_south_west_one(square_idx: usize) -> usize {
+        debug_assert!(Self::to_rank(square_idx) > 0);
+        debug_assert!(Self::to_file(square_idx) > 0);
+        square_idx - 9
     }
 
     fn north_fill(self) -> Self {
@@ -1111,6 +1145,58 @@ mod tests {
         assert_eq!(Bitboard(0xc0c0c0c0c0c0c0ff), board);
         let board = board.north_two_west_one();
         assert_eq!(Bitboard::EMPTY, board);
+    }
+
+    #[test]
+    fn idx_north_one() {
+        assert_eq!(Bitboard::IDX_D5, Bitboard::idx_north_one(Bitboard::IDX_D4));
+    }
+
+    #[test]
+    fn idx_north_two() {
+        assert_eq!(Bitboard::IDX_D6, Bitboard::idx_north_two(Bitboard::IDX_D4));
+    }
+
+    #[test]
+    fn idx_north_east_one() {
+        assert_eq!(
+            Bitboard::IDX_E5,
+            Bitboard::idx_north_east_one(Bitboard::IDX_D4)
+        );
+    }
+
+    #[test]
+    fn idx_north_west_one() {
+        assert_eq!(
+            Bitboard::IDX_C5,
+            Bitboard::idx_north_west_one(Bitboard::IDX_D4)
+        );
+    }
+
+    #[test]
+    fn idx_south_one() {
+        assert_eq!(Bitboard::IDX_D3, Bitboard::idx_south_one(Bitboard::IDX_D4));
+    }
+
+    #[test]
+    fn idx_south_two() {
+        assert_eq!(Bitboard::IDX_D2, Bitboard::idx_south_two(Bitboard::IDX_D4));
+    }
+
+    #[test]
+    fn idx_south_east_one() {
+        assert_eq!(
+            Bitboard::IDX_E3,
+            Bitboard::idx_south_east_one(Bitboard::IDX_D4)
+        );
+    }
+
+    #[test]
+    fn idx_south_west_one() {
+        assert_eq!(
+            Bitboard::IDX_C3,
+            Bitboard::idx_south_west_one(Bitboard::IDX_D4)
+        );
     }
 
     #[test]
