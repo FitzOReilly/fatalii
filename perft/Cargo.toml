@@ -13,5 +13,5 @@ movegen = { path = "../movegen" }
 criterion = "0.3"
 
 [[bench]]
-name = "movegen_performance"
+name = "bench_movegen"
 harness = false
