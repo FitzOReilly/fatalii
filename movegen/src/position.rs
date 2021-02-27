@@ -165,10 +165,10 @@ impl Position {
     pub fn set_piece_at(&mut self, square_index: usize, piece: Option<Piece>) {
         let square = Bitboard(0x1 << square_index);
 
-        for pso in self.piece_side_occupancies.iter_mut() {
+        for pso in &mut self.piece_side_occupancies {
             *pso &= !square;
         }
-        for pto in self.piece_type_occupancies.iter_mut() {
+        for pto in &mut self.piece_type_occupancies {
             *pto &= !square;
         }
 
@@ -224,6 +224,19 @@ impl Position {
                 attacking_side,
             )
             | self.piece_attacks(piece::Type::King, &King::targets, attacking_side)
+    }
+
+    pub fn remove_castling_rights(&mut self, square: usize) {
+        let removed_castling_rights = match square {
+            Bitboard::IDX_A1 => CastlingRights::WHITE_QUEENSIDE,
+            Bitboard::IDX_H1 => CastlingRights::WHITE_KINGSIDE,
+            Bitboard::IDX_E1 => CastlingRights::WHITE_BOTH,
+            Bitboard::IDX_A8 => CastlingRights::BLACK_QUEENSIDE,
+            Bitboard::IDX_H8 => CastlingRights::BLACK_KINGSIDE,
+            Bitboard::IDX_E8 => CastlingRights::BLACK_BOTH,
+            _ => CastlingRights::empty(),
+        };
+        self.set_castling_rights(self.castling_rights() & !removed_castling_rights);
     }
 
     fn pawn_attacks(&self, side: Side) -> Bitboard {
@@ -486,5 +499,25 @@ mod tests {
         pos.set_piece_at(Bitboard::IDX_H5, Some(piece::Piece::WHITE_BISHOP));
         assert!(pos.is_in_check(Side::White));
         assert!(pos.is_in_check(Side::Black));
+    }
+
+    #[test]
+    fn remove_castling_rights() {
+        let mut pos = Position::initial();
+        assert_eq!(
+            CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
+            pos.castling_rights()
+        );
+        pos.remove_castling_rights(Bitboard::IDX_D4);
+        assert_eq!(
+            CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
+            pos.castling_rights()
+        );
+        pos.remove_castling_rights(Bitboard::IDX_E1);
+        assert_eq!(CastlingRights::BLACK_BOTH, pos.castling_rights());
+        pos.remove_castling_rights(Bitboard::IDX_A8);
+        assert_eq!(CastlingRights::BLACK_KINGSIDE, pos.castling_rights());
+        pos.remove_castling_rights(Bitboard::IDX_H8);
+        assert_eq!(CastlingRights::empty(), pos.castling_rights());
     }
 }

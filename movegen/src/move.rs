@@ -94,6 +94,8 @@ impl Move {
     }
 }
 
+pub type MoveList = Vec<Move>;
+
 #[cfg(test)]
 mod tests {
     use super::*;
