@@ -170,13 +170,11 @@ impl MoveGenerator {
     }
 
     fn generate_king_moves(move_list: &mut MoveList, pos: &Position) {
-        let mut kings = pos.piece_occupancy(pos.side_to_move(), piece::Type::King);
+        let king = pos.piece_occupancy(pos.side_to_move(), piece::Type::King);
         let own_occupancy = pos.side_occupancy(pos.side_to_move());
-        while kings != Bitboard::EMPTY {
-            let origin = kings.bit_scan_forward_reset();
-            let targets = King::targets(origin) & !own_occupancy;
-            Self::generate_piece_moves(move_list, pos, origin, &targets);
-        }
+        let origin = king.bit_idx();
+        let targets = King::targets(origin) & !own_occupancy;
+        Self::generate_piece_moves(move_list, pos, origin, &targets);
     }
 
     fn generate_sliding_piece_moves(
@@ -1079,7 +1077,7 @@ mod tests {
         let mut move_list = MoveList::new();
 
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
         pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
         pos.set_piece_at(Bitboard::IDX_A8, Some(piece::Piece::BLACK_ROOK));
         pos.set_piece_at(Bitboard::IDX_H8, Some(piece::Piece::BLACK_ROOK));
