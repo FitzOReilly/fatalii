@@ -1,13 +1,14 @@
 use crate::bitboard::Bitboard;
+use crate::square::Square;
 
 pub struct Knight;
 
 impl Knight {
-    pub fn targets(origin: usize) -> Bitboard {
-        Self::TARGETS_ALL_SQUARES[origin]
+    pub fn targets(origin: Square) -> Bitboard {
+        Self::TARGETS_ALL_SQUARES[origin.idx()]
     }
 
-    const TARGETS_ALL_SQUARES: [Bitboard; Bitboard::NUM_SQUARES] = [
+    const TARGETS_ALL_SQUARES: [Bitboard; Square::NUM_SQUARES] = [
         Bitboard(0x20400),
         Bitboard(0x50800),
         Bitboard(0xa1100),
@@ -81,38 +82,26 @@ mod tests {
 
     #[test]
     fn targets() {
-        assert_eq!(
-            Bitboard::B3 | Bitboard::C2,
-            Knight::targets(Bitboard::IDX_A1)
-        );
-        assert_eq!(
-            Bitboard::B6 | Bitboard::C7,
-            Knight::targets(Bitboard::IDX_A8)
-        );
-        assert_eq!(
-            Bitboard::G3 | Bitboard::F2,
-            Knight::targets(Bitboard::IDX_H1)
-        );
-        assert_eq!(
-            Bitboard::G6 | Bitboard::F7,
-            Knight::targets(Bitboard::IDX_H8)
-        );
+        assert_eq!(Bitboard::B3 | Bitboard::C2, Knight::targets(Square::A1));
+        assert_eq!(Bitboard::B6 | Bitboard::C7, Knight::targets(Square::A8));
+        assert_eq!(Bitboard::G3 | Bitboard::F2, Knight::targets(Square::H1));
+        assert_eq!(Bitboard::G6 | Bitboard::F7, Knight::targets(Square::H8));
 
         assert_eq!(
             Bitboard::A4 | Bitboard::C4 | Bitboard::D3 | Bitboard::D1,
-            Knight::targets(Bitboard::IDX_B2)
+            Knight::targets(Square::B2)
         );
         assert_eq!(
             Bitboard::A5 | Bitboard::C5 | Bitboard::D6 | Bitboard::D8,
-            Knight::targets(Bitboard::IDX_B7)
+            Knight::targets(Square::B7)
         );
         assert_eq!(
             Bitboard::H4 | Bitboard::F4 | Bitboard::E3 | Bitboard::E1,
-            Knight::targets(Bitboard::IDX_G2)
+            Knight::targets(Square::G2)
         );
         assert_eq!(
             Bitboard::H5 | Bitboard::F5 | Bitboard::E6 | Bitboard::E8,
-            Knight::targets(Bitboard::IDX_G7)
+            Knight::targets(Square::G7)
         );
 
         assert_eq!(
@@ -124,7 +113,7 @@ mod tests {
                 | Bitboard::D5
                 | Bitboard::E2
                 | Bitboard::E4,
-            Knight::targets(Bitboard::IDX_C3)
+            Knight::targets(Square::C3)
         );
         assert_eq!(
             Bitboard::A5
@@ -135,7 +124,7 @@ mod tests {
                 | Bitboard::D8
                 | Bitboard::E5
                 | Bitboard::E7,
-            Knight::targets(Bitboard::IDX_C6)
+            Knight::targets(Square::C6)
         );
         assert_eq!(
             Bitboard::D2
@@ -146,7 +135,7 @@ mod tests {
                 | Bitboard::G5
                 | Bitboard::H2
                 | Bitboard::H4,
-            Knight::targets(Bitboard::IDX_F3)
+            Knight::targets(Square::F3)
         );
         assert_eq!(
             Bitboard::D5
@@ -157,7 +146,7 @@ mod tests {
                 | Bitboard::G8
                 | Bitboard::H5
                 | Bitboard::H7,
-            Knight::targets(Bitboard::IDX_F6)
+            Knight::targets(Square::F6)
         );
     }
 }

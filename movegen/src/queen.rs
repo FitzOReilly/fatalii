@@ -1,10 +1,11 @@
 use crate::bitboard::Bitboard;
 use crate::ray::Ray;
+use crate::square::Square;
 
 pub struct Queen;
 
 impl Queen {
-    pub fn targets(origin: usize, occupied: Bitboard) -> Bitboard {
+    pub fn targets(origin: Square, occupied: Bitboard) -> Bitboard {
         Ray::north_targets(origin, occupied)
             | Ray::east_targets(origin, occupied)
             | Ray::south_targets(origin, occupied)
@@ -40,7 +41,7 @@ mod tests {
                 | Bitboard::F6
                 | Bitboard::G7,
             Queen::targets(
-                Bitboard::IDX_D4,
+                Square::D4,
                 Bitboard::C4
                     | Bitboard::B4
                     | Bitboard::A4
@@ -60,9 +61,9 @@ mod tests {
     #[test]
     fn non_blocking_occupancy_targets() {
         assert_eq!(
-            Queen::targets(Bitboard::IDX_D4, Bitboard::EMPTY),
+            Queen::targets(Square::D4, Bitboard::EMPTY),
             Queen::targets(
-                Bitboard::IDX_D4,
+                Square::D4,
                 Bitboard::B3
                     | Bitboard::B5
                     | Bitboard::C2

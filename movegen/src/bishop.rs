@@ -1,10 +1,11 @@
 use crate::bitboard::Bitboard;
 use crate::ray::Ray;
+use crate::square::Square;
 
 pub struct Bishop;
 
 impl Bishop {
-    pub fn targets(origin: usize, occupied: Bitboard) -> Bitboard {
+    pub fn targets(origin: Square, occupied: Bitboard) -> Bitboard {
         Ray::north_east_targets(origin, occupied)
             | Ray::south_east_targets(origin, occupied)
             | Ray::south_west_targets(origin, occupied)
@@ -28,7 +29,7 @@ mod tests {
                 | Bitboard::F6
                 | Bitboard::G7,
             Bishop::targets(
-                Bitboard::IDX_D4,
+                Square::D4,
                 Bitboard::C3
                     | Bitboard::B2
                     | Bitboard::A1
@@ -42,9 +43,9 @@ mod tests {
     #[test]
     fn non_blocking_occupancy_targets() {
         assert_eq!(
-            Bishop::targets(Bitboard::IDX_D4, Bitboard::EMPTY),
+            Bishop::targets(Square::D4, Bitboard::EMPTY),
             Bishop::targets(
-                Bitboard::IDX_D4,
+                Square::D4,
                 Bitboard::C4 | Bitboard::D3 | Bitboard::D5 | Bitboard::E4
             )
         );

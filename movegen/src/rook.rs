@@ -1,10 +1,11 @@
 use crate::bitboard::Bitboard;
 use crate::ray::Ray;
+use crate::square::Square;
 
 pub struct Rook;
 
 impl Rook {
-    pub fn targets(origin: usize, occupied: Bitboard) -> Bitboard {
+    pub fn targets(origin: Square, occupied: Bitboard) -> Bitboard {
         Ray::north_targets(origin, occupied)
             | Ray::east_targets(origin, occupied)
             | Ray::south_targets(origin, occupied)
@@ -28,7 +29,7 @@ mod tests {
                 | Bitboard::F4
                 | Bitboard::G4,
             Rook::targets(
-                Bitboard::IDX_D4,
+                Square::D4,
                 Bitboard::C4
                     | Bitboard::B4
                     | Bitboard::A4
@@ -42,9 +43,9 @@ mod tests {
     #[test]
     fn non_blocking_occupancy_targets() {
         assert_eq!(
-            Rook::targets(Bitboard::IDX_D4, Bitboard::EMPTY),
+            Rook::targets(Square::D4, Bitboard::EMPTY),
             Rook::targets(
-                Bitboard::IDX_D4,
+                Square::D4,
                 Bitboard::C3 | Bitboard::C5 | Bitboard::E3 | Bitboard::E5
             )
         );

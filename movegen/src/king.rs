@@ -1,13 +1,14 @@
 use crate::bitboard::Bitboard;
+use crate::square::Square;
 
 pub struct King;
 
 impl King {
-    pub fn targets(origin: usize) -> Bitboard {
-        Self::TARGETS_ALL_SQUARES[origin]
+    pub fn targets(origin: Square) -> Bitboard {
+        Self::TARGETS_ALL_SQUARES[origin.idx()]
     }
 
-    const TARGETS_ALL_SQUARES: [Bitboard; Bitboard::NUM_SQUARES] = [
+    const TARGETS_ALL_SQUARES: [Bitboard; Square::NUM_SQUARES] = [
         Bitboard(0x302),
         Bitboard(0x705),
         Bitboard(0xe0a),
@@ -83,24 +84,24 @@ mod tests {
     fn targets() {
         assert_eq!(
             Bitboard::A2 | Bitboard::B1 | Bitboard::B2,
-            King::targets(Bitboard::IDX_A1)
+            King::targets(Square::A1)
         );
         assert_eq!(
             Bitboard::A7 | Bitboard::B8 | Bitboard::B7,
-            King::targets(Bitboard::IDX_A8)
+            King::targets(Square::A8)
         );
         assert_eq!(
             Bitboard::H2 | Bitboard::G1 | Bitboard::G2,
-            King::targets(Bitboard::IDX_H1)
+            King::targets(Square::H1)
         );
         assert_eq!(
             Bitboard::H7 | Bitboard::G8 | Bitboard::G7,
-            King::targets(Bitboard::IDX_H8)
+            King::targets(Square::H8)
         );
 
         assert_eq!(
             Bitboard::A1 | Bitboard::A2 | Bitboard::B2 | Bitboard::C1 | Bitboard::C2,
-            King::targets(Bitboard::IDX_B1)
+            King::targets(Square::B1)
         );
 
         assert_eq!(
@@ -112,7 +113,7 @@ mod tests {
                 | Bitboard::C1
                 | Bitboard::C2
                 | Bitboard::C3,
-            King::targets(Bitboard::IDX_B2)
+            King::targets(Square::B2)
         );
     }
 }

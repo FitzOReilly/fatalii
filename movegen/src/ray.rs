@@ -1,10 +1,11 @@
 use crate::bitboard::Bitboard;
 use crate::direction::Direction;
+use crate::square::Square;
 
 pub struct Ray;
 
 impl Ray {
-    const RAYS: [[Bitboard; Bitboard::NUM_SQUARES]; 8] = [
+    const RAYS: [[Bitboard; Square::NUM_SQUARES]; 8] = [
         Self::NORTH_RAYS,
         Self::SOUTH_RAYS,
         Self::EAST_RAYS,
@@ -15,7 +16,7 @@ impl Ray {
         Self::SOUTH_WEST_RAYS,
     ];
 
-    const NORTH_RAYS: [Bitboard; Bitboard::NUM_SQUARES] = [
+    const NORTH_RAYS: [Bitboard; Square::NUM_SQUARES] = [
         Bitboard(0x00000000000000fe),
         Bitboard(0x00000000000000fc),
         Bitboard(0x00000000000000f8),
@@ -82,7 +83,7 @@ impl Ray {
         Bitboard(0x0000000000000000),
     ];
 
-    const SOUTH_RAYS: [Bitboard; Bitboard::NUM_SQUARES] = [
+    const SOUTH_RAYS: [Bitboard; Square::NUM_SQUARES] = [
         Bitboard(0x0000000000000000),
         Bitboard(0x0000000000000001),
         Bitboard(0x0000000000000003),
@@ -149,7 +150,7 @@ impl Ray {
         Bitboard(0x7f00000000000000),
     ];
 
-    const EAST_RAYS: [Bitboard; Bitboard::NUM_SQUARES] = [
+    const EAST_RAYS: [Bitboard; Square::NUM_SQUARES] = [
         Bitboard(0x0101010101010100),
         Bitboard(0x0202020202020200),
         Bitboard(0x0404040404040400),
@@ -216,7 +217,7 @@ impl Ray {
         Bitboard(0x0000000000000000),
     ];
 
-    const WEST_RAYS: [Bitboard; Bitboard::NUM_SQUARES] = [
+    const WEST_RAYS: [Bitboard; Square::NUM_SQUARES] = [
         Bitboard(0x0000000000000000),
         Bitboard(0x0000000000000000),
         Bitboard(0x0000000000000000),
@@ -283,7 +284,7 @@ impl Ray {
         Bitboard(0x0080808080808080),
     ];
 
-    const NORTH_EAST_RAYS: [Bitboard; Bitboard::NUM_SQUARES] = [
+    const NORTH_EAST_RAYS: [Bitboard; Square::NUM_SQUARES] = [
         Bitboard(0x8040201008040200),
         Bitboard(0x0080402010080400),
         Bitboard(0x0000804020100800),
@@ -350,7 +351,7 @@ impl Ray {
         Bitboard(0x0000000000000000),
     ];
 
-    const NORTH_WEST_RAYS: [Bitboard; Bitboard::NUM_SQUARES] = [
+    const NORTH_WEST_RAYS: [Bitboard; Square::NUM_SQUARES] = [
         Bitboard(0x0000000000000000),
         Bitboard(0x0000000000000000),
         Bitboard(0x0000000000000000),
@@ -417,7 +418,7 @@ impl Ray {
         Bitboard(0x0000000000000000),
     ];
 
-    const SOUTH_EAST_RAYS: [Bitboard; Bitboard::NUM_SQUARES] = [
+    const SOUTH_EAST_RAYS: [Bitboard; Square::NUM_SQUARES] = [
         Bitboard(0x0000000000000000),
         Bitboard(0x0000000000000100),
         Bitboard(0x0000000000010200),
@@ -484,7 +485,7 @@ impl Ray {
         Bitboard(0x0000000000000000),
     ];
 
-    const SOUTH_WEST_RAYS: [Bitboard; Bitboard::NUM_SQUARES] = [
+    const SOUTH_WEST_RAYS: [Bitboard; Square::NUM_SQUARES] = [
         Bitboard(0x0000000000000000),
         Bitboard(0x0000000000000000),
         Bitboard(0x0000000000000000),
@@ -551,55 +552,55 @@ impl Ray {
         Bitboard(0x0040201008040201),
     ];
 
-    pub fn north_targets(origin: usize, occupied: Bitboard) -> Bitboard {
+    pub fn north_targets(origin: Square, occupied: Bitboard) -> Bitboard {
         Self::positive_targets(origin, occupied, Direction::North)
     }
 
-    pub fn north_east_targets(origin: usize, occupied: Bitboard) -> Bitboard {
+    pub fn north_east_targets(origin: Square, occupied: Bitboard) -> Bitboard {
         Self::positive_targets(origin, occupied, Direction::NorthEast)
     }
 
-    pub fn east_targets(origin: usize, occupied: Bitboard) -> Bitboard {
+    pub fn east_targets(origin: Square, occupied: Bitboard) -> Bitboard {
         Self::positive_targets(origin, occupied, Direction::East)
     }
 
-    pub fn south_east_targets(origin: usize, occupied: Bitboard) -> Bitboard {
+    pub fn south_east_targets(origin: Square, occupied: Bitboard) -> Bitboard {
         Self::positive_targets(origin, occupied, Direction::SouthEast)
     }
 
-    pub fn south_targets(origin: usize, occupied: Bitboard) -> Bitboard {
+    pub fn south_targets(origin: Square, occupied: Bitboard) -> Bitboard {
         Self::negative_targets(origin, occupied, Direction::South)
     }
 
-    pub fn south_west_targets(origin: usize, occupied: Bitboard) -> Bitboard {
+    pub fn south_west_targets(origin: Square, occupied: Bitboard) -> Bitboard {
         Self::negative_targets(origin, occupied, Direction::SouthWest)
     }
 
-    pub fn west_targets(origin: usize, occupied: Bitboard) -> Bitboard {
+    pub fn west_targets(origin: Square, occupied: Bitboard) -> Bitboard {
         Self::negative_targets(origin, occupied, Direction::West)
     }
 
-    pub fn north_west_targets(origin: usize, occupied: Bitboard) -> Bitboard {
+    pub fn north_west_targets(origin: Square, occupied: Bitboard) -> Bitboard {
         Self::negative_targets(origin, occupied, Direction::NorthWest)
     }
 
-    fn positive_targets(origin: usize, occupied: Bitboard, direction: Direction) -> Bitboard {
-        let empty_board_targets = Self::RAYS[direction as usize][origin];
+    fn positive_targets(origin: Square, occupied: Bitboard, direction: Direction) -> Bitboard {
+        let empty_board_targets = Self::RAYS[direction as usize][origin.idx()];
         let blocked = empty_board_targets & occupied;
-        // At least one bit must be set when calling bit_scan_forward. Setting the most significant
-        // bit does not change the targets and allows a branchless implementation.
-        let first_blocked = (blocked | Bitboard(0x8000000000000000)).bit_scan_forward();
-        let targets = empty_board_targets ^ Self::RAYS[direction as usize][first_blocked];
+        // At least one bit must be set when calling square_scan_forward. Setting the most
+        // significant bit does not change the targets and allows a branchless implementation.
+        let first_blocked = (blocked | Bitboard(0x8000000000000000)).square_scan_forward();
+        let targets = empty_board_targets ^ Self::RAYS[direction as usize][first_blocked.idx()];
         targets
     }
 
-    fn negative_targets(origin: usize, occupied: Bitboard, direction: Direction) -> Bitboard {
-        let empty_board_targets = Self::RAYS[direction as usize][origin];
+    fn negative_targets(origin: Square, occupied: Bitboard, direction: Direction) -> Bitboard {
+        let empty_board_targets = Self::RAYS[direction as usize][origin.idx()];
         let blocked = empty_board_targets & occupied;
-        // At least one bit must be set when calling bit_scan_reverse. Setting the least
+        // At least one bit must be set when calling square_scan_reverse. Setting the least
         // significant bit does not change the targets and allows a branchless implementation.
-        let first_blocked = (blocked | Bitboard(0x0000000000000001)).bit_scan_reverse();
-        let targets = empty_board_targets ^ Self::RAYS[direction as usize][first_blocked];
+        let first_blocked = (blocked | Bitboard(0x0000000000000001)).square_scan_reverse();
+        let targets = empty_board_targets ^ Self::RAYS[direction as usize][first_blocked.idx()];
         targets
     }
 }
@@ -618,17 +619,17 @@ mod tests {
                 | Bitboard::D6
                 | Bitboard::D7
                 | Bitboard::D8,
-            Ray::north_targets(Bitboard::IDX_D1, Bitboard::EMPTY)
+            Ray::north_targets(Square::D1, Bitboard::EMPTY)
         );
 
         assert_eq!(
             Bitboard::D2 | Bitboard::D3 | Bitboard::D4 | Bitboard::D5 | Bitboard::D6 | Bitboard::D7,
-            Ray::north_targets(Bitboard::IDX_D1, Bitboard::D7)
+            Ray::north_targets(Square::D1, Bitboard::D7)
         );
 
         assert_eq!(
             Bitboard::D2,
-            Ray::north_targets(Bitboard::IDX_D1, Bitboard::D2 | Bitboard::D7)
+            Ray::north_targets(Square::D1, Bitboard::D2 | Bitboard::D7)
         );
     }
 
@@ -642,17 +643,17 @@ mod tests {
                 | Bitboard::D3
                 | Bitboard::D2
                 | Bitboard::D1,
-            Ray::south_targets(Bitboard::IDX_D8, Bitboard::EMPTY)
+            Ray::south_targets(Square::D8, Bitboard::EMPTY)
         );
 
         assert_eq!(
             Bitboard::D7 | Bitboard::D6 | Bitboard::D5 | Bitboard::D4 | Bitboard::D3 | Bitboard::D2,
-            Ray::south_targets(Bitboard::IDX_D8, Bitboard::D2)
+            Ray::south_targets(Square::D8, Bitboard::D2)
         );
 
         assert_eq!(
             Bitboard::D7,
-            Ray::south_targets(Bitboard::IDX_D8, Bitboard::D7 | Bitboard::D2)
+            Ray::south_targets(Square::D8, Bitboard::D7 | Bitboard::D2)
         );
     }
 
@@ -666,17 +667,17 @@ mod tests {
                 | Bitboard::F4
                 | Bitboard::G4
                 | Bitboard::H4,
-            Ray::east_targets(Bitboard::IDX_A4, Bitboard::EMPTY)
+            Ray::east_targets(Square::A4, Bitboard::EMPTY)
         );
 
         assert_eq!(
             Bitboard::B4 | Bitboard::C4 | Bitboard::D4 | Bitboard::E4 | Bitboard::F4 | Bitboard::G4,
-            Ray::east_targets(Bitboard::IDX_A4, Bitboard::G4)
+            Ray::east_targets(Square::A4, Bitboard::G4)
         );
 
         assert_eq!(
             Bitboard::B4,
-            Ray::east_targets(Bitboard::IDX_A4, Bitboard::B4 | Bitboard::G4)
+            Ray::east_targets(Square::A4, Bitboard::B4 | Bitboard::G4)
         );
     }
 
@@ -690,17 +691,17 @@ mod tests {
                 | Bitboard::C4
                 | Bitboard::B4
                 | Bitboard::A4,
-            Ray::west_targets(Bitboard::IDX_H4, Bitboard::EMPTY)
+            Ray::west_targets(Square::H4, Bitboard::EMPTY)
         );
 
         assert_eq!(
             Bitboard::G4 | Bitboard::F4 | Bitboard::E4 | Bitboard::D4 | Bitboard::C4 | Bitboard::B4,
-            Ray::west_targets(Bitboard::IDX_H4, Bitboard::B4)
+            Ray::west_targets(Square::H4, Bitboard::B4)
         );
 
         assert_eq!(
             Bitboard::G4,
-            Ray::west_targets(Bitboard::IDX_H4, Bitboard::G4 | Bitboard::B4)
+            Ray::west_targets(Square::H4, Bitboard::G4 | Bitboard::B4)
         );
     }
 
@@ -714,17 +715,17 @@ mod tests {
                 | Bitboard::F6
                 | Bitboard::G7
                 | Bitboard::H8,
-            Ray::north_east_targets(Bitboard::IDX_A1, Bitboard::EMPTY)
+            Ray::north_east_targets(Square::A1, Bitboard::EMPTY)
         );
 
         assert_eq!(
             Bitboard::B2 | Bitboard::C3 | Bitboard::D4 | Bitboard::E5 | Bitboard::F6 | Bitboard::G7,
-            Ray::north_east_targets(Bitboard::IDX_A1, Bitboard::G7)
+            Ray::north_east_targets(Square::A1, Bitboard::G7)
         );
 
         assert_eq!(
             Bitboard::B2,
-            Ray::north_east_targets(Bitboard::IDX_A1, Bitboard::B2 | Bitboard::G7)
+            Ray::north_east_targets(Square::A1, Bitboard::B2 | Bitboard::G7)
         );
     }
 
@@ -738,17 +739,17 @@ mod tests {
                 | Bitboard::F3
                 | Bitboard::G2
                 | Bitboard::H1,
-            Ray::south_east_targets(Bitboard::IDX_A8, Bitboard::EMPTY)
+            Ray::south_east_targets(Square::A8, Bitboard::EMPTY)
         );
 
         assert_eq!(
             Bitboard::B7 | Bitboard::C6 | Bitboard::D5 | Bitboard::E4 | Bitboard::F3 | Bitboard::G2,
-            Ray::south_east_targets(Bitboard::IDX_A8, Bitboard::G2)
+            Ray::south_east_targets(Square::A8, Bitboard::G2)
         );
 
         assert_eq!(
             Bitboard::B7,
-            Ray::south_east_targets(Bitboard::IDX_A8, Bitboard::B7 | Bitboard::G2)
+            Ray::south_east_targets(Square::A8, Bitboard::B7 | Bitboard::G2)
         );
     }
 
@@ -762,17 +763,17 @@ mod tests {
                 | Bitboard::C3
                 | Bitboard::B2
                 | Bitboard::A1,
-            Ray::south_west_targets(Bitboard::IDX_H8, Bitboard::EMPTY)
+            Ray::south_west_targets(Square::H8, Bitboard::EMPTY)
         );
 
         assert_eq!(
             Bitboard::G7 | Bitboard::F6 | Bitboard::E5 | Bitboard::D4 | Bitboard::C3 | Bitboard::B2,
-            Ray::south_west_targets(Bitboard::IDX_H8, Bitboard::B2)
+            Ray::south_west_targets(Square::H8, Bitboard::B2)
         );
 
         assert_eq!(
             Bitboard::G7,
-            Ray::south_west_targets(Bitboard::IDX_H8, Bitboard::G7 | Bitboard::B2)
+            Ray::south_west_targets(Square::H8, Bitboard::G7 | Bitboard::B2)
         );
     }
 
@@ -786,17 +787,17 @@ mod tests {
                 | Bitboard::C6
                 | Bitboard::B7
                 | Bitboard::A8,
-            Ray::north_west_targets(Bitboard::IDX_H1, Bitboard::EMPTY)
+            Ray::north_west_targets(Square::H1, Bitboard::EMPTY)
         );
 
         assert_eq!(
             Bitboard::G2 | Bitboard::F3 | Bitboard::E4 | Bitboard::D5 | Bitboard::C6 | Bitboard::B7,
-            Ray::north_west_targets(Bitboard::IDX_H1, Bitboard::B7)
+            Ray::north_west_targets(Square::H1, Bitboard::B7)
         );
 
         assert_eq!(
             Bitboard::G2,
-            Ray::north_west_targets(Bitboard::IDX_H1, Bitboard::G2 | Bitboard::B7)
+            Ray::north_west_targets(Square::H1, Bitboard::G2 | Bitboard::B7)
         );
     }
 }
