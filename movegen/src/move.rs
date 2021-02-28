@@ -1,5 +1,6 @@
 use crate::piece;
 use crate::square::Square;
+use std::fmt;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct MoveType(u8);
@@ -91,6 +92,41 @@ impl Move {
 
     pub fn is_promotion(&self) -> bool {
         self.move_type().is_promotion()
+    }
+}
+
+impl fmt::Display for Move {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let move_str = match self.move_type() {
+            MoveType::CASTLE_KINGSIDE => String::from("0-0"),
+            MoveType::CASTLE_QUEENSIDE => String::from("0-0-0"),
+            _ => {
+                let capture_str = if self.is_capture() { "x" } else { "" };
+                let promo_str = if self.is_promotion() {
+                    match self.move_type().promo_piece_unchecked() {
+                        piece::Type::Knight => "=N",
+                        piece::Type::Bishop => "=B",
+                        piece::Type::Rook => "=R",
+                        piece::Type::Queen => "=Q",
+                        _ => panic!(
+                            "Invalid promotion piece `{:?}`",
+                            self.move_type().promo_piece_unchecked()
+                        ),
+                    }
+                } else {
+                    ""
+                };
+                format!(
+                    "{}{}{}{}",
+                    self.origin(),
+                    capture_str,
+                    self.target(),
+                    promo_str
+                )
+            }
+        };
+        write!(f, "{}", move_str).unwrap();
+        Ok(())
     }
 }
 
@@ -298,5 +334,101 @@ mod tests {
         assert_eq!(Square::G2, m.origin());
         assert_eq!(Square::H1, m.target());
         assert_eq!(MoveType::PROMOTION_CAPTURE_QUEEN, m.move_type());
+    }
+
+    #[test]
+    fn fmt() {
+        assert_eq!(
+            "d2d3",
+            format!("{}", Move::new(Square::D2, Square::D3, MoveType::QUIET))
+        );
+        assert_eq!(
+            "d7d5",
+            format!(
+                "{}",
+                Move::new(Square::D7, Square::D5, MoveType::DOUBLE_PAWN_PUSH)
+            )
+        );
+        assert_eq!(
+            "0-0",
+            format!(
+                "{}",
+                Move::new(Square::E1, Square::G1, MoveType::CASTLE_KINGSIDE)
+            )
+        );
+        assert_eq!(
+            "0-0-0",
+            format!(
+                "{}",
+                Move::new(Square::E8, Square::C8, MoveType::CASTLE_QUEENSIDE)
+            )
+        );
+        assert_eq!(
+            "c4xd5",
+            format!("{}", Move::new(Square::C4, Square::D5, MoveType::CAPTURE))
+        );
+        assert_eq!(
+            "c4xd3",
+            format!(
+                "{}",
+                Move::new(Square::C4, Square::D3, MoveType::EN_PASSANT_CAPTURE)
+            )
+        );
+        assert_eq!(
+            "a7a8=N",
+            format!(
+                "{}",
+                Move::new(Square::A7, Square::A8, MoveType::PROMOTION_KNIGHT)
+            )
+        );
+        assert_eq!(
+            "b2b1=B",
+            format!(
+                "{}",
+                Move::new(Square::B2, Square::B1, MoveType::PROMOTION_BISHOP)
+            )
+        );
+        assert_eq!(
+            "e7e8=R",
+            format!(
+                "{}",
+                Move::new(Square::E7, Square::E8, MoveType::PROMOTION_ROOK)
+            )
+        );
+        assert_eq!(
+            "g2g1=Q",
+            format!(
+                "{}",
+                Move::new(Square::G2, Square::G1, MoveType::PROMOTION_QUEEN)
+            )
+        );
+        assert_eq!(
+            "a7xb8=N",
+            format!(
+                "{}",
+                Move::new(Square::A7, Square::B8, MoveType::PROMOTION_CAPTURE_KNIGHT)
+            )
+        );
+        assert_eq!(
+            "b2xc1=B",
+            format!(
+                "{}",
+                Move::new(Square::B2, Square::C1, MoveType::PROMOTION_CAPTURE_BISHOP)
+            )
+        );
+        assert_eq!(
+            "e7xf8=R",
+            format!(
+                "{}",
+                Move::new(Square::E7, Square::F8, MoveType::PROMOTION_CAPTURE_ROOK)
+            )
+        );
+        assert_eq!(
+            "g2xh1=Q",
+            format!(
+                "{}",
+                Move::new(Square::G2, Square::H1, MoveType::PROMOTION_CAPTURE_QUEEN)
+            )
+        );
     }
 }

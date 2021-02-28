@@ -75,7 +75,7 @@ impl Piece {
             &Piece::BLACK_ROOK => b'r',
             &Piece::BLACK_QUEEN => b'q',
             &Piece::BLACK_KING => b'k',
-            _ => panic!("Invalid piece representation `{:?}`", self),
+            _ => panic!("Invalid piece encoding `{:?}`", self),
         }
     }
 }

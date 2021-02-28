@@ -169,7 +169,6 @@ impl fmt::Display for Square {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::str;
 
     #[test]
     fn from_idx() {
