@@ -1,13 +1,16 @@
 use crate::bishop::Bishop;
 use crate::bitboard::Bitboard;
+use crate::file::File;
 use crate::king::King;
 use crate::knight::Knight;
 use crate::pawn::Pawn;
 use crate::piece;
 use crate::piece::Piece;
 use crate::queen::Queen;
+use crate::rank::Rank;
 use crate::rook::Rook;
 use crate::side::Side;
+use crate::square::Square;
 use std::fmt;
 use std::str;
 
@@ -114,12 +117,14 @@ impl Position {
         self.move_count = move_count;
     }
 
-    pub fn piece_at(&self, square_index: usize) -> Option<Piece> {
-        let square = Bitboard(0x1 << square_index);
-        let side = if square & self.piece_side_occupancies[Side::White as usize] != Bitboard::EMPTY
+    pub fn piece_at(&self, square: Square) -> Option<Piece> {
+        let square_bit = Bitboard::from_square(square);
+        let side = if square_bit & self.piece_side_occupancies[Side::White as usize]
+            != Bitboard::EMPTY
         {
             Some(Side::White)
-        } else if square & self.piece_side_occupancies[Side::Black as usize] != Bitboard::EMPTY {
+        } else if square_bit & self.piece_side_occupancies[Side::Black as usize] != Bitboard::EMPTY
+        {
             Some(Side::Black)
         } else {
             None
@@ -127,29 +132,30 @@ impl Position {
 
         let piece = match side {
             Some(piece_side) => {
-                let piece_type = if square & self.piece_type_occupancies[piece::Type::Pawn as usize]
+                let piece_type = if square_bit
+                    & self.piece_type_occupancies[piece::Type::Pawn as usize]
                     != Bitboard::EMPTY
                 {
                     piece::Type::Pawn
-                } else if square & self.piece_type_occupancies[piece::Type::Knight as usize]
+                } else if square_bit & self.piece_type_occupancies[piece::Type::Knight as usize]
                     != Bitboard::EMPTY
                 {
                     piece::Type::Knight
-                } else if square & self.piece_type_occupancies[piece::Type::Bishop as usize]
+                } else if square_bit & self.piece_type_occupancies[piece::Type::Bishop as usize]
                     != Bitboard::EMPTY
                 {
                     piece::Type::Bishop
-                } else if square & self.piece_type_occupancies[piece::Type::Rook as usize]
+                } else if square_bit & self.piece_type_occupancies[piece::Type::Rook as usize]
                     != Bitboard::EMPTY
                 {
                     piece::Type::Rook
-                } else if square & self.piece_type_occupancies[piece::Type::Queen as usize]
+                } else if square_bit & self.piece_type_occupancies[piece::Type::Queen as usize]
                     != Bitboard::EMPTY
                 {
                     piece::Type::Queen
                 } else {
                     debug_assert_ne!(
-                        square & self.piece_type_occupancies[piece::Type::King as usize],
+                        square_bit & self.piece_type_occupancies[piece::Type::King as usize],
                         Bitboard::EMPTY
                     );
                     piece::Type::King
@@ -162,20 +168,20 @@ impl Position {
         piece
     }
 
-    pub fn set_piece_at(&mut self, square_index: usize, piece: Option<Piece>) {
-        let square = Bitboard(0x1 << square_index);
+    pub fn set_piece_at(&mut self, square: Square, piece: Option<Piece>) {
+        let square_bit = Bitboard::from_square(square);
 
         for pso in &mut self.piece_side_occupancies {
-            *pso &= !square;
+            *pso &= !square_bit;
         }
         for pto in &mut self.piece_type_occupancies {
-            *pto &= !square;
+            *pto &= !square_bit;
         }
 
         match piece {
             Some(p) => {
-                self.piece_side_occupancies[p.piece_side() as usize] |= square;
-                self.piece_type_occupancies[p.piece_type() as usize] |= square;
+                self.piece_side_occupancies[p.piece_side() as usize] |= square_bit;
+                self.piece_type_occupancies[p.piece_type() as usize] |= square_bit;
             }
             None => {}
         }
@@ -226,14 +232,14 @@ impl Position {
             | self.piece_attacks(piece::Type::King, &King::targets, attacking_side)
     }
 
-    pub fn remove_castling_rights(&mut self, square: usize) {
+    pub fn remove_castling_rights(&mut self, square: Square) {
         let removed_castling_rights = match square {
-            Bitboard::IDX_A1 => CastlingRights::WHITE_QUEENSIDE,
-            Bitboard::IDX_H1 => CastlingRights::WHITE_KINGSIDE,
-            Bitboard::IDX_E1 => CastlingRights::WHITE_BOTH,
-            Bitboard::IDX_A8 => CastlingRights::BLACK_QUEENSIDE,
-            Bitboard::IDX_H8 => CastlingRights::BLACK_KINGSIDE,
-            Bitboard::IDX_E8 => CastlingRights::BLACK_BOTH,
+            Square::A1 => CastlingRights::WHITE_QUEENSIDE,
+            Square::H1 => CastlingRights::WHITE_KINGSIDE,
+            Square::E1 => CastlingRights::WHITE_BOTH,
+            Square::A8 => CastlingRights::BLACK_QUEENSIDE,
+            Square::H8 => CastlingRights::BLACK_KINGSIDE,
+            Square::E8 => CastlingRights::BLACK_BOTH,
             _ => CastlingRights::empty(),
         };
         self.set_castling_rights(self.castling_rights() & !removed_castling_rights);
@@ -247,13 +253,13 @@ impl Position {
     fn piece_attacks(
         &self,
         piece_type: piece::Type,
-        piece_targets: &dyn Fn(usize) -> Bitboard,
+        piece_targets: &dyn Fn(Square) -> Bitboard,
         side: Side,
     ) -> Bitboard {
         let mut pieces = self.piece_occupancy(side, piece_type);
         let mut targets = Bitboard::EMPTY;
         while pieces != Bitboard::EMPTY {
-            let origin = pieces.bit_scan_forward_reset();
+            let origin = pieces.square_scan_forward_reset();
             targets |= piece_targets(origin);
         }
         targets
@@ -264,10 +270,10 @@ impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         const EMPTY_SQUARE: u8 = b'-';
         const SPACE: u8 = b' ';
-        let mut squares_in_rank = [SPACE; 2 * Bitboard::NUM_FILES - 1];
-        for rank in (0..Bitboard::NUM_RANKS).rev() {
-            for file in 0..Bitboard::NUM_FILES {
-                let square = Bitboard::to_square(rank, file);
+        let mut squares_in_rank = [SPACE; 2 * File::NUM_FILES - 1];
+        for rank in (0..Rank::NUM_RANKS).rev() {
+            for file in 0..File::NUM_FILES {
+                let square = Square::from_file_and_rank(File::from_idx(file), Rank::from_idx(rank));
                 squares_in_rank[2 * file] = match self.piece_at(square) {
                     None => EMPTY_SQUARE,
                     Some(piece) => piece.to_ascii(),
@@ -296,22 +302,22 @@ mod tests {
         assert_eq!(0, pos.plies_since_pawn_move_or_capture());
         assert_eq!(1, pos.move_count());
 
-        assert_eq!(Some(Piece::WHITE_ROOK), pos.piece_at(Bitboard::IDX_A1));
-        assert_eq!(Some(Piece::WHITE_KNIGHT), pos.piece_at(Bitboard::IDX_B1));
-        assert_eq!(Some(Piece::WHITE_BISHOP), pos.piece_at(Bitboard::IDX_C1));
-        assert_eq!(Some(Piece::WHITE_QUEEN), pos.piece_at(Bitboard::IDX_D1));
-        assert_eq!(Some(Piece::WHITE_KING), pos.piece_at(Bitboard::IDX_E1));
-        assert_eq!(Some(Piece::WHITE_PAWN), pos.piece_at(Bitboard::IDX_A2));
+        assert_eq!(Some(Piece::WHITE_ROOK), pos.piece_at(Square::A1));
+        assert_eq!(Some(Piece::WHITE_KNIGHT), pos.piece_at(Square::B1));
+        assert_eq!(Some(Piece::WHITE_BISHOP), pos.piece_at(Square::C1));
+        assert_eq!(Some(Piece::WHITE_QUEEN), pos.piece_at(Square::D1));
+        assert_eq!(Some(Piece::WHITE_KING), pos.piece_at(Square::E1));
+        assert_eq!(Some(Piece::WHITE_PAWN), pos.piece_at(Square::A2));
 
-        assert_eq!(None, pos.piece_at(Bitboard::IDX_A3));
-        assert_eq!(None, pos.piece_at(Bitboard::IDX_H6));
+        assert_eq!(None, pos.piece_at(Square::A3));
+        assert_eq!(None, pos.piece_at(Square::H6));
 
-        assert_eq!(Some(Piece::BLACK_ROOK), pos.piece_at(Bitboard::IDX_A8));
-        assert_eq!(Some(Piece::BLACK_KNIGHT), pos.piece_at(Bitboard::IDX_B8));
-        assert_eq!(Some(Piece::BLACK_BISHOP), pos.piece_at(Bitboard::IDX_C8));
-        assert_eq!(Some(Piece::BLACK_QUEEN), pos.piece_at(Bitboard::IDX_D8));
-        assert_eq!(Some(Piece::BLACK_KING), pos.piece_at(Bitboard::IDX_E8));
-        assert_eq!(Some(Piece::BLACK_PAWN), pos.piece_at(Bitboard::IDX_A7));
+        assert_eq!(Some(Piece::BLACK_ROOK), pos.piece_at(Square::A8));
+        assert_eq!(Some(Piece::BLACK_KNIGHT), pos.piece_at(Square::B8));
+        assert_eq!(Some(Piece::BLACK_BISHOP), pos.piece_at(Square::C8));
+        assert_eq!(Some(Piece::BLACK_QUEEN), pos.piece_at(Square::D8));
+        assert_eq!(Some(Piece::BLACK_KING), pos.piece_at(Square::E8));
+        assert_eq!(Some(Piece::BLACK_PAWN), pos.piece_at(Square::A7));
 
         assert_eq!(
             Bitboard::RANK_2,
@@ -405,7 +411,7 @@ mod tests {
     #[test]
     fn set_piece_at() {
         let mut pos = Position::initial();
-        pos.set_piece_at(Bitboard::IDX_E4, Some(Piece::WHITE_PAWN));
+        pos.set_piece_at(Square::E4, Some(Piece::WHITE_PAWN));
         let square = Bitboard::E4;
         assert_eq!(
             square,
@@ -433,7 +439,7 @@ mod tests {
             square & pos.piece_type_occupancy(piece::Type::King)
         );
         assert_eq!(square, square & pos.occupancy());
-        pos.set_piece_at(Bitboard::IDX_E4, None);
+        pos.set_piece_at(Square::E4, None);
         assert_eq!(Bitboard::EMPTY, square & pos.occupancy());
     }
 
@@ -480,23 +486,23 @@ mod tests {
     #[test]
     fn is_in_check() {
         let mut pos = Position::empty();
-        pos.set_piece_at(Bitboard::IDX_E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Bitboard::IDX_E2, Some(piece::Piece::WHITE_PAWN));
-        pos.set_piece_at(Bitboard::IDX_E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Bitboard::IDX_D7, Some(piece::Piece::BLACK_PAWN));
+        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Square::E2, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Square::D7, Some(piece::Piece::BLACK_PAWN));
         pos.set_side_to_move(Side::White);
         pos.set_castling_rights(CastlingRights::empty());
         assert!(!pos.is_in_check(Side::White));
         assert!(!pos.is_in_check(Side::Black));
 
         // Pawn blocks the check
-        pos.set_piece_at(Bitboard::IDX_E4, Some(piece::Piece::BLACK_ROOK));
-        pos.set_piece_at(Bitboard::IDX_B5, Some(piece::Piece::WHITE_BISHOP));
+        pos.set_piece_at(Square::E4, Some(piece::Piece::BLACK_ROOK));
+        pos.set_piece_at(Square::B5, Some(piece::Piece::WHITE_BISHOP));
         assert!(!pos.is_in_check(Side::White));
         assert!(!pos.is_in_check(Side::Black));
 
-        pos.set_piece_at(Bitboard::IDX_H1, Some(piece::Piece::BLACK_ROOK));
-        pos.set_piece_at(Bitboard::IDX_H5, Some(piece::Piece::WHITE_BISHOP));
+        pos.set_piece_at(Square::H1, Some(piece::Piece::BLACK_ROOK));
+        pos.set_piece_at(Square::H5, Some(piece::Piece::WHITE_BISHOP));
         assert!(pos.is_in_check(Side::White));
         assert!(pos.is_in_check(Side::Black));
     }
@@ -508,16 +514,16 @@ mod tests {
             CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
             pos.castling_rights()
         );
-        pos.remove_castling_rights(Bitboard::IDX_D4);
+        pos.remove_castling_rights(Square::D4);
         assert_eq!(
             CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
             pos.castling_rights()
         );
-        pos.remove_castling_rights(Bitboard::IDX_E1);
+        pos.remove_castling_rights(Square::E1);
         assert_eq!(CastlingRights::BLACK_BOTH, pos.castling_rights());
-        pos.remove_castling_rights(Bitboard::IDX_A8);
+        pos.remove_castling_rights(Square::A8);
         assert_eq!(CastlingRights::BLACK_KINGSIDE, pos.castling_rights());
-        pos.remove_castling_rights(Bitboard::IDX_H8);
+        pos.remove_castling_rights(Square::H8);
         assert_eq!(CastlingRights::empty(), pos.castling_rights());
     }
 }

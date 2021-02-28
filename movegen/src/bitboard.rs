@@ -1,3 +1,6 @@
+use crate::file::File;
+use crate::rank::Rank;
+use crate::square::Square;
 use std::fmt;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, Not, Shl, Shr};
 use std::str;
@@ -7,175 +10,94 @@ use std::str;
 pub struct Bitboard(pub u64);
 
 impl Bitboard {
-    pub const NUM_RANKS: usize = 8;
-    pub const NUM_FILES: usize = 8;
-    pub const NUM_SQUARES: usize = Self::NUM_RANKS * Self::NUM_FILES;
+    pub const EMPTY: Self = Self(0x0000000000000000);
+    pub const UNIVERSE: Self = Self(0xffffffffffffffff);
 
-    pub const EMPTY: Self = Bitboard(0x0000000000000000);
-    pub const UNIVERSE: Self = Bitboard(0xffffffffffffffff);
+    pub const FILE_A: Self = Self(0x00000000000000ff);
+    pub const FILE_B: Self = Self(0x000000000000ff00);
+    pub const FILE_C: Self = Self(0x0000000000ff0000);
+    pub const FILE_D: Self = Self(0x00000000ff000000);
+    pub const FILE_E: Self = Self(0x000000ff00000000);
+    pub const FILE_F: Self = Self(0x0000ff0000000000);
+    pub const FILE_G: Self = Self(0x00ff000000000000);
+    pub const FILE_H: Self = Self(0xff00000000000000);
 
-    pub const FILE_A: Self = Bitboard(0x00000000000000ff);
-    pub const FILE_B: Self = Bitboard(0x000000000000ff00);
-    pub const FILE_C: Self = Bitboard(0x0000000000ff0000);
-    pub const FILE_D: Self = Bitboard(0x00000000ff000000);
-    pub const FILE_E: Self = Bitboard(0x000000ff00000000);
-    pub const FILE_F: Self = Bitboard(0x0000ff0000000000);
-    pub const FILE_G: Self = Bitboard(0x00ff000000000000);
-    pub const FILE_H: Self = Bitboard(0xff00000000000000);
+    pub const RANK_1: Self = Self(0x0101010101010101);
+    pub const RANK_2: Self = Self(0x0202020202020202);
+    pub const RANK_3: Self = Self(0x0404040404040404);
+    pub const RANK_4: Self = Self(0x0808080808080808);
+    pub const RANK_5: Self = Self(0x1010101010101010);
+    pub const RANK_6: Self = Self(0x2020202020202020);
+    pub const RANK_7: Self = Self(0x4040404040404040);
+    pub const RANK_8: Self = Self(0x8080808080808080);
 
-    pub const RANK_1: Self = Bitboard(0x0101010101010101);
-    pub const RANK_2: Self = Bitboard(0x0202020202020202);
-    pub const RANK_3: Self = Bitboard(0x0404040404040404);
-    pub const RANK_4: Self = Bitboard(0x0808080808080808);
-    pub const RANK_5: Self = Bitboard(0x1010101010101010);
-    pub const RANK_6: Self = Bitboard(0x2020202020202020);
-    pub const RANK_7: Self = Bitboard(0x4040404040404040);
-    pub const RANK_8: Self = Bitboard(0x8080808080808080);
+    pub const A1: Self = Self::from_square(Square::A1);
+    pub const A2: Self = Self::from_square(Square::A2);
+    pub const A3: Self = Self::from_square(Square::A3);
+    pub const A4: Self = Self::from_square(Square::A4);
+    pub const A5: Self = Self::from_square(Square::A5);
+    pub const A6: Self = Self::from_square(Square::A6);
+    pub const A7: Self = Self::from_square(Square::A7);
+    pub const A8: Self = Self::from_square(Square::A8);
+    pub const B1: Self = Self::from_square(Square::B1);
+    pub const B2: Self = Self::from_square(Square::B2);
+    pub const B3: Self = Self::from_square(Square::B3);
+    pub const B4: Self = Self::from_square(Square::B4);
+    pub const B5: Self = Self::from_square(Square::B5);
+    pub const B6: Self = Self::from_square(Square::B6);
+    pub const B7: Self = Self::from_square(Square::B7);
+    pub const B8: Self = Self::from_square(Square::B8);
+    pub const C1: Self = Self::from_square(Square::C1);
+    pub const C2: Self = Self::from_square(Square::C2);
+    pub const C3: Self = Self::from_square(Square::C3);
+    pub const C4: Self = Self::from_square(Square::C4);
+    pub const C5: Self = Self::from_square(Square::C5);
+    pub const C6: Self = Self::from_square(Square::C6);
+    pub const C7: Self = Self::from_square(Square::C7);
+    pub const C8: Self = Self::from_square(Square::C8);
+    pub const D1: Self = Self::from_square(Square::D1);
+    pub const D2: Self = Self::from_square(Square::D2);
+    pub const D3: Self = Self::from_square(Square::D3);
+    pub const D4: Self = Self::from_square(Square::D4);
+    pub const D5: Self = Self::from_square(Square::D5);
+    pub const D6: Self = Self::from_square(Square::D6);
+    pub const D7: Self = Self::from_square(Square::D7);
+    pub const D8: Self = Self::from_square(Square::D8);
+    pub const E1: Self = Self::from_square(Square::E1);
+    pub const E2: Self = Self::from_square(Square::E2);
+    pub const E3: Self = Self::from_square(Square::E3);
+    pub const E4: Self = Self::from_square(Square::E4);
+    pub const E5: Self = Self::from_square(Square::E5);
+    pub const E6: Self = Self::from_square(Square::E6);
+    pub const E7: Self = Self::from_square(Square::E7);
+    pub const E8: Self = Self::from_square(Square::E8);
+    pub const F1: Self = Self::from_square(Square::F1);
+    pub const F2: Self = Self::from_square(Square::F2);
+    pub const F3: Self = Self::from_square(Square::F3);
+    pub const F4: Self = Self::from_square(Square::F4);
+    pub const F5: Self = Self::from_square(Square::F5);
+    pub const F6: Self = Self::from_square(Square::F6);
+    pub const F7: Self = Self::from_square(Square::F7);
+    pub const F8: Self = Self::from_square(Square::F8);
+    pub const G1: Self = Self::from_square(Square::G1);
+    pub const G2: Self = Self::from_square(Square::G2);
+    pub const G3: Self = Self::from_square(Square::G3);
+    pub const G4: Self = Self::from_square(Square::G4);
+    pub const G5: Self = Self::from_square(Square::G5);
+    pub const G6: Self = Self::from_square(Square::G6);
+    pub const G7: Self = Self::from_square(Square::G7);
+    pub const G8: Self = Self::from_square(Square::G8);
+    pub const H1: Self = Self::from_square(Square::H1);
+    pub const H2: Self = Self::from_square(Square::H2);
+    pub const H3: Self = Self::from_square(Square::H3);
+    pub const H4: Self = Self::from_square(Square::H4);
+    pub const H5: Self = Self::from_square(Square::H5);
+    pub const H6: Self = Self::from_square(Square::H6);
+    pub const H7: Self = Self::from_square(Square::H7);
+    pub const H8: Self = Self::from_square(Square::H8);
 
-    pub const A1: Self = Bitboard(0x0000000000000001 << Self::IDX_A1);
-    pub const A2: Self = Bitboard(0x0000000000000001 << Self::IDX_A2);
-    pub const A3: Self = Bitboard(0x0000000000000001 << Self::IDX_A3);
-    pub const A4: Self = Bitboard(0x0000000000000001 << Self::IDX_A4);
-    pub const A5: Self = Bitboard(0x0000000000000001 << Self::IDX_A5);
-    pub const A6: Self = Bitboard(0x0000000000000001 << Self::IDX_A6);
-    pub const A7: Self = Bitboard(0x0000000000000001 << Self::IDX_A7);
-    pub const A8: Self = Bitboard(0x0000000000000001 << Self::IDX_A8);
-    pub const B1: Self = Bitboard(0x0000000000000001 << Self::IDX_B1);
-    pub const B2: Self = Bitboard(0x0000000000000001 << Self::IDX_B2);
-    pub const B3: Self = Bitboard(0x0000000000000001 << Self::IDX_B3);
-    pub const B4: Self = Bitboard(0x0000000000000001 << Self::IDX_B4);
-    pub const B5: Self = Bitboard(0x0000000000000001 << Self::IDX_B5);
-    pub const B6: Self = Bitboard(0x0000000000000001 << Self::IDX_B6);
-    pub const B7: Self = Bitboard(0x0000000000000001 << Self::IDX_B7);
-    pub const B8: Self = Bitboard(0x0000000000000001 << Self::IDX_B8);
-    pub const C1: Self = Bitboard(0x0000000000000001 << Self::IDX_C1);
-    pub const C2: Self = Bitboard(0x0000000000000001 << Self::IDX_C2);
-    pub const C3: Self = Bitboard(0x0000000000000001 << Self::IDX_C3);
-    pub const C4: Self = Bitboard(0x0000000000000001 << Self::IDX_C4);
-    pub const C5: Self = Bitboard(0x0000000000000001 << Self::IDX_C5);
-    pub const C6: Self = Bitboard(0x0000000000000001 << Self::IDX_C6);
-    pub const C7: Self = Bitboard(0x0000000000000001 << Self::IDX_C7);
-    pub const C8: Self = Bitboard(0x0000000000000001 << Self::IDX_C8);
-    pub const D1: Self = Bitboard(0x0000000000000001 << Self::IDX_D1);
-    pub const D2: Self = Bitboard(0x0000000000000001 << Self::IDX_D2);
-    pub const D3: Self = Bitboard(0x0000000000000001 << Self::IDX_D3);
-    pub const D4: Self = Bitboard(0x0000000000000001 << Self::IDX_D4);
-    pub const D5: Self = Bitboard(0x0000000000000001 << Self::IDX_D5);
-    pub const D6: Self = Bitboard(0x0000000000000001 << Self::IDX_D6);
-    pub const D7: Self = Bitboard(0x0000000000000001 << Self::IDX_D7);
-    pub const D8: Self = Bitboard(0x0000000000000001 << Self::IDX_D8);
-    pub const E1: Self = Bitboard(0x0000000000000001 << Self::IDX_E1);
-    pub const E2: Self = Bitboard(0x0000000000000001 << Self::IDX_E2);
-    pub const E3: Self = Bitboard(0x0000000000000001 << Self::IDX_E3);
-    pub const E4: Self = Bitboard(0x0000000000000001 << Self::IDX_E4);
-    pub const E5: Self = Bitboard(0x0000000000000001 << Self::IDX_E5);
-    pub const E6: Self = Bitboard(0x0000000000000001 << Self::IDX_E6);
-    pub const E7: Self = Bitboard(0x0000000000000001 << Self::IDX_E7);
-    pub const E8: Self = Bitboard(0x0000000000000001 << Self::IDX_E8);
-    pub const F1: Self = Bitboard(0x0000000000000001 << Self::IDX_F1);
-    pub const F2: Self = Bitboard(0x0000000000000001 << Self::IDX_F2);
-    pub const F3: Self = Bitboard(0x0000000000000001 << Self::IDX_F3);
-    pub const F4: Self = Bitboard(0x0000000000000001 << Self::IDX_F4);
-    pub const F5: Self = Bitboard(0x0000000000000001 << Self::IDX_F5);
-    pub const F6: Self = Bitboard(0x0000000000000001 << Self::IDX_F6);
-    pub const F7: Self = Bitboard(0x0000000000000001 << Self::IDX_F7);
-    pub const F8: Self = Bitboard(0x0000000000000001 << Self::IDX_F8);
-    pub const G1: Self = Bitboard(0x0000000000000001 << Self::IDX_G1);
-    pub const G2: Self = Bitboard(0x0000000000000001 << Self::IDX_G2);
-    pub const G3: Self = Bitboard(0x0000000000000001 << Self::IDX_G3);
-    pub const G4: Self = Bitboard(0x0000000000000001 << Self::IDX_G4);
-    pub const G5: Self = Bitboard(0x0000000000000001 << Self::IDX_G5);
-    pub const G6: Self = Bitboard(0x0000000000000001 << Self::IDX_G6);
-    pub const G7: Self = Bitboard(0x0000000000000001 << Self::IDX_G7);
-    pub const G8: Self = Bitboard(0x0000000000000001 << Self::IDX_G8);
-    pub const H1: Self = Bitboard(0x0000000000000001 << Self::IDX_H1);
-    pub const H2: Self = Bitboard(0x0000000000000001 << Self::IDX_H2);
-    pub const H3: Self = Bitboard(0x0000000000000001 << Self::IDX_H3);
-    pub const H4: Self = Bitboard(0x0000000000000001 << Self::IDX_H4);
-    pub const H5: Self = Bitboard(0x0000000000000001 << Self::IDX_H5);
-    pub const H6: Self = Bitboard(0x0000000000000001 << Self::IDX_H6);
-    pub const H7: Self = Bitboard(0x0000000000000001 << Self::IDX_H7);
-    pub const H8: Self = Bitboard(0x0000000000000001 << Self::IDX_H8);
-
-    pub const IDX_A1: usize = 0;
-    pub const IDX_A2: usize = 1;
-    pub const IDX_A3: usize = 2;
-    pub const IDX_A4: usize = 3;
-    pub const IDX_A5: usize = 4;
-    pub const IDX_A6: usize = 5;
-    pub const IDX_A7: usize = 6;
-    pub const IDX_A8: usize = 7;
-    pub const IDX_B1: usize = 8;
-    pub const IDX_B2: usize = 9;
-    pub const IDX_B3: usize = 10;
-    pub const IDX_B4: usize = 11;
-    pub const IDX_B5: usize = 12;
-    pub const IDX_B6: usize = 13;
-    pub const IDX_B7: usize = 14;
-    pub const IDX_B8: usize = 15;
-    pub const IDX_C1: usize = 16;
-    pub const IDX_C2: usize = 17;
-    pub const IDX_C3: usize = 18;
-    pub const IDX_C4: usize = 19;
-    pub const IDX_C5: usize = 20;
-    pub const IDX_C6: usize = 21;
-    pub const IDX_C7: usize = 22;
-    pub const IDX_C8: usize = 23;
-    pub const IDX_D1: usize = 24;
-    pub const IDX_D2: usize = 25;
-    pub const IDX_D3: usize = 26;
-    pub const IDX_D4: usize = 27;
-    pub const IDX_D5: usize = 28;
-    pub const IDX_D6: usize = 29;
-    pub const IDX_D7: usize = 30;
-    pub const IDX_D8: usize = 31;
-    pub const IDX_E1: usize = 32;
-    pub const IDX_E2: usize = 33;
-    pub const IDX_E3: usize = 34;
-    pub const IDX_E4: usize = 35;
-    pub const IDX_E5: usize = 36;
-    pub const IDX_E6: usize = 37;
-    pub const IDX_E7: usize = 38;
-    pub const IDX_E8: usize = 39;
-    pub const IDX_F1: usize = 40;
-    pub const IDX_F2: usize = 41;
-    pub const IDX_F3: usize = 42;
-    pub const IDX_F4: usize = 43;
-    pub const IDX_F5: usize = 44;
-    pub const IDX_F6: usize = 45;
-    pub const IDX_F7: usize = 46;
-    pub const IDX_F8: usize = 47;
-    pub const IDX_G1: usize = 48;
-    pub const IDX_G2: usize = 49;
-    pub const IDX_G3: usize = 50;
-    pub const IDX_G4: usize = 51;
-    pub const IDX_G5: usize = 52;
-    pub const IDX_G6: usize = 53;
-    pub const IDX_G7: usize = 54;
-    pub const IDX_G8: usize = 55;
-    pub const IDX_H1: usize = 56;
-    pub const IDX_H2: usize = 57;
-    pub const IDX_H3: usize = 58;
-    pub const IDX_H4: usize = 59;
-    pub const IDX_H5: usize = 60;
-    pub const IDX_H6: usize = 61;
-    pub const IDX_H7: usize = 62;
-    pub const IDX_H8: usize = 63;
-
-    pub fn to_square(rank: usize, file: usize) -> usize {
-        debug_assert!(rank < Self::NUM_RANKS);
-        debug_assert!(file < Self::NUM_FILES);
-        file * Self::NUM_RANKS + rank
-    }
-
-    pub fn to_rank(square: usize) -> usize {
-        debug_assert!(square < Self::NUM_SQUARES);
-        square % Self::NUM_RANKS
-    }
-
-    pub fn to_file(square: usize) -> usize {
-        debug_assert!(square < Self::NUM_SQUARES);
-        square / Self::NUM_RANKS
+    pub const fn from_square(square: Square) -> Self {
+        Self(0x1 << square.idx())
     }
 
     pub fn north_one(self) -> Self {
@@ -270,50 +192,6 @@ impl Bitboard {
 
     pub fn north_two_west_one(self) -> Self {
         self >> 6 & !(Self::RANK_1 | Self::RANK_2)
-    }
-
-    pub fn idx_north_one(square_idx: usize) -> usize {
-        debug_assert!(Self::to_rank(square_idx) < Self::NUM_RANKS);
-        square_idx + 1
-    }
-
-    pub fn idx_north_two(square_idx: usize) -> usize {
-        debug_assert!(Self::to_rank(square_idx) < Self::NUM_RANKS - 1);
-        square_idx + 2
-    }
-
-    pub fn idx_north_east_one(square_idx: usize) -> usize {
-        debug_assert!(Self::to_rank(square_idx) < Self::NUM_RANKS);
-        debug_assert!(Self::to_file(square_idx) < Self::NUM_FILES);
-        square_idx + 9
-    }
-
-    pub fn idx_north_west_one(square_idx: usize) -> usize {
-        debug_assert!(Self::to_rank(square_idx) < Self::NUM_RANKS);
-        debug_assert!(Self::to_file(square_idx) > 0);
-        square_idx - 7
-    }
-
-    pub fn idx_south_one(square_idx: usize) -> usize {
-        debug_assert!(Self::to_rank(square_idx) > 0);
-        square_idx - 1
-    }
-
-    pub fn idx_south_two(square_idx: usize) -> usize {
-        debug_assert!(Self::to_rank(square_idx) > 1);
-        square_idx - 2
-    }
-
-    pub fn idx_south_east_one(square_idx: usize) -> usize {
-        debug_assert!(Self::to_rank(square_idx) > 0);
-        debug_assert!(Self::to_file(square_idx) < Self::NUM_FILES);
-        square_idx + 7
-    }
-
-    pub fn idx_south_west_one(square_idx: usize) -> usize {
-        debug_assert!(Self::to_rank(square_idx) > 0);
-        debug_assert!(Self::to_file(square_idx) > 0);
-        square_idx - 9
     }
 
     fn north_fill(self) -> Self {
@@ -434,7 +312,23 @@ impl Bitboard {
         Bitboard(x)
     }
 
-    pub fn bit_idx(self) -> usize {
+    pub fn to_square(self) -> Square {
+        Square::from_idx(self.bit_idx())
+    }
+
+    pub fn square_scan_forward(self) -> Square {
+        Square::from_idx(self.bit_scan_forward())
+    }
+
+    pub fn square_scan_forward_reset(&mut self) -> Square {
+        Square::from_idx(self.bit_scan_forward_reset())
+    }
+
+    pub fn square_scan_reverse(self) -> Square {
+        Square::from_idx(self.bit_scan_reverse())
+    }
+
+    fn bit_idx(self) -> usize {
         debug_assert!(self.0.count_ones() == 1);
         const DEBRUIJN_SEQ: u64 = 0x0218a392cd3d5dbf;
         const LEN_SEQ: usize = 64;
@@ -447,12 +341,12 @@ impl Bitboard {
         BIT_IDX_LOOKUP[DEBRUIJN_SEQ.wrapping_mul(self.0) as usize >> (LEN_SEQ - LEN_VAL)] as usize
     }
 
-    pub fn bit_scan_forward(self) -> usize {
+    fn bit_scan_forward(self) -> usize {
         debug_assert!(self != Bitboard::EMPTY);
         self.least_significant_1_bit().bit_idx()
     }
 
-    pub fn bit_scan_forward_reset(&mut self) -> usize {
+    fn bit_scan_forward_reset(&mut self) -> usize {
         debug_assert!(*self != Bitboard::EMPTY);
         let ls1b = self.least_significant_1_bit();
         let bit_idx = ls1b.bit_idx();
@@ -460,16 +354,16 @@ impl Bitboard {
         bit_idx
     }
 
-    pub fn bit_scan_reverse(self) -> usize {
+    fn bit_scan_reverse(self) -> usize {
         debug_assert!(self != Bitboard::EMPTY);
         self.most_significant_1_bit().bit_idx()
     }
 
     fn pop_count(self) -> usize {
         let mut x = self.0;
-        x = x - ((x >> 1) & 0x5555555555555555);
-        x = (x & 0x3333333333333333) + ((x >> 2) & 0x3333333333333333);
-        x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0f;
+        x = x - (x >> 1 & 0x5555555555555555);
+        x = (x & 0x3333333333333333) + (x >> 2 & 0x3333333333333333);
+        x = x + (x >> 4) & 0x0f0f0f0f0f0f0f0f;
         x = x.wrapping_mul(0x0101010101010101);
         x >>= 56;
         x as usize
@@ -649,11 +543,11 @@ impl fmt::Display for Bitboard {
         const EMPTY_SQUARE: u8 = b'-';
         const OCCUPIED_SQUARE: u8 = b'X';
         const SPACE: u8 = b' ';
-        let mut squares_in_rank = [SPACE; 2 * Self::NUM_FILES - 1];
-        for rank in (0..Self::NUM_RANKS).rev() {
-            for file in 0..Self::NUM_FILES {
-                let square = Self::to_square(rank, file);
-                let square_bit = Bitboard(0x1) << square;
+        let mut squares_in_rank = [SPACE; 2 * File::NUM_FILES - 1];
+        for rank in (0..Rank::NUM_RANKS).rev() {
+            for file in 0..File::NUM_FILES {
+                let square = Square::from_file_and_rank(File::from_idx(file), Rank::from_idx(rank));
+                let square_bit = Bitboard::from_square(square);
                 squares_in_rank[2 * file] = match self & square_bit {
                     Self::EMPTY => EMPTY_SQUARE,
                     _ => OCCUPIED_SQUARE,
@@ -671,46 +565,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn rank_file_square_indexing() {
-        // A1
-        assert_eq!(0, Bitboard::to_square(0, 0));
-        assert_eq!(0, Bitboard::to_rank(0));
-        assert_eq!(0, Bitboard::to_file(0));
-        // A2
-        assert_eq!(1, Bitboard::to_square(1, 0));
-        assert_eq!(1, Bitboard::to_rank(1));
-        assert_eq!(0, Bitboard::to_file(1));
-        // B1
-        assert_eq!(8, Bitboard::to_square(0, 1));
-        assert_eq!(0, Bitboard::to_rank(8));
-        assert_eq!(1, Bitboard::to_file(8));
-        // B2
-        assert_eq!(9, Bitboard::to_square(1, 1));
-        assert_eq!(1, Bitboard::to_rank(9));
-        assert_eq!(1, Bitboard::to_file(9));
-        // E6
-        assert_eq!(37, Bitboard::to_square(5, 4));
-        assert_eq!(5, Bitboard::to_rank(37));
-        assert_eq!(4, Bitboard::to_file(37));
-        // F8
-        assert_eq!(47, Bitboard::to_square(7, 5));
-        assert_eq!(7, Bitboard::to_rank(47));
-        assert_eq!(5, Bitboard::to_file(47));
-        // H7
-        assert_eq!(62, Bitboard::to_square(6, 7));
-        assert_eq!(6, Bitboard::to_rank(62));
-        assert_eq!(7, Bitboard::to_file(62));
-        // H8
-        assert_eq!(63, Bitboard::to_square(7, 7));
-        assert_eq!(7, Bitboard::to_rank(63));
-        assert_eq!(7, Bitboard::to_file(63));
-
-        for square in 0..Bitboard::NUM_SQUARES {
-            assert_eq!(
-                square,
-                Bitboard::to_square(Bitboard::to_rank(square), Bitboard::to_file(square))
-            );
-        }
+    fn from_square() {
+        assert_eq!(Bitboard::A1, Bitboard::from_square(Square::A1));
+        assert_eq!(Bitboard::H1, Bitboard::from_square(Square::H1));
+        assert_eq!(Bitboard::D4, Bitboard::from_square(Square::D4));
+        assert_eq!(Bitboard::E5, Bitboard::from_square(Square::E5));
+        assert_eq!(Bitboard::A8, Bitboard::from_square(Square::A8));
+        assert_eq!(Bitboard::H8, Bitboard::from_square(Square::H8));
     }
 
     #[test]
@@ -1145,58 +1006,6 @@ mod tests {
         assert_eq!(Bitboard(0xc0c0c0c0c0c0c0ff), board);
         let board = board.north_two_west_one();
         assert_eq!(Bitboard::EMPTY, board);
-    }
-
-    #[test]
-    fn idx_north_one() {
-        assert_eq!(Bitboard::IDX_D5, Bitboard::idx_north_one(Bitboard::IDX_D4));
-    }
-
-    #[test]
-    fn idx_north_two() {
-        assert_eq!(Bitboard::IDX_D6, Bitboard::idx_north_two(Bitboard::IDX_D4));
-    }
-
-    #[test]
-    fn idx_north_east_one() {
-        assert_eq!(
-            Bitboard::IDX_E5,
-            Bitboard::idx_north_east_one(Bitboard::IDX_D4)
-        );
-    }
-
-    #[test]
-    fn idx_north_west_one() {
-        assert_eq!(
-            Bitboard::IDX_C5,
-            Bitboard::idx_north_west_one(Bitboard::IDX_D4)
-        );
-    }
-
-    #[test]
-    fn idx_south_one() {
-        assert_eq!(Bitboard::IDX_D3, Bitboard::idx_south_one(Bitboard::IDX_D4));
-    }
-
-    #[test]
-    fn idx_south_two() {
-        assert_eq!(Bitboard::IDX_D2, Bitboard::idx_south_two(Bitboard::IDX_D4));
-    }
-
-    #[test]
-    fn idx_south_east_one() {
-        assert_eq!(
-            Bitboard::IDX_E3,
-            Bitboard::idx_south_east_one(Bitboard::IDX_D4)
-        );
-    }
-
-    #[test]
-    fn idx_south_west_one() {
-        assert_eq!(
-            Bitboard::IDX_C3,
-            Bitboard::idx_south_west_one(Bitboard::IDX_D4)
-        );
     }
 
     #[test]
@@ -1768,116 +1577,134 @@ mod tests {
     }
 
     #[test]
-    fn bit_idx() {
+    fn to_square() {
         for idx in 0..64 {
             let bit: u64 = 1 << idx;
-            assert_eq!(idx, Bitboard::bit_idx(Bitboard(bit)));
+            assert_eq!(Square::from_idx(idx), Bitboard(bit).to_square());
         }
     }
 
     #[test]
-    fn bit_scan_forward() {
-        assert_eq!(0, Bitboard::bit_scan_forward(Bitboard(0x1)));
-        assert_eq!(1, Bitboard::bit_scan_forward(Bitboard(0x2)));
-        assert_eq!(0, Bitboard::bit_scan_forward(Bitboard(0x3)));
-        assert_eq!(2, Bitboard::bit_scan_forward(Bitboard(0x4)));
-        assert_eq!(0, Bitboard::bit_scan_forward(Bitboard(0x5)));
-        assert_eq!(1, Bitboard::bit_scan_forward(Bitboard(0x6)));
-        assert_eq!(0, Bitboard::bit_scan_forward(Bitboard(0x7)));
-        assert_eq!(3, Bitboard::bit_scan_forward(Bitboard(0x8)));
-        assert_eq!(63, Bitboard::bit_scan_forward(Bitboard(0x8000000000000000)));
-        assert_eq!(31, Bitboard::bit_scan_forward(Bitboard(0x8000000080000000)));
-        assert_eq!(0, Bitboard::bit_scan_forward(Bitboard(0xffffffffffffffff)));
+    fn square_scan_forward() {
+        assert_eq!(Square::from_idx(0), Bitboard(0x1).square_scan_forward());
+        assert_eq!(Square::from_idx(1), Bitboard(0x2).square_scan_forward());
+        assert_eq!(Square::from_idx(0), Bitboard(0x3).square_scan_forward());
+        assert_eq!(Square::from_idx(2), Bitboard(0x4).square_scan_forward());
+        assert_eq!(Square::from_idx(0), Bitboard(0x5).square_scan_forward());
+        assert_eq!(Square::from_idx(1), Bitboard(0x6).square_scan_forward());
+        assert_eq!(Square::from_idx(0), Bitboard(0x7).square_scan_forward());
+        assert_eq!(Square::from_idx(3), Bitboard(0x8).square_scan_forward());
+        assert_eq!(
+            Square::from_idx(63),
+            Bitboard(0x8000000000000000).square_scan_forward()
+        );
+        assert_eq!(
+            Square::from_idx(31),
+            Bitboard(0x8000000080000000).square_scan_forward()
+        );
+        assert_eq!(
+            Square::from_idx(0),
+            Bitboard(0xffffffffffffffff).square_scan_forward()
+        );
     }
 
     #[test]
-    fn bit_scan_forward_reset() {
+    fn square_scan_forward_reset() {
         let mut bb = Bitboard(0x1);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(0, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(0), square);
         assert_eq!(Bitboard::EMPTY, bb);
 
         let mut bb = Bitboard(0x2);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(1, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(1), square);
         assert_eq!(Bitboard::EMPTY, bb);
 
         let mut bb = Bitboard(0x3);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(0, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(0), square);
         assert_eq!(Bitboard(0x2), bb);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(1, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(1), square);
         assert_eq!(Bitboard::EMPTY, bb);
 
         let mut bb = Bitboard(0x4);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(2, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(2), square);
         assert_eq!(Bitboard::EMPTY, bb);
 
         let mut bb = Bitboard(0x5);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(0, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(0), square);
         assert_eq!(Bitboard(0x4), bb);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(2, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(2), square);
         assert_eq!(Bitboard::EMPTY, bb);
 
         let mut bb = Bitboard(0x6);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(1, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(1), square);
         assert_eq!(Bitboard(0x4), bb);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(2, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(2), square);
         assert_eq!(Bitboard::EMPTY, bb);
 
         let mut bb = Bitboard(0x7);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(0, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(0), square);
         assert_eq!(Bitboard(0x6), bb);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(1, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(1), square);
         assert_eq!(Bitboard(0x4), bb);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(2, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(2), square);
         assert_eq!(Bitboard::EMPTY, bb);
 
         let mut bb = Bitboard(0x8);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(3, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(3), square);
         assert_eq!(Bitboard::EMPTY, bb);
 
         let mut bb = Bitboard(0x8000000000000000);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(63, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(63), square);
         assert_eq!(Bitboard::EMPTY, bb);
 
         let mut bb = Bitboard(0x8000000080000000);
-        let bit_idx = bb.bit_scan_forward_reset();
-        assert_eq!(31, bit_idx);
+        let square = bb.square_scan_forward_reset();
+        assert_eq!(Square::from_idx(31), square);
         assert_eq!(Bitboard(0x8000000000000000), bb);
 
         let mut bb = Bitboard(0xffffffffffffffff);
         for expected_idx in 0..64 {
-            let bit_idx = bb.bit_scan_forward_reset();
-            assert_eq!(expected_idx, bit_idx);
+            let square = bb.square_scan_forward_reset();
+            assert_eq!(Square::from_idx(expected_idx), square);
         }
         assert_eq!(Bitboard::EMPTY, bb);
     }
 
     #[test]
-    fn bit_scan_reverse() {
-        assert_eq!(0, Bitboard::bit_scan_reverse(Bitboard(0x1)));
-        assert_eq!(1, Bitboard::bit_scan_reverse(Bitboard(0x2)));
-        assert_eq!(1, Bitboard::bit_scan_reverse(Bitboard(0x3)));
-        assert_eq!(2, Bitboard::bit_scan_reverse(Bitboard(0x4)));
-        assert_eq!(2, Bitboard::bit_scan_reverse(Bitboard(0x5)));
-        assert_eq!(2, Bitboard::bit_scan_reverse(Bitboard(0x6)));
-        assert_eq!(2, Bitboard::bit_scan_reverse(Bitboard(0x7)));
-        assert_eq!(3, Bitboard::bit_scan_reverse(Bitboard(0x8)));
-        assert_eq!(63, Bitboard::bit_scan_reverse(Bitboard(0x8000000000000000)));
-        assert_eq!(63, Bitboard::bit_scan_reverse(Bitboard(0x8000000080000000)));
-        assert_eq!(63, Bitboard::bit_scan_reverse(Bitboard(0xffffffffffffffff)));
+    fn square_scan_reverse() {
+        assert_eq!(Square::from_idx(0), Bitboard(0x1).square_scan_reverse());
+        assert_eq!(Square::from_idx(1), Bitboard(0x2).square_scan_reverse());
+        assert_eq!(Square::from_idx(1), Bitboard(0x3).square_scan_reverse());
+        assert_eq!(Square::from_idx(2), Bitboard(0x4).square_scan_reverse());
+        assert_eq!(Square::from_idx(2), Bitboard(0x5).square_scan_reverse());
+        assert_eq!(Square::from_idx(2), Bitboard(0x6).square_scan_reverse());
+        assert_eq!(Square::from_idx(2), Bitboard(0x7).square_scan_reverse());
+        assert_eq!(Square::from_idx(3), Bitboard(0x8).square_scan_reverse());
+        assert_eq!(
+            Square::from_idx(63),
+            Bitboard(0x8000000000000000).square_scan_reverse()
+        );
+        assert_eq!(
+            Square::from_idx(63),
+            Bitboard(0x8000000080000000).square_scan_reverse()
+        );
+        assert_eq!(
+            Square::from_idx(63),
+            Bitboard(0xffffffffffffffff).square_scan_reverse()
+        );
     }
 
     #[test]

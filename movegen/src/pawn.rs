@@ -1,5 +1,6 @@
 use crate::bitboard::Bitboard;
 use crate::side::Side;
+use crate::square::Square;
 
 pub struct Pawn;
 
@@ -31,20 +32,20 @@ impl Pawn {
             | Self::west_attack_targets(pawns, side_to_move)
     }
 
-    pub fn idx_push_origin(target: usize, side_to_move: Side) -> usize {
-        [Bitboard::idx_south_one, Bitboard::idx_north_one][side_to_move as usize](target)
+    pub fn push_origin(target: Square, side_to_move: Side) -> Square {
+        [Square::south_one, Square::north_one][side_to_move as usize](target)
     }
 
-    pub fn idx_double_push_origin(target: usize, side_to_move: Side) -> usize {
-        [Bitboard::idx_south_two, Bitboard::idx_north_two][side_to_move as usize](target)
+    pub fn double_push_origin(target: Square, side_to_move: Side) -> Square {
+        [Square::south_two, Square::north_two][side_to_move as usize](target)
     }
 
-    pub fn idx_east_attack_origin(target: usize, side_to_move: Side) -> usize {
-        [Bitboard::idx_south_west_one, Bitboard::idx_north_west_one][side_to_move as usize](target)
+    pub fn east_attack_origin(target: Square, side_to_move: Side) -> Square {
+        [Square::south_west_one, Square::north_west_one][side_to_move as usize](target)
     }
 
-    pub fn idx_west_attack_origin(target: usize, side_to_move: Side) -> usize {
-        [Bitboard::idx_south_east_one, Bitboard::idx_north_east_one][side_to_move as usize](target)
+    pub fn west_attack_origin(target: Square, side_to_move: Side) -> Square {
+        [Square::south_east_one, Square::north_east_one][side_to_move as usize](target)
     }
 
     pub const fn promotion_rank(side_to_move: Side) -> Bitboard {
@@ -299,50 +300,44 @@ mod tests {
     }
 
     #[test]
-    fn idx_push_origin() {
+    fn push_origin() {
+        assert_eq!(Square::D3, Pawn::push_origin(Square::D4, Side::White));
+        assert_eq!(Square::D6, Pawn::push_origin(Square::D5, Side::Black));
+    }
+
+    #[test]
+    fn double_push_origin() {
         assert_eq!(
-            Bitboard::IDX_D3,
-            Pawn::idx_push_origin(Bitboard::IDX_D4, Side::White)
+            Square::D2,
+            Pawn::double_push_origin(Square::D4, Side::White)
         );
         assert_eq!(
-            Bitboard::IDX_D6,
-            Pawn::idx_push_origin(Bitboard::IDX_D5, Side::Black)
+            Square::D7,
+            Pawn::double_push_origin(Square::D5, Side::Black)
         );
     }
 
     #[test]
-    fn idx_double_push_origin() {
+    fn east_attack_origin() {
         assert_eq!(
-            Bitboard::IDX_D2,
-            Pawn::idx_double_push_origin(Bitboard::IDX_D4, Side::White)
+            Square::C3,
+            Pawn::east_attack_origin(Square::D4, Side::White)
         );
         assert_eq!(
-            Bitboard::IDX_D7,
-            Pawn::idx_double_push_origin(Bitboard::IDX_D5, Side::Black)
-        );
-    }
-
-    #[test]
-    fn idx_east_attack_origin() {
-        assert_eq!(
-            Bitboard::IDX_C3,
-            Pawn::idx_east_attack_origin(Bitboard::IDX_D4, Side::White)
-        );
-        assert_eq!(
-            Bitboard::IDX_C6,
-            Pawn::idx_east_attack_origin(Bitboard::IDX_D5, Side::Black)
+            Square::C6,
+            Pawn::east_attack_origin(Square::D5, Side::Black)
         );
     }
 
     #[test]
-    fn idx_west_attack_origin() {
+    fn west_attack_origin() {
         assert_eq!(
-            Bitboard::IDX_E3,
-            Pawn::idx_west_attack_origin(Bitboard::IDX_D4, Side::White)
+            Square::E3,
+            Pawn::west_attack_origin(Square::D4, Side::White)
         );
         assert_eq!(
-            Bitboard::IDX_E6,
-            Pawn::idx_west_attack_origin(Bitboard::IDX_D5, Side::Black)
+            Square::E6,
+            Pawn::west_attack_origin(Square::D5, Side::Black)
         );
     }
 

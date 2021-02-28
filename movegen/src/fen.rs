@@ -1,8 +1,12 @@
 use crate::bitboard::Bitboard;
+use crate::file::File;
 use crate::piece::Piece;
 use crate::position::CastlingRights;
 use crate::position::Position;
+use crate::rank::Rank;
 use crate::side::Side;
+use crate::square::Square;
+use std::str;
 
 pub struct Fen;
 
@@ -17,15 +21,15 @@ impl Fen {
         fen.push(' ');
         Self::from_en_passant_square(&mut fen, pos);
         fen.push(' ');
-        Self::from_move_counts(&mut fen, pos);
+        Self::from_move_count(&mut fen, pos);
         fen
     }
 
     fn from_pieces(fen: &mut String, pos: &Position) {
-        for rank in (0..Bitboard::NUM_RANKS).rev() {
+        for rank in (0..Rank::NUM_RANKS).rev() {
             let mut num_empty_squares = 0;
-            for file in 0..Bitboard::NUM_FILES {
-                let square = Bitboard::to_square(rank, file);
+            for file in 0..File::NUM_FILES {
+                let square = Square::from_file_and_rank(File::from_idx(file), Rank::from_idx(rank));
                 match pos.piece_at(square) {
                     Some(piece) => {
                         if num_empty_squares > 0 {
@@ -76,19 +80,16 @@ impl Fen {
     }
 
     fn from_en_passant_square(fen: &mut String, pos: &Position) {
-        let en_passant_square = pos.en_passant_square();
-        if en_passant_square == Bitboard::EMPTY {
+        let en_passant_board = pos.en_passant_square();
+        if en_passant_board == Bitboard::EMPTY {
             fen.push('-');
         } else {
-            let square = en_passant_square.bit_idx();
-            let file = Bitboard::to_file(square);
-            let rank = Bitboard::to_rank(square);
-            fen.push((file as u8 + b'a') as char);
-            fen.push((rank as u8 + b'1') as char);
+            let en_passant_square = en_passant_board.to_square();
+            fen.push_str(&format!("{}", en_passant_square));
         }
     }
 
-    fn from_move_counts(fen: &mut String, pos: &Position) {
+    fn from_move_count(fen: &mut String, pos: &Position) {
         fen.push_str(&format!(
             "{} {}",
             pos.plies_since_pawn_move_or_capture(),
@@ -110,7 +111,7 @@ impl Fen {
 
     fn to_pieces(pos: &mut Position, fen: &str) {
         let iter_ranks = fen.split('/');
-        let mut rank = Bitboard::NUM_RANKS;
+        let mut rank = Rank::NUM_RANKS;
         for fen_rank in iter_ranks {
             rank -= 1;
             let mut file = 0;
@@ -121,7 +122,8 @@ impl Fen {
                     }
                     _ => {
                         let piece = Piece::from_ascii(c).unwrap();
-                        let square = Bitboard::to_square(rank, file);
+                        let square =
+                            Square::from_file_and_rank(File::from_idx(file), Rank::from_idx(rank));
                         pos.set_piece_at(square, Some(piece));
                         file += 1;
                     }
@@ -162,10 +164,11 @@ impl Fen {
         match c {
             b'-' => {}
             f @ b'a'..=b'h' => {
-                let file = (f - b'a') as usize;
+                let file = File::from_ascii(f).unwrap();
                 let r = iter_ep.next().unwrap();
-                let rank = (r - b'1') as usize;
-                pos.set_en_passant_square(Bitboard(0x1 << Bitboard::to_square(rank, file)));
+                let rank = Rank::from_ascii(r).unwrap();
+                let square = Square::from_file_and_rank(file, rank);
+                pos.set_en_passant_square(Bitboard::from_square(square));
             }
             _ => panic!("Invalid en passant square `{}`", fen),
         }
@@ -200,8 +203,8 @@ mod tests {
         );
 
         // Position after 1. e4
-        pos.set_piece_at(Bitboard::IDX_E2, None);
-        pos.set_piece_at(Bitboard::IDX_E4, Some(Piece::WHITE_PAWN));
+        pos.set_piece_at(Square::E2, None);
+        pos.set_piece_at(Square::E4, Some(Piece::WHITE_PAWN));
         pos.set_en_passant_square(Bitboard::E3);
         pos.set_side_to_move(Side::Black);
         let fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
@@ -215,8 +218,8 @@ mod tests {
         );
 
         // Position after 1. e4 c5
-        pos.set_piece_at(Bitboard::IDX_C7, None);
-        pos.set_piece_at(Bitboard::IDX_C5, Some(Piece::BLACK_PAWN));
+        pos.set_piece_at(Square::C7, None);
+        pos.set_piece_at(Square::C5, Some(Piece::BLACK_PAWN));
         pos.set_en_passant_square(Bitboard::C6);
         pos.set_side_to_move(Side::White);
         pos.set_move_count(2);
@@ -231,8 +234,8 @@ mod tests {
         );
 
         // Position after 1. e4 c5 2. Nf3
-        pos.set_piece_at(Bitboard::IDX_G1, None);
-        pos.set_piece_at(Bitboard::IDX_F3, Some(Piece::WHITE_KNIGHT));
+        pos.set_piece_at(Square::G1, None);
+        pos.set_piece_at(Square::F3, Some(Piece::WHITE_KNIGHT));
         pos.set_en_passant_square(Bitboard::EMPTY);
         pos.set_side_to_move(Side::Black);
         pos.set_plies_since_pawn_move_or_capture(1);

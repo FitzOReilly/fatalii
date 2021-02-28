@@ -1,5 +1,5 @@
-use crate::bitboard::Bitboard;
 use crate::piece;
+use crate::square::Square;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct MoveType(u8);
@@ -62,19 +62,19 @@ impl MoveType {
 pub struct Move(u16);
 
 impl Move {
-    pub fn new(origin: usize, target: usize, move_type: MoveType) -> Move {
-        debug_assert!(origin < Bitboard::NUM_SQUARES);
-        debug_assert!(target < Bitboard::NUM_SQUARES);
+    pub fn new(origin: Square, target: Square, move_type: MoveType) -> Move {
+        debug_assert!(origin.idx() < Square::NUM_SQUARES);
+        debug_assert!(target.idx() < Square::NUM_SQUARES);
         debug_assert!(move_type.0 < 0b1_0000);
-        Move(origin as u16 | (target as u16) << 6 | (move_type.0 as u16) << 12)
+        Move(origin.idx() as u16 | (target.idx() as u16) << 6 | (move_type.0 as u16) << 12)
     }
 
-    pub fn origin(&self) -> usize {
-        (self.0 & 0b11_1111) as usize
+    pub fn origin(&self) -> Square {
+        Square::from_idx((self.0 & 0b11_1111) as usize)
     }
 
-    pub fn target(&self) -> usize {
-        (self.0 >> 6 & 0b11_1111) as usize
+    pub fn target(&self) -> Square {
+        Square::from_idx((self.0 >> 6 & 0b11_1111) as usize)
     }
 
     pub fn move_type(&self) -> MoveType {
@@ -229,118 +229,74 @@ mod tests {
 
     #[test]
     fn move_properties() {
-        let m = Move::new(Bitboard::IDX_E2, Bitboard::IDX_E3, MoveType::QUIET);
-        assert_eq!(Bitboard::IDX_E2, m.origin());
-        assert_eq!(Bitboard::IDX_E3, m.target());
+        let m = Move::new(Square::E2, Square::E3, MoveType::QUIET);
+        assert_eq!(Square::E2, m.origin());
+        assert_eq!(Square::E3, m.target());
         assert_eq!(MoveType::QUIET, m.move_type());
 
-        let m = Move::new(
-            Bitboard::IDX_E2,
-            Bitboard::IDX_E4,
-            MoveType::DOUBLE_PAWN_PUSH,
-        );
-        assert_eq!(Bitboard::IDX_E2, m.origin());
-        assert_eq!(Bitboard::IDX_E4, m.target());
+        let m = Move::new(Square::E2, Square::E4, MoveType::DOUBLE_PAWN_PUSH);
+        assert_eq!(Square::E2, m.origin());
+        assert_eq!(Square::E4, m.target());
         assert_eq!(MoveType::DOUBLE_PAWN_PUSH, m.move_type());
 
-        let m = Move::new(
-            Bitboard::IDX_E1,
-            Bitboard::IDX_G1,
-            MoveType::CASTLE_KINGSIDE,
-        );
-        assert_eq!(Bitboard::IDX_E1, m.origin());
-        assert_eq!(Bitboard::IDX_G1, m.target());
+        let m = Move::new(Square::E1, Square::G1, MoveType::CASTLE_KINGSIDE);
+        assert_eq!(Square::E1, m.origin());
+        assert_eq!(Square::G1, m.target());
         assert_eq!(MoveType::CASTLE_KINGSIDE, m.move_type());
 
-        let m = Move::new(
-            Bitboard::IDX_E8,
-            Bitboard::IDX_C8,
-            MoveType::CASTLE_QUEENSIDE,
-        );
-        assert_eq!(Bitboard::IDX_E8, m.origin());
-        assert_eq!(Bitboard::IDX_C8, m.target());
+        let m = Move::new(Square::E8, Square::C8, MoveType::CASTLE_QUEENSIDE);
+        assert_eq!(Square::E8, m.origin());
+        assert_eq!(Square::C8, m.target());
         assert_eq!(MoveType::CASTLE_QUEENSIDE, m.move_type());
 
-        let m = Move::new(Bitboard::IDX_C4, Bitboard::IDX_D5, MoveType::CAPTURE);
-        assert_eq!(Bitboard::IDX_C4, m.origin());
-        assert_eq!(Bitboard::IDX_D5, m.target());
+        let m = Move::new(Square::C4, Square::D5, MoveType::CAPTURE);
+        assert_eq!(Square::C4, m.origin());
+        assert_eq!(Square::D5, m.target());
         assert_eq!(MoveType::CAPTURE, m.move_type());
 
-        let m = Move::new(
-            Bitboard::IDX_D6,
-            Bitboard::IDX_E5,
-            MoveType::EN_PASSANT_CAPTURE,
-        );
-        assert_eq!(Bitboard::IDX_D6, m.origin());
-        assert_eq!(Bitboard::IDX_E5, m.target());
+        let m = Move::new(Square::D6, Square::E5, MoveType::EN_PASSANT_CAPTURE);
+        assert_eq!(Square::D6, m.origin());
+        assert_eq!(Square::E5, m.target());
         assert_eq!(MoveType::EN_PASSANT_CAPTURE, m.move_type());
 
-        let m = Move::new(
-            Bitboard::IDX_A7,
-            Bitboard::IDX_A8,
-            MoveType::PROMOTION_KNIGHT,
-        );
-        assert_eq!(Bitboard::IDX_A7, m.origin());
-        assert_eq!(Bitboard::IDX_A8, m.target());
+        let m = Move::new(Square::A7, Square::A8, MoveType::PROMOTION_KNIGHT);
+        assert_eq!(Square::A7, m.origin());
+        assert_eq!(Square::A8, m.target());
         assert_eq!(MoveType::PROMOTION_KNIGHT, m.move_type());
 
-        let m = Move::new(
-            Bitboard::IDX_A7,
-            Bitboard::IDX_A8,
-            MoveType::PROMOTION_BISHOP,
-        );
-        assert_eq!(Bitboard::IDX_A7, m.origin());
-        assert_eq!(Bitboard::IDX_A8, m.target());
+        let m = Move::new(Square::A7, Square::A8, MoveType::PROMOTION_BISHOP);
+        assert_eq!(Square::A7, m.origin());
+        assert_eq!(Square::A8, m.target());
         assert_eq!(MoveType::PROMOTION_BISHOP, m.move_type());
 
-        let m = Move::new(Bitboard::IDX_A7, Bitboard::IDX_A8, MoveType::PROMOTION_ROOK);
-        assert_eq!(Bitboard::IDX_A7, m.origin());
-        assert_eq!(Bitboard::IDX_A8, m.target());
+        let m = Move::new(Square::A7, Square::A8, MoveType::PROMOTION_ROOK);
+        assert_eq!(Square::A7, m.origin());
+        assert_eq!(Square::A8, m.target());
         assert_eq!(MoveType::PROMOTION_ROOK, m.move_type());
 
-        let m = Move::new(
-            Bitboard::IDX_A7,
-            Bitboard::IDX_A8,
-            MoveType::PROMOTION_QUEEN,
-        );
-        assert_eq!(Bitboard::IDX_A7, m.origin());
-        assert_eq!(Bitboard::IDX_A8, m.target());
+        let m = Move::new(Square::A7, Square::A8, MoveType::PROMOTION_QUEEN);
+        assert_eq!(Square::A7, m.origin());
+        assert_eq!(Square::A8, m.target());
         assert_eq!(MoveType::PROMOTION_QUEEN, m.move_type());
 
-        let m = Move::new(
-            Bitboard::IDX_G2,
-            Bitboard::IDX_H1,
-            MoveType::PROMOTION_CAPTURE_KNIGHT,
-        );
-        assert_eq!(Bitboard::IDX_G2, m.origin());
-        assert_eq!(Bitboard::IDX_H1, m.target());
+        let m = Move::new(Square::G2, Square::H1, MoveType::PROMOTION_CAPTURE_KNIGHT);
+        assert_eq!(Square::G2, m.origin());
+        assert_eq!(Square::H1, m.target());
         assert_eq!(MoveType::PROMOTION_CAPTURE_KNIGHT, m.move_type());
 
-        let m = Move::new(
-            Bitboard::IDX_G2,
-            Bitboard::IDX_H1,
-            MoveType::PROMOTION_CAPTURE_BISHOP,
-        );
-        assert_eq!(Bitboard::IDX_G2, m.origin());
-        assert_eq!(Bitboard::IDX_H1, m.target());
+        let m = Move::new(Square::G2, Square::H1, MoveType::PROMOTION_CAPTURE_BISHOP);
+        assert_eq!(Square::G2, m.origin());
+        assert_eq!(Square::H1, m.target());
         assert_eq!(MoveType::PROMOTION_CAPTURE_BISHOP, m.move_type());
 
-        let m = Move::new(
-            Bitboard::IDX_G2,
-            Bitboard::IDX_H1,
-            MoveType::PROMOTION_CAPTURE_ROOK,
-        );
-        assert_eq!(Bitboard::IDX_G2, m.origin());
-        assert_eq!(Bitboard::IDX_H1, m.target());
+        let m = Move::new(Square::G2, Square::H1, MoveType::PROMOTION_CAPTURE_ROOK);
+        assert_eq!(Square::G2, m.origin());
+        assert_eq!(Square::H1, m.target());
         assert_eq!(MoveType::PROMOTION_CAPTURE_ROOK, m.move_type());
 
-        let m = Move::new(
-            Bitboard::IDX_G2,
-            Bitboard::IDX_H1,
-            MoveType::PROMOTION_CAPTURE_QUEEN,
-        );
-        assert_eq!(Bitboard::IDX_G2, m.origin());
-        assert_eq!(Bitboard::IDX_H1, m.target());
+        let m = Move::new(Square::G2, Square::H1, MoveType::PROMOTION_CAPTURE_QUEEN);
+        assert_eq!(Square::G2, m.origin());
+        assert_eq!(Square::H1, m.target());
         assert_eq!(MoveType::PROMOTION_CAPTURE_QUEEN, m.move_type());
     }
 }
