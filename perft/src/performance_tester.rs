@@ -56,6 +56,7 @@ impl PerformanceTester {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use movegen::fen::Fen;
     use movegen::position::Position;
 
     #[test]
@@ -76,5 +77,28 @@ mod tests {
         assert_eq!(197_281, perft.count_nodes(4));
         assert_eq!(4_865_609, perft.count_nodes(5));
         assert_eq!(119_060_324, perft.count_nodes(6));
+    }
+
+    #[test]
+    fn perft_tricky_position_low_depth() {
+        // Position from https://www.chessprogramming.org/Perft_Results
+        let fen = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
+        let pos_history = PositionHistory::new(Fen::to_position(&fen));
+        let mut perft = PerformanceTester::new(pos_history);
+        assert_eq!(1, perft.count_nodes(0));
+        assert_eq!(44, perft.count_nodes(1));
+        assert_eq!(1_486, perft.count_nodes(2));
+        assert_eq!(62_379, perft.count_nodes(3));
+    }
+
+    #[test]
+    #[ignore]
+    fn perft_tricky_position_high_depth() {
+        // Position from https://www.chessprogramming.org/Perft_Results
+        let fen = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
+        let pos_history = PositionHistory::new(Fen::to_position(&fen));
+        let mut perft = PerformanceTester::new(pos_history);
+        assert_eq!(2_103_487, perft.count_nodes(4));
+        assert_eq!(89_941_194, perft.count_nodes(5));
     }
 }
