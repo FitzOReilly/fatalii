@@ -11,7 +11,7 @@ use std::str;
 pub struct Fen;
 
 impl Fen {
-    fn from_position(pos: &Position) -> String {
+    pub fn from_position(pos: &Position) -> String {
         let mut fen = String::new();
         Self::from_pieces(&mut fen, pos);
         fen.push(' ');
@@ -97,7 +97,7 @@ impl Fen {
         ));
     }
 
-    fn to_position(fen: &str) -> Position {
+    pub fn to_position(fen: &str) -> Position {
         let mut pos = Position::empty();
         let mut iter_fen = fen.split_whitespace();
         Self::to_pieces(&mut pos, iter_fen.next().unwrap());
