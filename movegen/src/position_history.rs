@@ -3,6 +3,7 @@ use crate::pawn::Pawn;
 use crate::piece;
 use crate::position::{CastlingRights, Position};
 use crate::r#move::{Move, MoveType};
+use crate::side::Side;
 use crate::square::Square;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -80,6 +81,33 @@ impl PositionHistory {
 
         self.pos.set_piece_at(target, Some(target_piece));
         self.pos.set_piece_at(origin, None);
+        match m.move_type() {
+            MoveType::CASTLE_KINGSIDE => match side_to_move {
+                Side::White => {
+                    self.pos
+                        .set_piece_at(Square::F1, Some(piece::Piece::WHITE_ROOK));
+                    self.pos.set_piece_at(Square::H1, None);
+                }
+                Side::Black => {
+                    self.pos
+                        .set_piece_at(Square::F8, Some(piece::Piece::BLACK_ROOK));
+                    self.pos.set_piece_at(Square::H8, None);
+                }
+            },
+            MoveType::CASTLE_QUEENSIDE => match side_to_move {
+                Side::White => {
+                    self.pos
+                        .set_piece_at(Square::D1, Some(piece::Piece::WHITE_ROOK));
+                    self.pos.set_piece_at(Square::A1, None);
+                }
+                Side::Black => {
+                    self.pos
+                        .set_piece_at(Square::D8, Some(piece::Piece::BLACK_ROOK));
+                    self.pos.set_piece_at(Square::A8, None);
+                }
+            },
+            _ => {}
+        }
 
         let en_passant_square = match m.move_type() {
             MoveType::DOUBLE_PAWN_PUSH => {
@@ -134,12 +162,39 @@ impl PositionHistory {
             moving_piece
         };
 
-        self.pos.set_piece_at(origin, Some(origin_piece));
-        self.pos.set_piece_at(target, None);
-
         self.pos.set_side_to_move(!self.pos.side_to_move());
         self.pos
             .set_move_count(self.pos.move_count() - self.pos.side_to_move() as usize);
+
+        self.pos.set_piece_at(origin, Some(origin_piece));
+        self.pos.set_piece_at(target, None);
+        match m.move_type() {
+            MoveType::CASTLE_KINGSIDE => match self.pos.side_to_move() {
+                Side::White => {
+                    self.pos
+                        .set_piece_at(Square::H1, Some(piece::Piece::WHITE_ROOK));
+                    self.pos.set_piece_at(Square::F1, None);
+                }
+                Side::Black => {
+                    self.pos
+                        .set_piece_at(Square::H8, Some(piece::Piece::BLACK_ROOK));
+                    self.pos.set_piece_at(Square::F8, None);
+                }
+            },
+            MoveType::CASTLE_QUEENSIDE => match self.pos.side_to_move() {
+                Side::White => {
+                    self.pos
+                        .set_piece_at(Square::A1, Some(piece::Piece::WHITE_ROOK));
+                    self.pos.set_piece_at(Square::D1, None);
+                }
+                Side::Black => {
+                    self.pos
+                        .set_piece_at(Square::A8, Some(piece::Piece::BLACK_ROOK));
+                    self.pos.set_piece_at(Square::D8, None);
+                }
+            },
+            _ => {}
+        }
 
         debug_assert!(!self.irreversible_properties.is_empty());
         let irr = self.irreversible_properties.pop().unwrap();
@@ -284,6 +339,122 @@ mod tests {
         assert_eq!(&prev_pos, pos_history.current_pos());
 
         // Initial position
+        pos_history.undo_last_move();
+        let prev_pos = exp_pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, pos_history.current_pos());
+    }
+
+    #[test]
+    fn do_and_undo_move_castle() {
+        let mut pos = Position::empty();
+        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Square::A1, Some(piece::Piece::WHITE_ROOK));
+        pos.set_piece_at(Square::H1, Some(piece::Piece::WHITE_ROOK));
+        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Square::A8, Some(piece::Piece::BLACK_ROOK));
+        pos.set_piece_at(Square::H8, Some(piece::Piece::BLACK_ROOK));
+        pos.set_castling_rights(CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH);
+
+        let mut exp_pos_history = Vec::new();
+        let mut move_history = Vec::new();
+        let mut pos_history = PositionHistory::new(pos);
+
+        // Position after 1. 0-0
+        exp_pos_history.push(pos_history.current_pos().clone());
+        let m = Move::new(Square::E1, Square::G1, MoveType::CASTLE_KINGSIDE);
+        move_history.push(m);
+        pos_history.do_move(m);
+        assert_eq!(
+            Some(piece::Piece::WHITE_KING),
+            pos_history.current_pos().piece_at(Square::G1)
+        );
+        assert_eq!(
+            Some(piece::Piece::WHITE_ROOK),
+            pos_history.current_pos().piece_at(Square::F1)
+        );
+        assert_eq!(
+            CastlingRights::BLACK_BOTH,
+            pos_history.current_pos().castling_rights()
+        );
+
+        // Position after 1. 0-0 0-0-0
+        exp_pos_history.push(pos_history.current_pos().clone());
+        let m = Move::new(Square::E8, Square::C8, MoveType::CASTLE_QUEENSIDE);
+        move_history.push(m);
+        pos_history.do_move(m);
+        assert_eq!(
+            Some(piece::Piece::BLACK_KING),
+            pos_history.current_pos().piece_at(Square::C8)
+        );
+        assert_eq!(
+            Some(piece::Piece::BLACK_ROOK),
+            pos_history.current_pos().piece_at(Square::D8)
+        );
+        assert_eq!(
+            CastlingRights::empty(),
+            pos_history.current_pos().castling_rights()
+        );
+
+        // Position after 1. 0-0
+        pos_history.undo_last_move();
+        let prev_pos = exp_pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, pos_history.current_pos());
+
+        // Starting position
+        pos_history.undo_last_move();
+        let prev_pos = exp_pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, pos_history.current_pos());
+
+        // Position after 1. 0-0-0
+        exp_pos_history.push(pos_history.current_pos().clone());
+        let m = Move::new(Square::E1, Square::C1, MoveType::CASTLE_QUEENSIDE);
+        move_history.push(m);
+        pos_history.do_move(m);
+        assert_eq!(
+            Some(piece::Piece::WHITE_KING),
+            pos_history.current_pos().piece_at(Square::C1)
+        );
+        assert_eq!(
+            Some(piece::Piece::WHITE_ROOK),
+            pos_history.current_pos().piece_at(Square::D1)
+        );
+        assert_eq!(
+            CastlingRights::BLACK_BOTH,
+            pos_history.current_pos().castling_rights()
+        );
+
+        // Position after 1. 0-0-0 0-0
+        exp_pos_history.push(pos_history.current_pos().clone());
+        let m = Move::new(Square::E8, Square::G8, MoveType::CASTLE_KINGSIDE);
+        move_history.push(m);
+        pos_history.do_move(m);
+        assert_eq!(
+            Some(piece::Piece::BLACK_KING),
+            pos_history.current_pos().piece_at(Square::G8)
+        );
+        assert_eq!(
+            Some(piece::Piece::BLACK_ROOK),
+            pos_history.current_pos().piece_at(Square::F8)
+        );
+        assert_eq!(
+            CastlingRights::empty(),
+            pos_history.current_pos().castling_rights()
+        );
+
+        // Position after 1. 0-0-0
+        pos_history.undo_last_move();
+        let prev_pos = exp_pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, pos_history.current_pos());
+
+        // Starting position
         pos_history.undo_last_move();
         let prev_pos = exp_pos_history
             .pop()
