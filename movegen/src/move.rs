@@ -36,6 +36,10 @@ impl MoveType {
         MoveType(move_type.0 | promo_piece as u8)
     }
 
+    fn is_castle(&self) -> bool {
+        self.0 == Self::CASTLE_KINGSIDE.0 || self.0 == Self::CASTLE_QUEENSIDE.0
+    }
+
     fn is_capture(&self) -> bool {
         self.0 & Self::CAPTURE.0 != 0
     }
@@ -80,6 +84,10 @@ impl Move {
 
     pub fn move_type(&self) -> MoveType {
         unsafe { std::mem::transmute::<u8, MoveType>((self.0 >> 12) as u8) }
+    }
+
+    pub fn is_castle(&self) -> bool {
+        self.move_type().is_castle()
     }
 
     pub fn is_capture(&self) -> bool {
@@ -138,30 +146,37 @@ mod tests {
 
     #[test]
     fn move_type_properties() {
+        assert!(!MoveType::QUIET.is_castle());
         assert!(!MoveType::QUIET.is_capture());
         assert!(!MoveType::QUIET.is_en_passant());
         assert!(!MoveType::QUIET.is_promotion());
 
+        assert!(!MoveType::DOUBLE_PAWN_PUSH.is_castle());
         assert!(!MoveType::DOUBLE_PAWN_PUSH.is_capture());
         assert!(!MoveType::DOUBLE_PAWN_PUSH.is_en_passant());
         assert!(!MoveType::DOUBLE_PAWN_PUSH.is_promotion());
 
+        assert!(MoveType::CASTLE_KINGSIDE.is_castle());
         assert!(!MoveType::CASTLE_KINGSIDE.is_capture());
         assert!(!MoveType::CASTLE_KINGSIDE.is_en_passant());
         assert!(!MoveType::CASTLE_KINGSIDE.is_promotion());
 
+        assert!(MoveType::CASTLE_QUEENSIDE.is_castle());
         assert!(!MoveType::CASTLE_QUEENSIDE.is_capture());
         assert!(!MoveType::CASTLE_QUEENSIDE.is_en_passant());
         assert!(!MoveType::CASTLE_QUEENSIDE.is_promotion());
 
+        assert!(!MoveType::CAPTURE.is_castle());
         assert!(MoveType::CAPTURE.is_capture());
         assert!(!MoveType::CAPTURE.is_en_passant());
         assert!(!MoveType::CAPTURE.is_promotion());
 
+        assert!(!MoveType::EN_PASSANT_CAPTURE.is_castle());
         assert!(MoveType::EN_PASSANT_CAPTURE.is_capture());
         assert!(MoveType::EN_PASSANT_CAPTURE.is_en_passant());
         assert!(!MoveType::EN_PASSANT_CAPTURE.is_promotion());
 
+        assert!(!MoveType::PROMOTION_KNIGHT.is_castle());
         assert!(!MoveType::PROMOTION_KNIGHT.is_capture());
         assert!(!MoveType::PROMOTION_KNIGHT.is_en_passant());
         assert!(MoveType::PROMOTION_KNIGHT.is_promotion());
@@ -170,6 +185,7 @@ mod tests {
             MoveType::PROMOTION_KNIGHT.promo_piece_unchecked()
         );
 
+        assert!(!MoveType::PROMOTION_BISHOP.is_castle());
         assert!(!MoveType::PROMOTION_BISHOP.is_capture());
         assert!(!MoveType::PROMOTION_BISHOP.is_en_passant());
         assert!(MoveType::PROMOTION_BISHOP.is_promotion());
@@ -178,6 +194,7 @@ mod tests {
             MoveType::PROMOTION_BISHOP.promo_piece_unchecked()
         );
 
+        assert!(!MoveType::PROMOTION_ROOK.is_castle());
         assert!(!MoveType::PROMOTION_ROOK.is_capture());
         assert!(!MoveType::PROMOTION_ROOK.is_en_passant());
         assert!(MoveType::PROMOTION_ROOK.is_promotion());
@@ -186,6 +203,7 @@ mod tests {
             MoveType::PROMOTION_ROOK.promo_piece_unchecked()
         );
 
+        assert!(!MoveType::PROMOTION_QUEEN.is_castle());
         assert!(!MoveType::PROMOTION_QUEEN.is_capture());
         assert!(!MoveType::PROMOTION_QUEEN.is_en_passant());
         assert!(MoveType::PROMOTION_QUEEN.is_promotion());
@@ -194,6 +212,7 @@ mod tests {
             MoveType::PROMOTION_QUEEN.promo_piece_unchecked()
         );
 
+        assert!(!MoveType::PROMOTION_CAPTURE_KNIGHT.is_castle());
         assert!(MoveType::PROMOTION_CAPTURE_KNIGHT.is_capture());
         assert!(!MoveType::PROMOTION_CAPTURE_KNIGHT.is_en_passant());
         assert!(MoveType::PROMOTION_CAPTURE_KNIGHT.is_promotion());
@@ -202,6 +221,7 @@ mod tests {
             MoveType::PROMOTION_CAPTURE_KNIGHT.promo_piece_unchecked()
         );
 
+        assert!(!MoveType::PROMOTION_CAPTURE_BISHOP.is_castle());
         assert!(MoveType::PROMOTION_CAPTURE_BISHOP.is_capture());
         assert!(!MoveType::PROMOTION_CAPTURE_BISHOP.is_en_passant());
         assert!(MoveType::PROMOTION_CAPTURE_BISHOP.is_promotion());
@@ -210,6 +230,7 @@ mod tests {
             MoveType::PROMOTION_CAPTURE_BISHOP.promo_piece_unchecked()
         );
 
+        assert!(!MoveType::PROMOTION_CAPTURE_ROOK.is_castle());
         assert!(MoveType::PROMOTION_CAPTURE_ROOK.is_capture());
         assert!(!MoveType::PROMOTION_CAPTURE_ROOK.is_en_passant());
         assert!(MoveType::PROMOTION_CAPTURE_ROOK.is_promotion());
@@ -218,6 +239,7 @@ mod tests {
             MoveType::PROMOTION_CAPTURE_ROOK.promo_piece_unchecked()
         );
 
+        assert!(!MoveType::PROMOTION_CAPTURE_QUEEN.is_castle());
         assert!(MoveType::PROMOTION_CAPTURE_QUEEN.is_capture());
         assert!(!MoveType::PROMOTION_CAPTURE_QUEEN.is_en_passant());
         assert!(MoveType::PROMOTION_CAPTURE_QUEEN.is_promotion());
