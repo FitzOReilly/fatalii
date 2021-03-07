@@ -359,7 +359,7 @@ impl Bitboard {
         self.most_significant_1_bit().bit_idx()
     }
 
-    fn pop_count(self) -> usize {
+    pub fn pop_count(self) -> usize {
         let mut x = self.0;
         x = x - (x >> 1 & 0x5555555555555555);
         x = (x & 0x3333333333333333) + (x >> 2 & 0x3333333333333333);
