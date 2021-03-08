@@ -1,6 +1,7 @@
 use crate::piece;
 use crate::square::Square;
 use std::fmt;
+use std::ops::{Deref, DerefMut};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct MoveType(u8);
@@ -145,25 +146,19 @@ impl MoveList {
     pub fn new() -> MoveList {
         MoveList(Vec::new())
     }
+}
 
-    pub fn push(&mut self, value: Move) {
-        self.0.push(value);
+impl Deref for MoveList {
+    type Target = Vec<Move>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
+}
 
-    pub fn clear(&mut self) {
-        self.0.clear();
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn contains(&self, x: &Move) -> bool {
-        self.0.contains(x)
-    }
-
-    pub fn iter(&self) -> std::slice::Iter<'_, Move> {
-        self.0.iter()
+impl DerefMut for MoveList {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
