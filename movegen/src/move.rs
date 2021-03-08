@@ -138,7 +138,46 @@ impl fmt::Display for Move {
     }
 }
 
-pub type MoveList = Vec<Move>;
+#[derive(Clone, Debug)]
+pub struct MoveList(Vec<Move>);
+
+impl MoveList {
+    pub fn new() -> MoveList {
+        MoveList(Vec::new())
+    }
+
+    pub fn push(&mut self, value: Move) {
+        self.0.push(value);
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn contains(&self, x: &Move) -> bool {
+        self.0.contains(x)
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, Move> {
+        self.0.iter()
+    }
+}
+
+impl fmt::Display for MoveList {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let move_list_str = self
+            .iter()
+            .map(|&m| format!("{}", m))
+            .collect::<Vec<String>>()
+            .join(" ");
+        write!(f, "{}", move_list_str).unwrap();
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -359,7 +398,7 @@ mod tests {
     }
 
     #[test]
-    fn fmt() {
+    fn fmt_move() {
         assert_eq!(
             "d2d3",
             format!("{}", Move::new(Square::D2, Square::D3, MoveType::QUIET))
@@ -452,5 +491,27 @@ mod tests {
                 Move::new(Square::G2, Square::H1, MoveType::PROMOTION_CAPTURE_QUEEN)
             )
         );
+    }
+
+    #[test]
+    fn fmt_movelist() {
+        let mut move_list = MoveList::new();
+        move_list.push(Move::new(
+            Square::D2,
+            Square::D4,
+            MoveType::DOUBLE_PAWN_PUSH,
+        ));
+        move_list.push(Move::new(
+            Square::D7,
+            Square::D5,
+            MoveType::DOUBLE_PAWN_PUSH,
+        ));
+        move_list.push(Move::new(
+            Square::C2,
+            Square::C4,
+            MoveType::DOUBLE_PAWN_PUSH,
+        ));
+
+        assert_eq!("d2d4 d7d5 c2c4", format!("{}", move_list));
     }
 }

@@ -38,7 +38,7 @@ impl PerformanceTester {
                         num_nodes = move_list.len();
                     }
                     _ => {
-                        for m in &move_list {
+                        for m in move_list.iter() {
                             self.pos_history.do_move(*m);
                             num_nodes += self.recursive_count_nodes(move_list_stack, depth - 1);
                             self.pos_history.undo_last_move();
