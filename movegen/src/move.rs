@@ -68,6 +68,8 @@ impl MoveType {
 pub struct Move(u16);
 
 impl Move {
+    pub const NULL: Self = Self(0x0);
+
     pub fn new(origin: Square, target: Square, move_type: MoveType) -> Move {
         debug_assert!(origin.idx() < Square::NUM_SQUARES);
         debug_assert!(target.idx() < Square::NUM_SQUARES);
@@ -106,33 +108,36 @@ impl Move {
 
 impl fmt::Display for Move {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let move_str = match self.move_type() {
-            MoveType::CASTLE_KINGSIDE => String::from("0-0"),
-            MoveType::CASTLE_QUEENSIDE => String::from("0-0-0"),
-            _ => {
-                let capture_str = if self.is_capture() { "x" } else { "" };
-                let promo_str = if self.is_promotion() {
-                    match self.move_type().promo_piece_unchecked() {
-                        piece::Type::Knight => "=N",
-                        piece::Type::Bishop => "=B",
-                        piece::Type::Rook => "=R",
-                        piece::Type::Queen => "=Q",
-                        _ => panic!(
-                            "Invalid promotion piece `{:?}`",
-                            self.move_type().promo_piece_unchecked()
-                        ),
-                    }
-                } else {
-                    ""
-                };
-                format!(
-                    "{}{}{}{}",
-                    self.origin(),
-                    capture_str,
-                    self.target(),
-                    promo_str
-                )
-            }
+        let move_str = match self {
+            &Move::NULL => String::from("null"),
+            _ => match self.move_type() {
+                MoveType::CASTLE_KINGSIDE => String::from("0-0"),
+                MoveType::CASTLE_QUEENSIDE => String::from("0-0-0"),
+                _ => {
+                    let capture_str = if self.is_capture() { "x" } else { "" };
+                    let promo_str = if self.is_promotion() {
+                        match self.move_type().promo_piece_unchecked() {
+                            piece::Type::Knight => "=N",
+                            piece::Type::Bishop => "=B",
+                            piece::Type::Rook => "=R",
+                            piece::Type::Queen => "=Q",
+                            _ => panic!(
+                                "Invalid promotion piece `{:?}`",
+                                self.move_type().promo_piece_unchecked()
+                            ),
+                        }
+                    } else {
+                        ""
+                    };
+                    format!(
+                        "{}{}{}{}",
+                        self.origin(),
+                        capture_str,
+                        self.target(),
+                        promo_str
+                    )
+                }
+            },
         };
         write!(f, "{}", move_str).unwrap();
         Ok(())
@@ -394,6 +399,8 @@ mod tests {
 
     #[test]
     fn fmt_move() {
+        assert_eq!("null", format!("{}", Move::NULL));
+
         assert_eq!(
             "d2d3",
             format!("{}", Move::new(Square::D2, Square::D3, MoveType::QUIET))
