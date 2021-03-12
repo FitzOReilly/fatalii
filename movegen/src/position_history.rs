@@ -51,7 +51,38 @@ impl PositionHistory {
     }
 
     pub fn do_move(&mut self, m: Move) {
+        match m {
+            Move::NULL => self.do_null_move(),
+            _ => self.do_regular_move(m),
+        }
+    }
+
+    fn do_null_move(&mut self) {
         debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
+        self.moves.push(Move::NULL);
+        self.irreversible_properties
+            .push(IrreversibleProperties::new(
+                self.pos.en_passant_square(),
+                self.pos.castling_rights(),
+                self.pos.plies_since_pawn_move_or_capture(),
+                None,
+            ));
+
+        let side_to_move = self.pos.side_to_move();
+        let plies = self.pos.plies_since_pawn_move_or_capture();
+        let move_count = self.pos.move_count();
+
+        self.pos.set_en_passant_square(Bitboard::EMPTY);
+        self.pos.set_side_to_move(!side_to_move);
+        self.pos.set_plies_since_pawn_move_or_capture(plies + 1);
+        self.pos.set_move_count(move_count + side_to_move as usize);
+
+        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
+    }
+
+    fn do_regular_move(&mut self, m: Move) {
+        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
+        debug_assert_ne!(Move::NULL, m);
         self.moves.push(m);
         let origin = m.origin();
         let target = m.target();
@@ -145,13 +176,38 @@ impl PositionHistory {
     pub fn undo_last_move(&mut self) {
         debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
         match self.moves.pop() {
-            Some(m) => self.undo_move(m),
+            Some(m) => {
+                debug_assert!(!self.irreversible_properties.is_empty());
+                let irr = self.irreversible_properties.pop().unwrap();
+                self.undo_move(m, &irr);
+            }
             None => {}
         }
         debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
     }
 
-    fn undo_move(&mut self, m: Move) {
+    fn undo_move(&mut self, m: Move, irr: &IrreversibleProperties) {
+        match m {
+            Move::NULL => self.undo_null_move(irr),
+            _ => self.undo_regular_move(m, irr),
+        }
+    }
+
+    fn undo_null_move(&mut self, irr: &IrreversibleProperties) {
+        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
+
+        self.pos.set_en_passant_square(irr.en_passant_square);
+        self.pos
+            .set_plies_since_pawn_move_or_capture(irr.plies_since_pawn_move_or_capture);
+        self.pos.set_side_to_move(!self.pos.side_to_move());
+        self.pos
+            .set_move_count(self.pos.move_count() - self.pos.side_to_move() as usize);
+
+        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
+    }
+
+    fn undo_regular_move(&mut self, m: Move, irr: &IrreversibleProperties) {
+        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
         let origin = m.origin();
         let target = m.target();
         let moving_piece = self.pos.piece_at(target).unwrap();
@@ -196,8 +252,6 @@ impl PositionHistory {
             _ => {}
         }
 
-        debug_assert!(!self.irreversible_properties.is_empty());
-        let irr = self.irreversible_properties.pop().unwrap();
         self.pos.set_en_passant_square(irr.en_passant_square);
         self.pos.set_castling_rights(irr.castling_rights);
         self.pos
@@ -211,6 +265,7 @@ impl PositionHistory {
             };
             self.pos.set_piece_at(capture_square, irr.captured_piece);
         }
+        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
     }
 }
 
@@ -900,6 +955,86 @@ mod tests {
         assert_eq!(&prev_pos, pos_history.current_pos());
 
         // Starting position
+        pos_history.undo_last_move();
+        let prev_pos = exp_pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, pos_history.current_pos());
+    }
+
+    #[test]
+    fn do_and_undo_null_move() {
+        let pos = Position::initial();
+
+        let mut exp_pos_history = Vec::new();
+        let mut move_history = Vec::new();
+        let mut pos_history = PositionHistory::new(pos);
+
+        // Position after 1. null
+        exp_pos_history.push(pos_history.current_pos().clone());
+        let m = Move::NULL;
+        move_history.push(m);
+        pos_history.do_move(m);
+        assert_eq!(Side::Black, pos_history.current_pos().side_to_move());
+        assert_eq!(
+            1,
+            pos_history.current_pos().plies_since_pawn_move_or_capture()
+        );
+        assert_eq!(1, pos_history.current_pos().move_count());
+
+        // Position after 1. null null
+        exp_pos_history.push(pos_history.current_pos().clone());
+        let m = Move::NULL;
+        move_history.push(m);
+        pos_history.do_move(m);
+        assert_eq!(Side::White, pos_history.current_pos().side_to_move());
+        assert_eq!(
+            2,
+            pos_history.current_pos().plies_since_pawn_move_or_capture()
+        );
+        assert_eq!(2, pos_history.current_pos().move_count());
+
+        // Position after 1. null
+        pos_history.undo_last_move();
+        let prev_pos = exp_pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, pos_history.current_pos());
+
+        // Initial position
+        pos_history.undo_last_move();
+        let prev_pos = exp_pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, pos_history.current_pos());
+
+        // Position after 1. e4
+        exp_pos_history.push(pos_history.current_pos().clone());
+        let m = Move::new(Square::E2, Square::E4, MoveType::DOUBLE_PAWN_PUSH);
+        move_history.push(m);
+        pos_history.do_move(m);
+        assert_eq!(Bitboard::E3, pos_history.current_pos().en_passant_square());
+        assert_eq!(Side::Black, pos_history.current_pos().side_to_move());
+
+        // Position after 1. e4 null
+        exp_pos_history.push(pos_history.current_pos().clone());
+        let m = Move::NULL;
+        move_history.push(m);
+        pos_history.do_move(m);
+        assert_eq!(
+            Bitboard::EMPTY,
+            pos_history.current_pos().en_passant_square()
+        );
+        assert_eq!(Side::White, pos_history.current_pos().side_to_move());
+
+        // Position after 1. e4
+        pos_history.undo_last_move();
+        let prev_pos = exp_pos_history
+            .pop()
+            .expect("Expected Some(Position), got None");
+        assert_eq!(&prev_pos, pos_history.current_pos());
+
+        // Initial position
         pos_history.undo_last_move();
         let prev_pos = exp_pos_history
             .pop()
