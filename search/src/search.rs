@@ -124,7 +124,7 @@ impl Search {
 
         let pos = pos_history.current_pos();
         match depth {
-            0 => score = Eval::eval_relative(pos),
+            0 => score = Self::alpha_beta_quiescence(pos_history, alpha, beta),
             _ => {
                 debug_assert!(!move_list_stack.is_empty());
                 let mut move_list = move_list_stack.pop().unwrap();
@@ -170,6 +170,46 @@ impl Search {
                 move_list_stack.push(move_list);
             }
         }
+        score
+    }
+
+    fn alpha_beta_quiescence(
+        pos_history: &mut PositionHistory,
+        mut alpha: Score,
+        beta: Score,
+    ) -> Score {
+        let pos = pos_history.current_pos();
+        let mut score = Eval::eval_relative(pos);
+
+        if score >= beta {
+            score = beta;
+        } else if score > alpha {
+            alpha = score;
+            let mut move_list = MoveList::new();
+            MoveGenerator::generate_moves(&mut move_list, pos);
+            if move_list.is_empty() {
+                score = if pos.is_in_check(pos.side_to_move()) {
+                    CHECKMATE_WHITE
+                } else {
+                    EQUAL_POSITION
+                };
+            } else {
+                for m in move_list.iter().filter(|m| m.is_capture()) {
+                    pos_history.do_move(*m);
+                    score = -Self::alpha_beta_quiescence(pos_history, -beta, -alpha);
+                    pos_history.undo_last_move();
+
+                    if score >= beta {
+                        score = beta;
+                        break;
+                    }
+                    if score > alpha {
+                        alpha = score;
+                    }
+                }
+            }
+        }
+
         score
     }
 
@@ -222,7 +262,24 @@ mod tests {
             for m in pv.iter() {
                 pos_history.do_move(*m);
             }
-            assert_eq!(Eval::eval(pos_history.current_pos()), score);
+            match pos_history.current_pos().side_to_move() {
+                Side::White => assert_eq!(
+                    Search::alpha_beta_quiescence(
+                        &mut pos_history,
+                        CHECKMATE_WHITE,
+                        CHECKMATE_BLACK
+                    ),
+                    score
+                ),
+                Side::Black => assert_eq!(
+                    -Search::alpha_beta_quiescence(
+                        &mut pos_history,
+                        -CHECKMATE_BLACK,
+                        -CHECKMATE_WHITE
+                    ),
+                    score
+                ),
+            }
             for _ in 0..depth {
                 pos_history.undo_last_move();
             }
@@ -295,5 +352,75 @@ mod tests {
         let (score, pv) = Search::alpha_beta(&mut pos_history, depth);
         assert_eq!(EQUAL_POSITION, score);
         assert_eq!(0, pv.len());
+    }
+
+    #[test]
+    fn alpha_beta_quiescence() {
+        let mut pos_history = PositionHistory::new(Position::initial());
+
+        // Expected: If there are no captures, the quiescence search equals the static evaluation
+        pos_history.do_move(Move::new(
+            Square::E2,
+            Square::E4,
+            MoveType::DOUBLE_PAWN_PUSH,
+        ));
+        assert_eq!(
+            Eval::eval(pos_history.current_pos()),
+            -Search::alpha_beta_quiescence(&mut pos_history, -CHECKMATE_BLACK, -CHECKMATE_WHITE)
+        );
+
+        pos_history.do_move(Move::new(
+            Square::C7,
+            Square::C5,
+            MoveType::DOUBLE_PAWN_PUSH,
+        ));
+        assert_eq!(
+            Eval::eval(pos_history.current_pos()),
+            Search::alpha_beta_quiescence(&mut pos_history, CHECKMATE_WHITE, CHECKMATE_BLACK)
+        );
+
+        pos_history.do_move(Move::new(Square::G1, Square::F3, MoveType::QUIET));
+        assert_eq!(
+            Eval::eval(pos_history.current_pos()),
+            -Search::alpha_beta_quiescence(&mut pos_history, -CHECKMATE_BLACK, -CHECKMATE_WHITE)
+        );
+
+        pos_history.do_move(Move::new(Square::D7, Square::D6, MoveType::QUIET));
+        assert_eq!(
+            Eval::eval(pos_history.current_pos()),
+            Search::alpha_beta_quiescence(&mut pos_history, CHECKMATE_WHITE, CHECKMATE_BLACK)
+        );
+
+        pos_history.do_move(Move::new(
+            Square::D2,
+            Square::D4,
+            MoveType::DOUBLE_PAWN_PUSH,
+        ));
+
+        // Expected: The quiescence search equals the maximum of the static evaluation of the
+        // current position and all the captures
+        pos_history.do_move(Move::new(Square::C5, Square::D4, MoveType::CAPTURE));
+        let score_current = Eval::eval(pos_history.current_pos());
+        pos_history.do_move(Move::new(Square::F3, Square::D4, MoveType::CAPTURE));
+        let score_nxd4 = Eval::eval(pos_history.current_pos());
+        pos_history.undo_last_move();
+        pos_history.do_move(Move::new(Square::D1, Square::D4, MoveType::CAPTURE));
+        let score_qxd4 = Eval::eval(pos_history.current_pos());
+        pos_history.undo_last_move();
+        let score = [score_current, score_nxd4, score_qxd4]
+            .iter()
+            .max()
+            .unwrap()
+            .clone();
+        assert_eq!(
+            score,
+            Search::alpha_beta_quiescence(&mut pos_history, CHECKMATE_WHITE, CHECKMATE_BLACK)
+        );
+
+        pos_history.do_move(Move::new(Square::F3, Square::D4, MoveType::CAPTURE));
+        assert_eq!(
+            Eval::eval(pos_history.current_pos()),
+            -Search::alpha_beta_quiescence(&mut pos_history, -CHECKMATE_BLACK, -CHECKMATE_WHITE)
+        );
     }
 }
