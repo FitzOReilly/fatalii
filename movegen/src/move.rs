@@ -151,6 +151,16 @@ impl MoveList {
     pub fn new() -> MoveList {
         MoveList(Vec::new())
     }
+
+    pub fn with_capacity(capacity: usize) -> MoveList {
+        MoveList(Vec::with_capacity(capacity))
+    }
+
+    pub fn truncate_at_null_move(&mut self) {
+        if let Some(idx) = self.iter().position(|&m| m == Move::NULL) {
+            self.truncate(idx);
+        };
+    }
 }
 
 impl Deref for MoveList {
@@ -493,6 +503,29 @@ mod tests {
                 Move::new(Square::G2, Square::H1, MoveType::PROMOTION_CAPTURE_QUEEN)
             )
         );
+    }
+
+    #[test]
+    fn truncate_at_null_move() {
+        let mut move_list = MoveList::new();
+        move_list.push(Move::new(
+            Square::D2,
+            Square::D4,
+            MoveType::DOUBLE_PAWN_PUSH,
+        ));
+        move_list.push(Move::NULL);
+        move_list.push(Move::new(
+            Square::C2,
+            Square::C4,
+            MoveType::DOUBLE_PAWN_PUSH,
+        ));
+
+        assert_eq!(3, move_list.len());
+        move_list.truncate_at_null_move();
+        assert_eq!(1, move_list.len());
+        // Expected: Calling this method on a move list without a null move has no effect
+        move_list.truncate_at_null_move();
+        assert_eq!(1, move_list.len());
     }
 
     #[test]
