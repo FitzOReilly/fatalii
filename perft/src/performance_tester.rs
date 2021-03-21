@@ -13,10 +13,10 @@ impl PerformanceTester {
 
     pub fn count_nodes(&mut self, depth: usize) -> usize {
         let mut move_list_stack = vec![MoveList::new(); depth];
-        self.recursive_count_nodes(&mut move_list_stack, depth)
+        self.count_nodes_recursive(&mut move_list_stack, depth)
     }
 
-    fn recursive_count_nodes(
+    fn count_nodes_recursive(
         &mut self,
         move_list_stack: &mut Vec<MoveList>,
         depth: usize,
@@ -40,7 +40,7 @@ impl PerformanceTester {
                     _ => {
                         for m in move_list.iter() {
                             self.pos_history.do_move(*m);
-                            num_nodes += self.recursive_count_nodes(move_list_stack, depth - 1);
+                            num_nodes += self.count_nodes_recursive(move_list_stack, depth - 1);
                             self.pos_history.undo_last_move();
                         }
                     }
