@@ -5,6 +5,7 @@ use crate::position::{CastlingRights, Position};
 use crate::r#move::{Move, MoveType};
 use crate::side::Side;
 use crate::square::Square;
+use crate::zobrist::Zobrist;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct IrreversibleProperties {
@@ -33,6 +34,7 @@ impl IrreversibleProperties {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PositionHistory {
     pos: Position,
+    pos_hash: Zobrist,
     irreversible_properties: Vec<IrreversibleProperties>,
     moves: Vec<Move>,
 }
@@ -40,6 +42,7 @@ pub struct PositionHistory {
 impl PositionHistory {
     pub fn new(pos: Position) -> PositionHistory {
         PositionHistory {
+            pos_hash: Zobrist::new(&pos),
             pos: pos,
             irreversible_properties: Vec::<IrreversibleProperties>::new(),
             moves: Vec::<Move>::new(),
@@ -48,6 +51,10 @@ impl PositionHistory {
 
     pub fn current_pos(&self) -> &Position {
         &self.pos
+    }
+
+    pub fn current_pos_hash(&self) -> Zobrist {
+        self.pos_hash
     }
 
     pub fn do_move(&mut self, m: Move) {
@@ -72,7 +79,10 @@ impl PositionHistory {
         let plies = self.pos.plies_since_pawn_move_or_capture();
         let move_count = self.pos.move_count();
 
+        self.pos_hash
+            .toggle_en_passant_square(self.pos.en_passant_square());
         self.pos.set_en_passant_square(Bitboard::EMPTY);
+        self.pos_hash.toggle_side_to_move(Side::Black);
         self.pos.set_side_to_move(!side_to_move);
         self.pos.set_plies_since_pawn_move_or_capture(plies + 1);
         self.pos.set_move_count(move_count + side_to_move as usize);
@@ -111,30 +121,48 @@ impl PositionHistory {
         };
 
         self.pos.set_piece_at(target, Some(target_piece));
+        self.pos_hash.toggle_piece(Some(target_piece), target);
         self.pos.set_piece_at(origin, None);
+        self.pos_hash.toggle_piece(Some(moving_piece), origin);
         match m.move_type() {
             MoveType::CASTLE_KINGSIDE => match side_to_move {
                 Side::White => {
                     self.pos
                         .set_piece_at(Square::F1, Some(piece::Piece::WHITE_ROOK));
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::F1);
                     self.pos.set_piece_at(Square::H1, None);
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::H1);
                 }
                 Side::Black => {
                     self.pos
                         .set_piece_at(Square::F8, Some(piece::Piece::BLACK_ROOK));
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::F8);
                     self.pos.set_piece_at(Square::H8, None);
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::H8);
                 }
             },
             MoveType::CASTLE_QUEENSIDE => match side_to_move {
                 Side::White => {
                     self.pos
                         .set_piece_at(Square::D1, Some(piece::Piece::WHITE_ROOK));
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::D1);
                     self.pos.set_piece_at(Square::A1, None);
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::A1);
                 }
                 Side::Black => {
                     self.pos
                         .set_piece_at(Square::D8, Some(piece::Piece::BLACK_ROOK));
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::D8);
                     self.pos.set_piece_at(Square::A8, None);
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::A8);
                 }
             },
             _ => {}
@@ -147,14 +175,20 @@ impl PositionHistory {
             }
             _ => Bitboard::EMPTY,
         };
+        self.pos_hash
+            .toggle_en_passant_square(self.pos.en_passant_square());
         self.pos.set_en_passant_square(en_passant_square);
+        self.pos_hash.toggle_en_passant_square(en_passant_square);
 
         if m.is_capture() {
             if m.is_en_passant() {
-                let captured_idx = Pawn::push_origin(target, side_to_move);
-                self.pos.set_piece_at(captured_idx, None);
+                self.pos.set_piece_at(capture_square, None);
             }
+            self.pos_hash.toggle_piece(captured_piece, capture_square);
+            let old_cr = self.pos.castling_rights();
             self.pos.remove_castling_rights(target);
+            let new_cr = self.pos.castling_rights();
+            self.pos_hash.toggle_castling_rights(old_cr ^ new_cr);
         }
 
         if m.is_capture() || moving_piece.piece_type() == piece::Type::Pawn {
@@ -165,11 +199,15 @@ impl PositionHistory {
             );
         }
 
+        let old_cr = self.pos.castling_rights();
         self.pos.remove_castling_rights(origin);
+        let new_cr = self.pos.castling_rights();
+        self.pos_hash.toggle_castling_rights(old_cr ^ new_cr);
 
         let move_count = self.pos.move_count();
         self.pos.set_move_count(move_count + side_to_move as usize);
         self.pos.set_side_to_move(!side_to_move);
+        self.pos_hash.toggle_side_to_move(Side::Black);
         debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
     }
 
@@ -197,8 +235,11 @@ impl PositionHistory {
         debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
 
         self.pos.set_en_passant_square(irr.en_passant_square);
+        self.pos_hash
+            .toggle_en_passant_square(irr.en_passant_square);
         self.pos
             .set_plies_since_pawn_move_or_capture(irr.plies_since_pawn_move_or_capture);
+        self.pos_hash.toggle_side_to_move(Side::Black);
         self.pos.set_side_to_move(!self.pos.side_to_move());
         self.pos
             .set_move_count(self.pos.move_count() - self.pos.side_to_move() as usize);
@@ -219,40 +260,65 @@ impl PositionHistory {
         };
 
         self.pos.set_side_to_move(!self.pos.side_to_move());
+        self.pos_hash.toggle_side_to_move(Side::Black);
         self.pos
             .set_move_count(self.pos.move_count() - self.pos.side_to_move() as usize);
 
         self.pos.set_piece_at(origin, Some(origin_piece));
+        self.pos_hash.toggle_piece(Some(origin_piece), origin);
         self.pos.set_piece_at(target, None);
+        self.pos_hash.toggle_piece(Some(origin_piece), target);
         match m.move_type() {
             MoveType::CASTLE_KINGSIDE => match self.pos.side_to_move() {
                 Side::White => {
                     self.pos
                         .set_piece_at(Square::H1, Some(piece::Piece::WHITE_ROOK));
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::H1);
                     self.pos.set_piece_at(Square::F1, None);
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::F1);
                 }
                 Side::Black => {
                     self.pos
                         .set_piece_at(Square::H8, Some(piece::Piece::BLACK_ROOK));
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::H8);
                     self.pos.set_piece_at(Square::F8, None);
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::F8);
                 }
             },
             MoveType::CASTLE_QUEENSIDE => match self.pos.side_to_move() {
                 Side::White => {
                     self.pos
                         .set_piece_at(Square::A1, Some(piece::Piece::WHITE_ROOK));
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::A1);
                     self.pos.set_piece_at(Square::D1, None);
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::D1);
                 }
                 Side::Black => {
                     self.pos
                         .set_piece_at(Square::A8, Some(piece::Piece::BLACK_ROOK));
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::A8);
                     self.pos.set_piece_at(Square::D8, None);
+                    self.pos_hash
+                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::D8);
                 }
             },
             _ => {}
         }
 
+        self.pos_hash
+            .toggle_en_passant_square(self.pos.en_passant_square());
         self.pos.set_en_passant_square(irr.en_passant_square);
+        self.pos_hash
+            .toggle_en_passant_square(irr.en_passant_square);
+        self.pos_hash
+            .toggle_castling_rights(self.pos.castling_rights() ^ irr.castling_rights);
         self.pos.set_castling_rights(irr.castling_rights);
         self.pos
             .set_plies_since_pawn_move_or_capture(irr.plies_since_pawn_move_or_capture);
@@ -264,6 +330,8 @@ impl PositionHistory {
                 target
             };
             self.pos.set_piece_at(capture_square, irr.captured_piece);
+            self.pos_hash
+                .toggle_piece(irr.captured_piece, capture_square);
         }
         debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
     }

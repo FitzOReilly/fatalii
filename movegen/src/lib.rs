@@ -21,3 +21,4 @@ mod direction;
 mod file;
 mod rank;
 mod ray;
+mod zobrist;
