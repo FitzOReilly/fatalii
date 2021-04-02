@@ -16,9 +16,10 @@ pub mod queen;
 pub mod rook;
 pub mod side;
 pub mod square;
+pub mod transposition_table;
+pub mod zobrist;
 
 mod direction;
 mod file;
 mod rank;
 mod ray;
-mod zobrist;
