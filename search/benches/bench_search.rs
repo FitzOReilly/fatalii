@@ -1,6 +1,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
+use search::alpha_beta::AlphaBeta;
+use search::negamax::Negamax;
 use search::search::Search;
 
 fn negamax_initial_position(c: &mut Criterion) {
@@ -13,7 +15,7 @@ fn negamax_initial_position(c: &mut Criterion) {
     for depth in min_depth..=max_depth {
         group.throughput(Throughput::Elements(depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), &depth, |b, &depth| {
-            b.iter(|| Search::negamax(&mut pos_history, depth));
+            b.iter(|| Negamax::search(&mut pos_history, depth));
         });
     }
     group.finish();
@@ -29,7 +31,7 @@ fn alpha_beta_initial_position(c: &mut Criterion) {
     for depth in min_depth..=max_depth {
         group.throughput(Throughput::Elements(depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), &depth, |b, &depth| {
-            b.iter(|| Search::alpha_beta(&mut pos_history, depth));
+            b.iter(|| AlphaBeta::search(&mut pos_history, depth));
         });
     }
     group.finish();
