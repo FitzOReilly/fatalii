@@ -112,30 +112,32 @@ impl AlphaBeta {
         let mut score = Eval::eval_relative(pos);
 
         if score >= beta {
-            score = beta;
-        } else if score > alpha {
+            return beta;
+        }
+        if score > alpha {
             alpha = score;
-            let mut move_list = MoveList::new();
-            MoveGenerator::generate_moves(&mut move_list, pos);
-            if move_list.is_empty() {
-                score = if pos.is_in_check(pos.side_to_move()) {
-                    CHECKMATE_WHITE
-                } else {
-                    EQUAL_POSITION
-                };
-            } else {
-                for m in move_list.iter().filter(|m| m.is_capture()) {
-                    pos_history.do_move(*m);
-                    score = -Self::search_quiescence(pos_history, -beta, -alpha);
-                    pos_history.undo_last_move();
+        }
 
-                    if score >= beta {
-                        score = beta;
-                        break;
-                    }
-                    if score > alpha {
-                        alpha = score;
-                    }
+        let mut move_list = MoveList::new();
+        MoveGenerator::generate_moves(&mut move_list, pos);
+        if move_list.is_empty() {
+            score = if pos.is_in_check(pos.side_to_move()) {
+                CHECKMATE_WHITE
+            } else {
+                EQUAL_POSITION
+            };
+        } else {
+            for m in move_list.iter().filter(|m| m.is_capture()) {
+                pos_history.do_move(*m);
+                score = -Self::search_quiescence(pos_history, -beta, -alpha);
+                pos_history.undo_last_move();
+
+                if score >= beta {
+                    score = beta;
+                    break;
+                }
+                if score > alpha {
+                    alpha = score;
                 }
             }
         }
