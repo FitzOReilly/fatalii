@@ -96,7 +96,7 @@ impl PositionHistory {
         self.moves.push(m);
         let origin = m.origin();
         let target = m.target();
-        let moving_piece = self.pos.piece_at(origin).unwrap();
+        let origin_piece = self.pos.piece_at(origin).unwrap();
         let side_to_move = self.pos.side_to_move();
 
         let capture_square = if m.is_en_passant() {
@@ -117,13 +117,13 @@ impl PositionHistory {
         let target_piece = if m.is_promotion() {
             piece::Piece::new(side_to_move, m.move_type().promo_piece_unchecked())
         } else {
-            moving_piece
+            origin_piece
         };
 
         self.pos.set_piece_at(target, Some(target_piece));
         self.pos_hash.toggle_piece(Some(target_piece), target);
         self.pos.set_piece_at(origin, None);
-        self.pos_hash.toggle_piece(Some(moving_piece), origin);
+        self.pos_hash.toggle_piece(Some(origin_piece), origin);
         match m.move_type() {
             MoveType::CASTLE_KINGSIDE => match side_to_move {
                 Side::White => {
@@ -191,7 +191,7 @@ impl PositionHistory {
             self.pos_hash.toggle_castling_rights(old_cr ^ new_cr);
         }
 
-        if m.is_capture() || moving_piece.piece_type() == piece::Type::Pawn {
+        if m.is_capture() || origin_piece.piece_type() == piece::Type::Pawn {
             self.pos.set_plies_since_pawn_move_or_capture(0);
         } else {
             self.pos.set_plies_since_pawn_move_or_capture(
@@ -251,12 +251,12 @@ impl PositionHistory {
         debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
         let origin = m.origin();
         let target = m.target();
-        let moving_piece = self.pos.piece_at(target).unwrap();
+        let target_piece = self.pos.piece_at(target).unwrap();
 
         let origin_piece = if m.is_promotion() {
-            piece::Piece::new(moving_piece.piece_side(), piece::Type::Pawn)
+            piece::Piece::new(target_piece.piece_side(), piece::Type::Pawn)
         } else {
-            moving_piece
+            target_piece
         };
 
         self.pos.set_side_to_move(!self.pos.side_to_move());
@@ -267,7 +267,7 @@ impl PositionHistory {
         self.pos.set_piece_at(origin, Some(origin_piece));
         self.pos_hash.toggle_piece(Some(origin_piece), origin);
         self.pos.set_piece_at(target, None);
-        self.pos_hash.toggle_piece(Some(origin_piece), target);
+        self.pos_hash.toggle_piece(Some(target_piece), target);
         match m.move_type() {
             MoveType::CASTLE_KINGSIDE => match self.pos.side_to_move() {
                 Side::White => {
@@ -347,11 +347,13 @@ mod tests {
         let pos = Position::initial();
 
         let mut exp_pos_history = Vec::new();
+        let mut exp_pos_hash_history = Vec::new();
         let mut move_history = Vec::new();
         let mut pos_history = PositionHistory::new(pos);
 
         // Position after 1. e4
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(Square::E2, Square::E4, MoveType::DOUBLE_PAWN_PUSH);
         move_history.push(m);
         pos_history.do_move(m);
@@ -373,6 +375,7 @@ mod tests {
 
         // Position after 1. e4 c5
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(Square::C7, Square::C5, MoveType::DOUBLE_PAWN_PUSH);
         move_history.push(m);
         pos_history.do_move(m);
@@ -394,6 +397,7 @@ mod tests {
 
         // Position after 1. e4 c5 2. Nf3
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(Square::G1, Square::F3, MoveType::QUIET);
         move_history.push(m);
         pos_history.do_move(m);
@@ -418,6 +422,7 @@ mod tests {
 
         // Position after 1. e4 c5 2. Nf3 d6
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(Square::D7, Square::D6, MoveType::QUIET);
         move_history.push(m);
         pos_history.do_move(m);
@@ -446,6 +451,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Position after 1. e4 c5
         pos_history.undo_last_move();
@@ -453,6 +460,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Position after 1. e4
         pos_history.undo_last_move();
@@ -460,6 +469,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Initial position
         pos_history.undo_last_move();
@@ -467,6 +478,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
     }
 
     #[test]
@@ -481,11 +494,13 @@ mod tests {
         pos.set_castling_rights(CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH);
 
         let mut exp_pos_history = Vec::new();
+        let mut exp_pos_hash_history = Vec::new();
         let mut move_history = Vec::new();
         let mut pos_history = PositionHistory::new(pos);
 
         // Position after 1. 0-0
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(Square::E1, Square::G1, MoveType::CASTLE_KINGSIDE);
         move_history.push(m);
         pos_history.do_move(m);
@@ -504,6 +519,7 @@ mod tests {
 
         // Position after 1. 0-0 0-0-0
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(Square::E8, Square::C8, MoveType::CASTLE_QUEENSIDE);
         move_history.push(m);
         pos_history.do_move(m);
@@ -526,6 +542,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Starting position
         pos_history.undo_last_move();
@@ -533,9 +551,12 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Position after 1. 0-0-0
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(Square::E1, Square::C1, MoveType::CASTLE_QUEENSIDE);
         move_history.push(m);
         pos_history.do_move(m);
@@ -554,6 +575,7 @@ mod tests {
 
         // Position after 1. 0-0-0 0-0
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(Square::E8, Square::G8, MoveType::CASTLE_KINGSIDE);
         move_history.push(m);
         pos_history.do_move(m);
@@ -576,6 +598,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Starting position
         pos_history.undo_last_move();
@@ -583,6 +607,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
     }
 
     #[test]
@@ -601,11 +627,13 @@ mod tests {
         pos.set_castling_rights(CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH);
 
         let mut exp_pos_history = Vec::new();
+        let mut exp_pos_hash_history = Vec::new();
         let mut move_history = Vec::new();
         let mut pos_history = PositionHistory::new(pos);
 
         // Position after 1. 0-0
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(Square::E1, Square::G1, MoveType::CASTLE_KINGSIDE);
         move_history.push(m);
         pos_history.do_move(m);
@@ -620,6 +648,7 @@ mod tests {
 
         // Position after 1. 0-0 Ke7
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(Square::E8, Square::E7, MoveType::QUIET);
         move_history.push(m);
         pos_history.do_move(m);
@@ -638,6 +667,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Starting position
         pos_history.undo_last_move();
@@ -645,9 +676,12 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Position after 1. Ra2
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(Square::A1, Square::A2, MoveType::QUIET);
         move_history.push(m);
         pos_history.do_move(m);
@@ -659,6 +693,7 @@ mod tests {
         // Position after 1. Ra2 Rxh1
         // White loses kingside castling rights after the rook on h1 gets captured
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(Square::H8, Square::H1, MoveType::CAPTURE);
         move_history.push(m);
         pos_history.do_move(m);
@@ -679,6 +714,8 @@ mod tests {
             prev_pos,
             pos_history.current_pos()
         );
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Starting position
         pos_history.undo_last_move();
@@ -686,9 +723,12 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Position after 1. bxa8=N
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(
             Square::B7,
             Square::A8,
@@ -703,6 +743,7 @@ mod tests {
 
         // Position after 1. bxa8=N bxa1=B
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(
             Square::B2,
             Square::A1,
@@ -717,6 +758,7 @@ mod tests {
 
         // Position after 1. bxa8=N bxa1=B 2. gxh8=R+
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(
             Square::G7,
             Square::H8,
@@ -735,9 +777,12 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Position after 1. bxa8=N bxa1=B 2. gxh8=B
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(
             Square::G7,
             Square::H8,
@@ -752,6 +797,7 @@ mod tests {
 
         // Position after 1. bxa8=N bxa1=B 2. gxh8=B+ gxh1=Q+
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(
             Square::G2,
             Square::H1,
@@ -770,6 +816,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Position after 1. bxa8=N bxa1=B
         pos_history.undo_last_move();
@@ -777,6 +825,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Position after 1. bxa8=N
         pos_history.undo_last_move();
@@ -784,6 +834,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Starting position
         pos_history.undo_last_move();
@@ -791,6 +843,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
     }
 
     #[test]
@@ -803,11 +857,13 @@ mod tests {
         pos.set_en_passant_square(Bitboard::C6);
 
         let mut exp_pos_history = Vec::new();
+        let mut exp_pos_hash_history = Vec::new();
         let mut move_history = Vec::new();
         let mut pos_history = PositionHistory::new(pos);
 
         // Position after 1. dxc6
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(Square::D5, Square::C6, MoveType::EN_PASSANT_CAPTURE);
         move_history.push(m);
         pos_history.do_move(m);
@@ -826,6 +882,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
     }
 
     #[test]
@@ -839,11 +897,13 @@ mod tests {
         pos.set_piece_at(Square::H2, Some(piece::Piece::BLACK_PAWN));
 
         let mut exp_pos_history = Vec::new();
+        let mut exp_pos_hash_history = Vec::new();
         let mut move_history = Vec::new();
         let mut pos_history = PositionHistory::new(pos);
 
         // Position after 1. a8=Q
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(
             Square::A7,
             Square::A8,
@@ -858,6 +918,7 @@ mod tests {
 
         // Position after 1. a8=Q a1=R
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(
             Square::A2,
             Square::A1,
@@ -872,6 +933,7 @@ mod tests {
 
         // Position after 1. a8=Q a1=R 2. h8=B
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(
             Square::H7,
             Square::H8,
@@ -886,6 +948,7 @@ mod tests {
 
         // Position after 1. a8=Q a1=R 2. h8=B h1=N
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(
             Square::H2,
             Square::H1,
@@ -904,6 +967,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Position after 1. a8=Q a1=R
         pos_history.undo_last_move();
@@ -911,6 +976,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Position after 1. a8=Q
         pos_history.undo_last_move();
@@ -918,6 +985,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Starting position
         pos_history.undo_last_move();
@@ -925,6 +994,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
     }
 
     #[test]
@@ -942,11 +1013,13 @@ mod tests {
         pos.set_piece_at(Square::G8, Some(piece::Piece::BLACK_KNIGHT));
 
         let mut exp_pos_history = Vec::new();
+        let mut exp_pos_hash_history = Vec::new();
         let mut move_history = Vec::new();
         let mut pos_history = PositionHistory::new(pos);
 
         // Position after 1. axb8=Q
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(
             Square::A7,
             Square::B8,
@@ -961,6 +1034,7 @@ mod tests {
 
         // Position after 1. axb8=Q axb1=R
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(
             Square::A2,
             Square::B1,
@@ -975,6 +1049,7 @@ mod tests {
 
         // Position after 1. axb8=Q axb1=R 2. hxg8=B
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(
             Square::H7,
             Square::G8,
@@ -989,6 +1064,7 @@ mod tests {
 
         // Position after 1. axb8=Q axb1=R 2. hxg8=B hxg1=N+
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(
             Square::H2,
             Square::G1,
@@ -1007,6 +1083,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Position after 1. axb8=Q axb1=R
         pos_history.undo_last_move();
@@ -1014,6 +1092,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Position after 1. axb8=Q
         pos_history.undo_last_move();
@@ -1021,6 +1101,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Starting position
         pos_history.undo_last_move();
@@ -1028,6 +1110,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
     }
 
     #[test]
@@ -1035,11 +1119,13 @@ mod tests {
         let pos = Position::initial();
 
         let mut exp_pos_history = Vec::new();
+        let mut exp_pos_hash_history = Vec::new();
         let mut move_history = Vec::new();
         let mut pos_history = PositionHistory::new(pos);
 
         // Position after 1. null
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::NULL;
         move_history.push(m);
         pos_history.do_move(m);
@@ -1052,6 +1138,7 @@ mod tests {
 
         // Position after 1. null null
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::NULL;
         move_history.push(m);
         pos_history.do_move(m);
@@ -1068,6 +1155,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Initial position
         pos_history.undo_last_move();
@@ -1075,9 +1164,12 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Position after 1. e4
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::new(Square::E2, Square::E4, MoveType::DOUBLE_PAWN_PUSH);
         move_history.push(m);
         pos_history.do_move(m);
@@ -1086,6 +1178,7 @@ mod tests {
 
         // Position after 1. e4 null
         exp_pos_history.push(pos_history.current_pos().clone());
+        exp_pos_hash_history.push(pos_history.current_pos_hash());
         let m = Move::NULL;
         move_history.push(m);
         pos_history.do_move(m);
@@ -1101,6 +1194,8 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
 
         // Initial position
         pos_history.undo_last_move();
@@ -1108,5 +1203,7 @@ mod tests {
             .pop()
             .expect("Expected Some(Position), got None");
         assert_eq!(&prev_pos, pos_history.current_pos());
+        let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
+        assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
     }
 }
