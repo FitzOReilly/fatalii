@@ -43,6 +43,10 @@ impl Piece {
         unsafe { std::mem::transmute::<u8, Type>(self.0 >> 1) }
     }
 
+    pub fn is_sliding_piece(&self) -> bool {
+        matches!(self.piece_type(), Type::Bishop | Type::Rook | Type::Queen)
+    }
+
     pub fn from_ascii(c: u8) -> Result<Self, String> {
         match c {
             b'P' => Ok(Piece::WHITE_PAWN),
@@ -122,6 +126,22 @@ mod tests {
         let wp = Piece::new(Side::Black, Type::King);
         assert_eq!(Side::Black, wp.piece_side());
         assert_eq!(Type::King, wp.piece_type());
+    }
+
+    #[test]
+    fn is_sliding_piece() {
+        assert_eq!(false, Piece::WHITE_PAWN.is_sliding_piece());
+        assert_eq!(false, Piece::WHITE_KNIGHT.is_sliding_piece());
+        assert_eq!(true, Piece::WHITE_BISHOP.is_sliding_piece());
+        assert_eq!(true, Piece::WHITE_ROOK.is_sliding_piece());
+        assert_eq!(true, Piece::WHITE_QUEEN.is_sliding_piece());
+        assert_eq!(false, Piece::WHITE_KING.is_sliding_piece());
+        assert_eq!(false, Piece::BLACK_PAWN.is_sliding_piece());
+        assert_eq!(false, Piece::BLACK_KNIGHT.is_sliding_piece());
+        assert_eq!(true, Piece::BLACK_BISHOP.is_sliding_piece());
+        assert_eq!(true, Piece::BLACK_ROOK.is_sliding_piece());
+        assert_eq!(true, Piece::BLACK_QUEEN.is_sliding_piece());
+        assert_eq!(false, Piece::BLACK_KING.is_sliding_piece());
     }
 
     #[test]
