@@ -194,6 +194,7 @@ impl Bitboard {
         self >> 6 & !(Self::RANK_1 | Self::RANK_2)
     }
 
+    #[allow(dead_code)]
     fn north_fill(self) -> Self {
         let mut board = self;
         board = board | board.north_one();
@@ -204,6 +205,7 @@ impl Bitboard {
         board
     }
 
+    #[allow(dead_code)]
     fn north_east_fill(self) -> Self {
         let mut board = self;
         board = board | board.north_east_one();
@@ -214,6 +216,7 @@ impl Bitboard {
         board
     }
 
+    #[allow(dead_code)]
     fn east_fill(self) -> Self {
         let mut board = self;
         board = board | board.east_one();
@@ -222,6 +225,7 @@ impl Bitboard {
         board
     }
 
+    #[allow(dead_code)]
     fn south_east_fill(self) -> Self {
         let mut board = self;
         board = board | board.south_east_one();
@@ -232,6 +236,7 @@ impl Bitboard {
         board
     }
 
+    #[allow(dead_code)]
     fn south_fill(self) -> Self {
         let mut board = self;
         board = board | board.south_one();
@@ -242,6 +247,7 @@ impl Bitboard {
         board
     }
 
+    #[allow(dead_code)]
     fn south_west_fill(self) -> Self {
         let mut board = self;
         board = board | board.south_west_one();
@@ -252,6 +258,7 @@ impl Bitboard {
         board
     }
 
+    #[allow(dead_code)]
     fn west_fill(self) -> Self {
         let mut board = self;
         board = board | board.west_one();
@@ -260,6 +267,7 @@ impl Bitboard {
         board
     }
 
+    #[allow(dead_code)]
     fn north_west_fill(self) -> Self {
         let mut board = self;
         board = board | board.north_west_one();
@@ -275,16 +283,19 @@ impl Bitboard {
         self & Bitboard(0_u64.wrapping_sub(self.0))
     }
 
+    #[allow(dead_code)]
     fn below_least_significant_1_bit(self) -> Self {
         debug_assert!(self != Self::EMPTY);
         !self & Bitboard(self.0 - 1)
     }
 
+    #[allow(dead_code)]
     fn below_least_significant_1_bit_inclusive(self) -> Self {
         debug_assert!(self != Self::EMPTY);
         self ^ Bitboard(self.0 - 1)
     }
 
+    #[allow(dead_code)]
     fn above_least_significant_1_bit(self) -> Self {
         debug_assert!(self != Self::EMPTY);
         self ^ Bitboard(0_u64.wrapping_sub(self.0))
