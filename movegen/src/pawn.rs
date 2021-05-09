@@ -14,17 +14,31 @@ impl Pawn {
     }
 
     pub fn east_attack_targets(pawns: Bitboard, side_to_move: Side) -> Bitboard {
-        [
-            Self::white_east_attack_targets,
-            Self::black_east_attack_targets,
-        ][side_to_move as usize](pawns)
+        match side_to_move {
+            Side::White => pawns.north_east_one_if_rank_8_empty(),
+            Side::Black => pawns.south_east_one_if_rank_1_empty(),
+        }
     }
 
     pub fn west_attack_targets(pawns: Bitboard, side_to_move: Side) -> Bitboard {
-        [
-            Self::white_west_attack_targets,
-            Self::black_west_attack_targets,
-        ][side_to_move as usize](pawns)
+        match side_to_move {
+            Side::White => pawns.north_west_one_if_rank_8_empty(),
+            Side::Black => pawns.south_west_one_if_rank_1_empty(),
+        }
+    }
+
+    pub fn east_attack_origins(pawns: Bitboard, side_to_move: Side) -> Bitboard {
+        match side_to_move {
+            Side::White => pawns.south_west_one_if_rank_1_empty(),
+            Side::Black => pawns.north_west_one_if_rank_8_empty(),
+        }
+    }
+
+    pub fn west_attack_origins(pawns: Bitboard, side_to_move: Side) -> Bitboard {
+        match side_to_move {
+            Side::White => pawns.south_east_one_if_rank_1_empty(),
+            Side::Black => pawns.north_east_one_if_rank_8_empty(),
+        }
     }
 
     pub fn attack_targets(pawns: Bitboard, side_to_move: Side) -> Bitboard {
@@ -66,22 +80,6 @@ impl Pawn {
         let double_push_targets =
             (single_push_targets & Bitboard::RANK_6).south_one_if_rank_1_empty() & empty;
         (single_push_targets, double_push_targets)
-    }
-
-    fn white_east_attack_targets(white_pawns: Bitboard) -> Bitboard {
-        white_pawns.north_east_one_if_rank_8_empty()
-    }
-
-    fn white_west_attack_targets(white_pawns: Bitboard) -> Bitboard {
-        white_pawns.north_west_one_if_rank_8_empty()
-    }
-
-    fn black_east_attack_targets(black_pawns: Bitboard) -> Bitboard {
-        black_pawns.south_east_one_if_rank_1_empty()
-    }
-
-    fn black_west_attack_targets(black_pawns: Bitboard) -> Bitboard {
-        black_pawns.south_west_one_if_rank_1_empty()
     }
 }
 
@@ -296,6 +294,114 @@ mod tests {
         assert_eq!(
             Bitboard::FILE_G & !Bitboard::G7 & !Bitboard::G8,
             Pawn::west_attack_targets(black_pawns, Side::Black)
+        );
+    }
+
+    #[test]
+    fn white_east_attack_origins() {
+        let white_pawns = Bitboard::RANK_3 & !Bitboard::A3;
+        assert_eq!(
+            Bitboard::RANK_2 & !Bitboard::H2,
+            Pawn::east_attack_origins(white_pawns, Side::White)
+        );
+
+        let white_pawns = Bitboard::RANK_8 & !Bitboard::A8;
+        assert_eq!(
+            Bitboard::RANK_7 & !Bitboard::H7,
+            Pawn::east_attack_origins(white_pawns, Side::White)
+        );
+
+        let white_pawns = Bitboard::FILE_B & !Bitboard::B1 & !Bitboard::B2;
+        assert_eq!(
+            Bitboard::FILE_A & !Bitboard::A1 & !Bitboard::A8,
+            Pawn::east_attack_origins(white_pawns, Side::White)
+        );
+
+        let white_pawns = Bitboard::FILE_H & !Bitboard::H1 & !Bitboard::H2;
+        assert_eq!(
+            Bitboard::FILE_G & !Bitboard::G1 & !Bitboard::G8,
+            Pawn::east_attack_origins(white_pawns, Side::White)
+        );
+    }
+
+    #[test]
+    fn white_west_attack_origins() {
+        let white_pawns = Bitboard::RANK_3 & !Bitboard::H3;
+        assert_eq!(
+            Bitboard::RANK_2 & !Bitboard::A2,
+            Pawn::west_attack_origins(white_pawns, Side::White)
+        );
+
+        let white_pawns = Bitboard::RANK_8 & !Bitboard::H8;
+        assert_eq!(
+            Bitboard::RANK_7 & !Bitboard::A7,
+            Pawn::west_attack_origins(white_pawns, Side::White)
+        );
+
+        let white_pawns = Bitboard::FILE_A & !Bitboard::A1 & !Bitboard::A2;
+        assert_eq!(
+            Bitboard::FILE_B & !Bitboard::B1 & !Bitboard::B8,
+            Pawn::west_attack_origins(white_pawns, Side::White)
+        );
+
+        let white_pawns = Bitboard::FILE_G & !Bitboard::G1 & !Bitboard::G2;
+        assert_eq!(
+            Bitboard::FILE_H & !Bitboard::H1 & !Bitboard::H8,
+            Pawn::west_attack_origins(white_pawns, Side::White)
+        );
+    }
+
+    #[test]
+    fn black_east_attack_origins() {
+        let black_pawns = Bitboard::RANK_1 & !Bitboard::A1;
+        assert_eq!(
+            Bitboard::RANK_2 & !Bitboard::H2,
+            Pawn::east_attack_origins(black_pawns, Side::Black)
+        );
+
+        let black_pawns = Bitboard::RANK_6 & !Bitboard::A6;
+        assert_eq!(
+            Bitboard::RANK_7 & !Bitboard::H7,
+            Pawn::east_attack_origins(black_pawns, Side::Black)
+        );
+
+        let black_pawns = Bitboard::FILE_B & !Bitboard::B7 & !Bitboard::B8;
+        assert_eq!(
+            Bitboard::FILE_A & !Bitboard::A1 & !Bitboard::A8,
+            Pawn::east_attack_origins(black_pawns, Side::Black)
+        );
+
+        let black_pawns = Bitboard::FILE_H & !Bitboard::H7 & !Bitboard::H8;
+        assert_eq!(
+            Bitboard::FILE_G & !Bitboard::G1 & !Bitboard::G8,
+            Pawn::east_attack_origins(black_pawns, Side::Black)
+        );
+    }
+
+    #[test]
+    fn black_west_attack_origins() {
+        let black_pawns = Bitboard::RANK_1 & !Bitboard::H1;
+        assert_eq!(
+            Bitboard::RANK_2 & !Bitboard::A2,
+            Pawn::west_attack_origins(black_pawns, Side::Black)
+        );
+
+        let black_pawns = Bitboard::RANK_6 & !Bitboard::H6;
+        assert_eq!(
+            Bitboard::RANK_7 & !Bitboard::A7,
+            Pawn::west_attack_origins(black_pawns, Side::Black)
+        );
+
+        let black_pawns = Bitboard::FILE_A & !Bitboard::A7 & !Bitboard::A8;
+        assert_eq!(
+            Bitboard::FILE_B & !Bitboard::B1 & !Bitboard::B8,
+            Pawn::west_attack_origins(black_pawns, Side::Black)
+        );
+
+        let black_pawns = Bitboard::FILE_G & !Bitboard::G7 & !Bitboard::G8;
+        assert_eq!(
+            Bitboard::FILE_H & !Bitboard::H1 & !Bitboard::H8,
+            Pawn::west_attack_origins(black_pawns, Side::Black)
         );
     }
 
