@@ -248,7 +248,7 @@ impl Position {
     fn piece_attacks(
         &self,
         piece_type: piece::Type,
-        piece_targets: &dyn Fn(Square) -> Bitboard,
+        piece_targets: &impl Fn(Square) -> Bitboard,
         side: Side,
     ) -> Bitboard {
         let mut pieces = self.piece_occupancy(side, piece_type);
