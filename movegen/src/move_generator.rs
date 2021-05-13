@@ -1,292 +1,47 @@
-use crate::bishop::Bishop;
+mod king_in_check_generator;
+mod king_not_xrayed_generator;
+mod king_xrayed_generator;
+mod move_generator_template;
+
+use crate::move_generator::king_in_check_generator::KingInCheckGenerator;
+use crate::move_generator::king_not_xrayed_generator::KingNotXrayedGenerator;
+use crate::move_generator::king_xrayed_generator::KingXrayedGenerator;
+use crate::move_generator::move_generator_template::MoveGeneratorTemplate;
+
+use crate::attacks_to::AttacksTo;
 use crate::bitboard::Bitboard;
-use crate::king::King;
-use crate::knight::Knight;
-use crate::pawn::Pawn;
 use crate::piece;
-use crate::position::{CastlingRights, Position};
-use crate::queen::Queen;
-use crate::r#move::{Move, MoveList, MoveType};
-use crate::rook::Rook;
-use crate::side::Side;
-use crate::square::Square;
+use crate::position::Position;
+use crate::r#move::MoveList;
 
 pub struct MoveGenerator;
 
 impl MoveGenerator {
-    fn add_move_if_legal(move_list: &mut MoveList, pos: &Position, m: Move) {
-        if Self::is_legal_move(pos, m) {
-            move_list.push(m);
-        }
-    }
-
-    fn is_legal_move(pos: &Position, m: Move) -> bool {
-        let mut pos = pos.clone();
-        let origin = m.origin();
-        let target = m.target();
-        // Promotion piece type is ignored here because it doesn't change the opposing side's
-        // attacks
-        pos.set_piece_at(target, pos.piece_at(origin));
-        pos.set_piece_at(origin, None);
-        if m.is_en_passant() {
-            let captured_square = Pawn::push_origin(target, pos.side_to_move());
-            pos.set_piece_at(captured_square, None);
-        }
-
-        !pos.is_in_check(pos.side_to_move())
-    }
-
     pub fn generate_moves(move_list: &mut MoveList, pos: &Position) {
         move_list.clear();
-        Self::generate_pawn_moves(move_list, pos);
-        Self::generate_knight_moves(move_list, pos);
-        Self::generate_sliding_piece_moves(move_list, pos, piece::Type::Bishop, Bishop::targets);
-        Self::generate_sliding_piece_moves(move_list, pos, piece::Type::Rook, Rook::targets);
-        Self::generate_sliding_piece_moves(move_list, pos, piece::Type::Queen, Queen::targets);
-        Self::generate_king_moves(move_list, pos);
-        Self::generate_castles(move_list, pos);
-    }
 
-    fn generate_pawn_moves(move_list: &mut MoveList, pos: &Position) {
-        let pawns = pos.piece_occupancy(pos.side_to_move(), piece::Type::Pawn);
+        let own_king_bb = pos.piece_occupancy(pos.side_to_move(), piece::Type::King);
+        let own_king = own_king_bb.to_square();
 
-        Self::generate_pawn_pushes(move_list, pos, pawns);
-        Self::generate_pawn_captures(move_list, pos, pawns);
-    }
+        let attacks_to_king = AttacksTo::new(pos, own_king, !pos.side_to_move());
 
-    fn generate_pawn_pushes(move_list: &mut MoveList, pos: &Position, pawns: Bitboard) {
-        let side_to_move = pos.side_to_move();
+        let king_in_check = own_king_bb & attacks_to_king.all_attack_targets != Bitboard::EMPTY;
+        let king_xrayed = attacks_to_king.xrays_to_target != Bitboard::EMPTY;
 
-        let (single_push_targets, mut double_push_targets) =
-            Pawn::push_targets(pawns, pos.occupancy(), side_to_move);
-
-        let mut promo_targets = single_push_targets & Pawn::promotion_rank(side_to_move);
-        let mut non_promo_targets = single_push_targets & !promo_targets;
-
-        while promo_targets != Bitboard::EMPTY {
-            let target = promo_targets.square_scan_forward_reset();
-            let origin = Pawn::push_origin(target, side_to_move);
-            for promo_piece in &[
-                piece::Type::Queen,
-                piece::Type::Rook,
-                piece::Type::Bishop,
-                piece::Type::Knight,
-            ] {
-                let m = Move::new(
-                    origin,
-                    target,
-                    MoveType::new_with_promo_piece(MoveType::PROMOTION, *promo_piece),
-                );
-                Self::add_move_if_legal(move_list, pos, m);
-            }
-        }
-        while non_promo_targets != Bitboard::EMPTY {
-            let target = non_promo_targets.square_scan_forward_reset();
-            let origin = Pawn::push_origin(target, side_to_move);
-            Self::add_move_if_legal(move_list, pos, Move::new(origin, target, MoveType::QUIET));
-        }
-        while double_push_targets != Bitboard::EMPTY {
-            let target = double_push_targets.square_scan_forward_reset();
-            let origin = Pawn::double_push_origin(target, side_to_move);
-            Self::add_move_if_legal(
-                move_list,
-                pos,
-                Move::new(origin, target, MoveType::DOUBLE_PAWN_PUSH),
-            );
-        }
-    }
-
-    fn generate_pawn_captures(move_list: &mut MoveList, pos: &Position, pawns: Bitboard) {
-        Self::generate_pawn_captures_one_side(
-            move_list,
-            pos,
-            pawns,
-            Pawn::east_attack_targets,
-            Pawn::east_attack_origin,
-        );
-
-        Self::generate_pawn_captures_one_side(
-            move_list,
-            pos,
-            pawns,
-            Pawn::west_attack_targets,
-            Pawn::west_attack_origin,
-        );
-    }
-
-    fn generate_pawn_captures_one_side(
-        move_list: &mut MoveList,
-        pos: &Position,
-        pawns: Bitboard,
-        attacks: fn(Bitboard, Side) -> Bitboard,
-        attack_origin: fn(Square, Side) -> Square,
-    ) {
-        let en_passant_square = pos.en_passant_square();
-        let side_to_move = pos.side_to_move();
-        let promo_rank = Pawn::promotion_rank(side_to_move);
-        let targets = attacks(pawns, side_to_move);
-        let opponents = pos.side_occupancy(!pos.side_to_move());
-        let captures = targets & (opponents | en_passant_square);
-        let mut promo_captures = captures & promo_rank;
-        let mut non_promo_captures = captures & !promo_captures;
-
-        while promo_captures != Bitboard::EMPTY {
-            let target = promo_captures.square_scan_forward_reset();
-            let origin = attack_origin(target, side_to_move);
-            for promo_piece in &[
-                piece::Type::Queen,
-                piece::Type::Rook,
-                piece::Type::Bishop,
-                piece::Type::Knight,
-            ] {
-                let m = Move::new(
-                    origin,
-                    target,
-                    MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, *promo_piece),
-                );
-                Self::add_move_if_legal(move_list, pos, m);
-            }
-        }
-
-        while non_promo_captures != Bitboard::EMPTY {
-            let target = non_promo_captures.square_scan_forward_reset();
-            let origin = attack_origin(target, side_to_move);
-            let move_type = if Bitboard::from_square(target) == en_passant_square {
-                MoveType::EN_PASSANT_CAPTURE
+        if king_in_check {
+            debug_assert!(attacks_to_king.attack_origins.pop_count() >= 1);
+            debug_assert!(attacks_to_king.attack_origins.pop_count() <= 2);
+            debug_assert!(attacks_to_king.each_slider_attack.len() <= 2);
+            if attacks_to_king.attack_origins.pop_count() == 2 {
+                // Only king moves are legal in double check
+                KingInCheckGenerator::generate_king_moves(move_list, &attacks_to_king);
             } else {
-                MoveType::CAPTURE
-            };
-            Self::add_move_if_legal(move_list, pos, Move::new(origin, target, move_type));
-        }
-    }
-
-    fn generate_knight_moves(move_list: &mut MoveList, pos: &Position) {
-        let mut knights = pos.piece_occupancy(pos.side_to_move(), piece::Type::Knight);
-        let own_occupancy = pos.side_occupancy(pos.side_to_move());
-        while knights != Bitboard::EMPTY {
-            let origin = knights.square_scan_forward_reset();
-            let targets = Knight::targets(origin) & !own_occupancy;
-            Self::generate_piece_moves(move_list, pos, origin, &targets);
-        }
-    }
-
-    fn generate_king_moves(move_list: &mut MoveList, pos: &Position) {
-        let king = pos.piece_occupancy(pos.side_to_move(), piece::Type::King);
-        let own_occupancy = pos.side_occupancy(pos.side_to_move());
-        let origin = king.to_square();
-        let targets = King::targets(origin) & !own_occupancy;
-        Self::generate_piece_moves(move_list, pos, origin, &targets);
-    }
-
-    fn generate_sliding_piece_moves(
-        move_list: &mut MoveList,
-        pos: &Position,
-        piece_type: piece::Type,
-        piece_targets: fn(Square, Bitboard) -> Bitboard,
-    ) {
-        let mut piece_occupancy = pos.piece_occupancy(pos.side_to_move(), piece_type);
-        let own_occupancy = pos.side_occupancy(pos.side_to_move());
-        while piece_occupancy != Bitboard::EMPTY {
-            let origin = piece_occupancy.square_scan_forward_reset();
-            let targets = piece_targets(origin, pos.occupancy()) & !own_occupancy;
-            Self::generate_piece_moves(move_list, pos, origin, &targets);
-        }
-    }
-
-    fn generate_piece_moves(
-        move_list: &mut MoveList,
-        pos: &Position,
-        origin: Square,
-        targets: &Bitboard,
-    ) {
-        let opponents = pos.side_occupancy(!pos.side_to_move());
-        let mut captures = targets & opponents;
-        let mut quiets = targets & !captures;
-
-        while captures != Bitboard::EMPTY {
-            let target = captures.square_scan_forward_reset();
-            Self::add_move_if_legal(move_list, pos, Move::new(origin, target, MoveType::CAPTURE));
-        }
-        while quiets != Bitboard::EMPTY {
-            let target = quiets.square_scan_forward_reset();
-            Self::add_move_if_legal(move_list, pos, Move::new(origin, target, MoveType::QUIET));
-        }
-    }
-
-    fn generate_castles(move_list: &mut MoveList, pos: &Position) {
-        const CASTLES: [fn(&mut MoveList, &Position); 2] = [
-            MoveGenerator::generate_white_castles,
-            MoveGenerator::generate_black_castles,
-        ];
-        let side_idx = pos.side_to_move() as usize;
-        CASTLES[side_idx](move_list, pos);
-    }
-
-    fn generate_white_castles(move_list: &mut MoveList, pos: &Position) {
-        let castling_rights = pos.castling_rights();
-        let attacked_by_opponent = pos.attacked_squares(!pos.side_to_move());
-
-        if castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
-            debug_assert_eq!(Some(piece::Piece::WHITE_KING), pos.piece_at(Square::E1));
-            debug_assert_eq!(Some(piece::Piece::WHITE_ROOK), pos.piece_at(Square::H1));
-            let squares_passable =
-                pos.occupancy() & (Bitboard::F1 | Bitboard::G1) == Bitboard::EMPTY;
-            let squares_attacked = attacked_by_opponent
-                & (Bitboard::E1 | Bitboard::F1 | Bitboard::G1)
-                != Bitboard::EMPTY;
-            if squares_passable && !squares_attacked {
-                move_list.push(Move::new(Square::E1, Square::G1, MoveType::CASTLE_KINGSIDE));
+                KingInCheckGenerator::generate_moves(move_list, &attacks_to_king);
             }
-        }
-        if castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
-            debug_assert_eq!(Some(piece::Piece::WHITE_KING), pos.piece_at(Square::E1));
-            debug_assert_eq!(Some(piece::Piece::WHITE_ROOK), pos.piece_at(Square::A1));
-            let squares_passable =
-                pos.occupancy() & (Bitboard::B1 | Bitboard::C1 | Bitboard::D1) == Bitboard::EMPTY;
-            let squares_attacked = attacked_by_opponent
-                & (Bitboard::C1 | Bitboard::D1 | Bitboard::E1)
-                != Bitboard::EMPTY;
-            if squares_passable && !squares_attacked {
-                move_list.push(Move::new(
-                    Square::E1,
-                    Square::C1,
-                    MoveType::CASTLE_QUEENSIDE,
-                ));
-            }
-        }
-    }
-
-    fn generate_black_castles(move_list: &mut MoveList, pos: &Position) {
-        let castling_rights = pos.castling_rights();
-        let attacked_by_opponent = pos.attacked_squares(!pos.side_to_move());
-
-        if castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
-            debug_assert_eq!(Some(piece::Piece::BLACK_KING), pos.piece_at(Square::E8));
-            debug_assert_eq!(Some(piece::Piece::BLACK_ROOK), pos.piece_at(Square::H8));
-            let squares_passable =
-                pos.occupancy() & (Bitboard::F8 | Bitboard::G8) == Bitboard::EMPTY;
-            let squares_attacked = attacked_by_opponent
-                & (Bitboard::E8 | Bitboard::F8 | Bitboard::G8)
-                != Bitboard::EMPTY;
-            if squares_passable && !squares_attacked {
-                move_list.push(Move::new(Square::E8, Square::G8, MoveType::CASTLE_KINGSIDE));
-            }
-        }
-        if castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
-            debug_assert_eq!(Some(piece::Piece::BLACK_KING), pos.piece_at(Square::E8));
-            debug_assert_eq!(Some(piece::Piece::BLACK_ROOK), pos.piece_at(Square::A8));
-            let squares_passable =
-                pos.occupancy() & (Bitboard::B8 | Bitboard::C8 | Bitboard::D8) == Bitboard::EMPTY;
-            let squares_attacked = attacked_by_opponent
-                & (Bitboard::C8 | Bitboard::D8 | Bitboard::E8)
-                != Bitboard::EMPTY;
-            if squares_passable && !squares_attacked {
-                move_list.push(Move::new(
-                    Square::E8,
-                    Square::C8,
-                    MoveType::CASTLE_QUEENSIDE,
-                ));
-            }
+        } else if king_xrayed {
+            KingXrayedGenerator::generate_moves(move_list, &attacks_to_king);
+        } else {
+            KingNotXrayedGenerator::generate_moves(move_list, &attacks_to_king);
         }
     }
 }
@@ -294,6 +49,11 @@ impl MoveGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fen::Fen;
+    use crate::position::{CastlingRights, Position};
+    use crate::r#move::{Move, MoveType};
+    use crate::side::Side;
+    use crate::square::Square;
 
     #[test]
     fn initial_position() {
@@ -1160,5 +920,105 @@ mod tests {
         pos.set_castling_rights(CastlingRights::empty());
         MoveGenerator::generate_moves(&mut move_list, &pos);
         assert!(!move_list.contains(&Move::new(Square::E1, Square::E2, MoveType::QUIET)));
+    }
+
+    #[test]
+    fn capture_pawn_in_check() {
+        let mut move_list = MoveList::new();
+        let pos = Fen::str_to_pos("rnbq1k1r/pp1Pb1pp/2p5/8/2B2p2/6K1/PPP1N1PP/RNBQ3R w - - 0 10");
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(
+            move_list.contains(&Move::new(Square::C1, Square::F4, MoveType::CAPTURE)),
+            "Position\n{}\nMovelist: {}",
+            pos,
+            move_list
+        );
+    }
+
+    #[test]
+    fn en_passant_capture_illegal() {
+        let mut move_list = MoveList::new();
+
+        let mut pos = Position::empty();
+        pos.set_piece_at(Square::A5, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Square::B5, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Square::H4, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Square::H5, Some(piece::Piece::BLACK_ROOK));
+        pos.set_piece_at(Square::C5, Some(piece::Piece::BLACK_PAWN));
+        pos.set_side_to_move(Side::White);
+        pos.set_castling_rights(CastlingRights::empty());
+        pos.set_en_passant_square(Bitboard::C6);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&Move::new(
+            Square::B5,
+            Square::C6,
+            MoveType::EN_PASSANT_CAPTURE
+        )));
+    }
+
+    #[test]
+    fn en_passant_capture_in_check() {
+        let mut move_list = MoveList::new();
+
+        let mut pos = Position::empty();
+        pos.set_piece_at(Square::A4, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Square::C5, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Square::H4, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Square::B5, Some(piece::Piece::BLACK_PAWN));
+        pos.set_side_to_move(Side::White);
+        pos.set_castling_rights(CastlingRights::empty());
+        pos.set_en_passant_square(Bitboard::B6);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(move_list.contains(&Move::new(
+            Square::C5,
+            Square::B6,
+            MoveType::EN_PASSANT_CAPTURE
+        )));
+    }
+
+    #[test]
+    fn en_passant_capture_in_check_illegal_king_attacked_by_bishop() {
+        let mut move_list = MoveList::new();
+
+        let mut pos = Position::empty();
+        pos.set_piece_at(Square::A5, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Square::B5, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Square::H4, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Square::D8, Some(piece::Piece::BLACK_BISHOP));
+        pos.set_piece_at(Square::C5, Some(piece::Piece::BLACK_PAWN));
+        pos.set_side_to_move(Side::White);
+        pos.set_castling_rights(CastlingRights::empty());
+        pos.set_en_passant_square(Bitboard::C6);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&Move::new(
+            Square::B5,
+            Square::C6,
+            MoveType::EN_PASSANT_CAPTURE
+        )));
+    }
+
+    #[test]
+    fn en_passant_capture_in_check_illegal_own_pawn_pinned() {
+        let mut move_list = MoveList::new();
+
+        let mut pos = Position::empty();
+        pos.set_piece_at(Square::A4, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Square::A5, Some(piece::Piece::WHITE_PAWN));
+        pos.set_piece_at(Square::H4, Some(piece::Piece::BLACK_KING));
+        pos.set_piece_at(Square::A8, Some(piece::Piece::BLACK_ROOK));
+        pos.set_piece_at(Square::B5, Some(piece::Piece::BLACK_PAWN));
+        pos.set_side_to_move(Side::White);
+        pos.set_castling_rights(CastlingRights::empty());
+        pos.set_en_passant_square(Bitboard::B6);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&Move::new(
+            Square::A5,
+            Square::B6,
+            MoveType::EN_PASSANT_CAPTURE
+        )));
     }
 }

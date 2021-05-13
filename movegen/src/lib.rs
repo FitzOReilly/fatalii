@@ -19,7 +19,9 @@ pub mod square;
 pub mod transposition_table;
 pub mod zobrist;
 
+mod attacks_to;
 mod direction;
 mod file;
+mod piece_targets;
 mod rank;
 mod ray;
