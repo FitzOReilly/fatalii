@@ -43,7 +43,7 @@ impl PositionHistory {
     pub fn new(pos: Position) -> PositionHistory {
         PositionHistory {
             pos_hash: Zobrist::new(&pos),
-            pos: pos,
+            pos,
             irreversible_properties: Vec::<IrreversibleProperties>::new(),
             moves: Vec::<Move>::new(),
         }
@@ -213,13 +213,10 @@ impl PositionHistory {
 
     pub fn undo_last_move(&mut self) {
         debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
-        match self.moves.pop() {
-            Some(m) => {
-                debug_assert!(!self.irreversible_properties.is_empty());
-                let irr = self.irreversible_properties.pop().unwrap();
-                self.undo_move(m, &irr);
-            }
-            None => {}
+        if let Some(m) = self.moves.pop() {
+            debug_assert!(!self.irreversible_properties.is_empty());
+            let irr = self.irreversible_properties.pop().unwrap();
+            self.undo_move(m, &irr);
         }
         debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
     }

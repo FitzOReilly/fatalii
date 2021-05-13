@@ -305,11 +305,10 @@ mod tests {
         pos_history.do_move(Move::new(Square::D1, Square::D4, MoveType::CAPTURE));
         let score_qxd4 = Eval::eval(pos_history.current_pos());
         pos_history.undo_last_move();
-        let score = [score_current, score_nxd4, score_qxd4]
+        let score = *[score_current, score_nxd4, score_qxd4]
             .iter()
             .max()
-            .unwrap()
-            .clone();
+            .unwrap();
         assert_eq!(
             score,
             AlphaBeta::search_quiescence(&mut pos_history, CHECKMATE_WHITE, CHECKMATE_BLACK)

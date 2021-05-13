@@ -11,21 +11,21 @@ use std::str;
 pub struct Fen;
 
 impl Fen {
-    pub fn from_position(pos: &Position) -> String {
+    pub fn pos_to_str(pos: &Position) -> String {
         let mut fen = String::new();
-        Self::from_pieces(&mut fen, pos);
+        Self::pos_to_str_pieces(&mut fen, pos);
         fen.push(' ');
-        Self::from_side_to_move(&mut fen, pos);
+        Self::pos_to_str_side_to_move(&mut fen, pos);
         fen.push(' ');
-        Self::from_castling_rights(&mut fen, pos);
+        Self::pos_to_str_castling_rights(&mut fen, pos);
         fen.push(' ');
-        Self::from_en_passant_square(&mut fen, pos);
+        Self::pos_to_str_en_passant_square(&mut fen, pos);
         fen.push(' ');
-        Self::from_move_count(&mut fen, pos);
+        Self::pos_to_str_move_count(&mut fen, pos);
         fen
     }
 
-    fn from_pieces(fen: &mut String, pos: &Position) {
+    fn pos_to_str_pieces(fen: &mut String, pos: &Position) {
         for rank in (0..Rank::NUM_RANKS).rev() {
             let mut num_empty_squares = 0;
             for file in 0..File::NUM_FILES {
@@ -52,14 +52,14 @@ impl Fen {
         }
     }
 
-    fn from_side_to_move(fen: &mut String, pos: &Position) {
+    fn pos_to_str_side_to_move(fen: &mut String, pos: &Position) {
         fen.push(match pos.side_to_move() {
             Side::White => 'w',
             Side::Black => 'b',
         });
     }
 
-    fn from_castling_rights(fen: &mut String, pos: &Position) {
+    fn pos_to_str_castling_rights(fen: &mut String, pos: &Position) {
         let castling_rights = pos.castling_rights();
         if castling_rights.is_empty() {
             fen.push('-');
@@ -79,7 +79,7 @@ impl Fen {
         }
     }
 
-    fn from_en_passant_square(fen: &mut String, pos: &Position) {
+    fn pos_to_str_en_passant_square(fen: &mut String, pos: &Position) {
         let en_passant_board = pos.en_passant_square();
         if en_passant_board == Bitboard::EMPTY {
             fen.push('-');
@@ -89,7 +89,7 @@ impl Fen {
         }
     }
 
-    fn from_move_count(fen: &mut String, pos: &Position) {
+    fn pos_to_str_move_count(fen: &mut String, pos: &Position) {
         fen.push_str(&format!(
             "{} {}",
             pos.plies_since_pawn_move_or_capture(),
@@ -97,19 +97,19 @@ impl Fen {
         ));
     }
 
-    pub fn to_position(fen: &str) -> Position {
+    pub fn str_to_pos(fen: &str) -> Position {
         let mut pos = Position::empty();
         let mut iter_fen = fen.split_whitespace();
-        Self::to_pieces(&mut pos, iter_fen.next().unwrap());
-        Self::to_side_to_move(&mut pos, iter_fen.next().unwrap());
-        Self::to_castling_rights(&mut pos, iter_fen.next().unwrap());
-        Self::to_en_passant_square(&mut pos, iter_fen.next().unwrap());
-        Self::to_plies_since_pawn_move_or_capture(&mut pos, iter_fen.next().unwrap());
-        Self::to_move_count(&mut pos, iter_fen.next().unwrap());
+        Self::str_to_pos_pieces(&mut pos, iter_fen.next().unwrap());
+        Self::str_to_pos_side_to_move(&mut pos, iter_fen.next().unwrap());
+        Self::str_to_pos_castling_rights(&mut pos, iter_fen.next().unwrap());
+        Self::str_to_pos_en_passant_square(&mut pos, iter_fen.next().unwrap());
+        Self::str_to_pos_plies_since_pawn_move_or_capture(&mut pos, iter_fen.next().unwrap());
+        Self::str_to_pos_move_count(&mut pos, iter_fen.next().unwrap());
         pos
     }
 
-    fn to_pieces(pos: &mut Position, fen: &str) {
+    fn str_to_pos_pieces(pos: &mut Position, fen: &str) {
         let iter_ranks = fen.split('/');
         let mut rank = Rank::NUM_RANKS;
         for fen_rank in iter_ranks {
@@ -132,7 +132,7 @@ impl Fen {
         }
     }
 
-    fn to_side_to_move(pos: &mut Position, fen: &str) {
+    fn str_to_pos_side_to_move(pos: &mut Position, fen: &str) {
         let c = fen.bytes().next().unwrap();
         match c {
             b'w' => pos.set_side_to_move(Side::White),
@@ -141,7 +141,7 @@ impl Fen {
         }
     }
 
-    fn to_castling_rights(pos: &mut Position, fen: &str) {
+    fn str_to_pos_castling_rights(pos: &mut Position, fen: &str) {
         let mut castling_rights = CastlingRights::empty();
         for c in fen.bytes() {
             castling_rights |= match c {
@@ -158,7 +158,7 @@ impl Fen {
         }
     }
 
-    fn to_en_passant_square(pos: &mut Position, fen: &str) {
+    fn str_to_pos_en_passant_square(pos: &mut Position, fen: &str) {
         let mut iter_ep = fen.bytes();
         let c = iter_ep.next().unwrap();
         match c {
@@ -174,12 +174,12 @@ impl Fen {
         }
     }
 
-    fn to_plies_since_pawn_move_or_capture(pos: &mut Position, fen: &str) {
+    fn str_to_pos_plies_since_pawn_move_or_capture(pos: &mut Position, fen: &str) {
         let plies = fen.parse::<usize>().unwrap();
         pos.set_plies_since_pawn_move_or_capture(plies);
     }
 
-    fn to_move_count(pos: &mut Position, fen: &str) {
+    fn str_to_pos_move_count(pos: &mut Position, fen: &str) {
         let move_count = fen.parse::<usize>().unwrap();
         pos.set_move_count(move_count);
     }
@@ -190,16 +190,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn from_and_to_position() {
+    fn conversion_between_str_and_pos() {
         let mut pos = Position::initial();
         let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        assert_eq!(fen, Fen::from_position(&pos));
+        assert_eq!(fen, Fen::pos_to_str(&pos));
         assert_eq!(
             pos,
-            Fen::to_position(&fen),
+            Fen::str_to_pos(&fen),
             "\nExpected Position as FEN: {}\nActual Position as FEN:   {}\n",
             fen,
-            Fen::from_position(&Fen::to_position(&fen))
+            Fen::pos_to_str(&Fen::str_to_pos(&fen))
         );
 
         // Position after 1. e4
@@ -208,13 +208,13 @@ mod tests {
         pos.set_en_passant_square(Bitboard::E3);
         pos.set_side_to_move(Side::Black);
         let fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
-        assert_eq!(fen, Fen::from_position(&pos));
+        assert_eq!(fen, Fen::pos_to_str(&pos));
         assert_eq!(
             pos,
-            Fen::to_position(&fen),
+            Fen::str_to_pos(&fen),
             "\nExpected Position as FEN: {}\nActual Position as FEN:   {}\n",
             fen,
-            Fen::from_position(&Fen::to_position(&fen))
+            Fen::pos_to_str(&Fen::str_to_pos(&fen))
         );
 
         // Position after 1. e4 c5
@@ -224,13 +224,13 @@ mod tests {
         pos.set_side_to_move(Side::White);
         pos.set_move_count(2);
         let fen = "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2";
-        assert_eq!(fen, Fen::from_position(&pos));
+        assert_eq!(fen, Fen::pos_to_str(&pos));
         assert_eq!(
             pos,
-            Fen::to_position(&fen),
+            Fen::str_to_pos(&fen),
             "\nExpected Position as FEN: {}\nActual Position as FEN:   {}\n",
             fen,
-            Fen::from_position(&Fen::to_position(&fen))
+            Fen::pos_to_str(&Fen::str_to_pos(&fen))
         );
 
         // Position after 1. e4 c5 2. Nf3
@@ -240,28 +240,28 @@ mod tests {
         pos.set_side_to_move(Side::Black);
         pos.set_plies_since_pawn_move_or_capture(1);
         let fen = "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2";
-        assert_eq!(fen, Fen::from_position(&pos));
+        assert_eq!(fen, Fen::pos_to_str(&pos));
         assert_eq!(
             pos,
-            Fen::to_position(&fen),
+            Fen::str_to_pos(&fen),
             "\nExpected Position as FEN: {}\nActual Position as FEN:   {}\n",
             fen,
-            Fen::from_position(&Fen::to_position(&fen))
+            Fen::pos_to_str(&Fen::str_to_pos(&fen))
         );
 
         // Check castling rights
         pos.set_castling_rights(CastlingRights::WHITE_QUEENSIDE | CastlingRights::BLACK_KINGSIDE);
         let fen = "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b Qk - 1 2";
-        assert_eq!(fen, Fen::from_position(&pos));
+        assert_eq!(fen, Fen::pos_to_str(&pos));
         pos.set_castling_rights(CastlingRights::empty());
         let fen = "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b - - 1 2";
-        assert_eq!(fen, Fen::from_position(&pos));
+        assert_eq!(fen, Fen::pos_to_str(&pos));
         assert_eq!(
             pos,
-            Fen::to_position(&fen),
+            Fen::str_to_pos(&fen),
             "\nExpected Position as FEN: {}\nActual Position as FEN:   {}\n",
             fen,
-            Fen::from_position(&Fen::to_position(&fen))
+            Fen::pos_to_str(&Fen::str_to_pos(&fen))
         );
     }
 }

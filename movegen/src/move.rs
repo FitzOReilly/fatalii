@@ -108,8 +108,8 @@ impl Move {
 
 impl fmt::Display for Move {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let move_str = match self {
-            &Move::NULL => String::from("null"),
+        let move_str = match *self {
+            Move::NULL => String::from("null"),
             _ => match self.move_type() {
                 MoveType::CASTLE_KINGSIDE => String::from("0-0"),
                 MoveType::CASTLE_QUEENSIDE => String::from("0-0-0"),
@@ -160,6 +160,12 @@ impl MoveList {
         if let Some(idx) = self.iter().position(|&m| m == Move::NULL) {
             self.truncate(idx);
         };
+    }
+}
+
+impl Default for MoveList {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
