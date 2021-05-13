@@ -62,19 +62,19 @@ impl Piece {
     }
 
     pub fn to_ascii(&self) -> u8 {
-        match self {
-            &Piece::WHITE_PAWN => b'P',
-            &Piece::WHITE_KNIGHT => b'N',
-            &Piece::WHITE_BISHOP => b'B',
-            &Piece::WHITE_ROOK => b'R',
-            &Piece::WHITE_QUEEN => b'Q',
-            &Piece::WHITE_KING => b'K',
-            &Piece::BLACK_PAWN => b'p',
-            &Piece::BLACK_KNIGHT => b'n',
-            &Piece::BLACK_BISHOP => b'b',
-            &Piece::BLACK_ROOK => b'r',
-            &Piece::BLACK_QUEEN => b'q',
-            &Piece::BLACK_KING => b'k',
+        match *self {
+            Piece::WHITE_PAWN => b'P',
+            Piece::WHITE_KNIGHT => b'N',
+            Piece::WHITE_BISHOP => b'B',
+            Piece::WHITE_ROOK => b'R',
+            Piece::WHITE_QUEEN => b'Q',
+            Piece::WHITE_KING => b'K',
+            Piece::BLACK_PAWN => b'p',
+            Piece::BLACK_KNIGHT => b'n',
+            Piece::BLACK_BISHOP => b'b',
+            Piece::BLACK_ROOK => b'r',
+            Piece::BLACK_QUEEN => b'q',
+            Piece::BLACK_KING => b'k',
             _ => panic!("Invalid piece encoding `{:?}`", self),
         }
     }

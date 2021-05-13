@@ -130,7 +130,7 @@ impl Position {
             None
         };
 
-        let piece = match side {
+        match side {
             Some(piece_side) => {
                 let piece_type = if square_bit
                     & self.piece_type_occupancies[piece::Type::Pawn as usize]
@@ -163,9 +163,7 @@ impl Position {
                 Some(Piece::new(piece_side, piece_type))
             }
             None => None,
-        };
-
-        piece
+        }
     }
 
     pub fn set_piece_at(&mut self, square: Square, piece: Option<Piece>) {
@@ -178,12 +176,9 @@ impl Position {
             *pto &= !square_bit;
         }
 
-        match piece {
-            Some(p) => {
-                self.piece_side_occupancies[p.piece_side() as usize] |= square_bit;
-                self.piece_type_occupancies[p.piece_type() as usize] |= square_bit;
-            }
-            None => {}
+        if let Some(p) = piece {
+            self.piece_side_occupancies[p.piece_side() as usize] |= square_bit;
+            self.piece_type_occupancies[p.piece_type() as usize] |= square_bit;
         }
     }
 

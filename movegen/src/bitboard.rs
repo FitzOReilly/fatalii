@@ -197,22 +197,22 @@ impl Bitboard {
     #[allow(dead_code)]
     fn north_fill(self) -> Self {
         let mut board = self;
-        board = board | board.north_one();
+        board |= board.north_one();
         let next_bits = board << 2 & !Self::RANK_1 & !Self::RANK_2;
-        board = board | next_bits;
+        board |= next_bits;
         let next_bits = board << 4 & !Self::RANK_1 & !Self::RANK_2 & !Self::RANK_3 & !Self::RANK_4;
-        board = board | next_bits;
+        board |= next_bits;
         board
     }
 
     #[allow(dead_code)]
     fn north_east_fill(self) -> Self {
         let mut board = self;
-        board = board | board.north_east_one();
+        board |= board.north_east_one();
         let next_bits = board << 18 & !Self::RANK_1 & !Self::RANK_2;
-        board = board | next_bits;
+        board |= next_bits;
         let next_bits = board << 36 & !Self::RANK_1 & !Self::RANK_2 & !Self::RANK_3 & !Self::RANK_4;
-        board = board | next_bits;
+        board |= next_bits;
         board
     }
 
@@ -228,53 +228,53 @@ impl Bitboard {
     #[allow(dead_code)]
     fn south_east_fill(self) -> Self {
         let mut board = self;
-        board = board | board.south_east_one();
+        board |= board.south_east_one();
         let next_bits = board << 14 & !Self::RANK_8 & !Self::RANK_7;
-        board = board | next_bits;
+        board |= next_bits;
         let next_bits = board << 28 & !Self::RANK_8 & !Self::RANK_7 & !Self::RANK_6 & !Self::RANK_5;
-        board = board | next_bits;
+        board |= next_bits;
         board
     }
 
     #[allow(dead_code)]
     fn south_fill(self) -> Self {
         let mut board = self;
-        board = board | board.south_one();
+        board |= board.south_one();
         let next_bits = board >> 2 & !Self::RANK_8 & !Self::RANK_7;
-        board = board | next_bits;
+        board |= next_bits;
         let next_bits = board >> 4 & !Self::RANK_8 & !Self::RANK_7 & !Self::RANK_6 & !Self::RANK_5;
-        board = board | next_bits;
+        board |= next_bits;
         board
     }
 
     #[allow(dead_code)]
     fn south_west_fill(self) -> Self {
         let mut board = self;
-        board = board | board.south_west_one();
+        board |= board.south_west_one();
         let next_bits = board >> 18 & !Self::RANK_8 & !Self::RANK_7;
-        board = board | next_bits;
+        board |= next_bits;
         let next_bits = board >> 36 & !Self::RANK_8 & !Self::RANK_7 & !Self::RANK_6 & !Self::RANK_5;
-        board = board | next_bits;
+        board |= next_bits;
         board
     }
 
     #[allow(dead_code)]
     fn west_fill(self) -> Self {
         let mut board = self;
-        board = board | board.west_one();
-        board = board | board >> 16;
-        board = board | board >> 32;
+        board |= board.west_one();
+        board |= board >> 16;
+        board |= board >> 32;
         board
     }
 
     #[allow(dead_code)]
     fn north_west_fill(self) -> Self {
         let mut board = self;
-        board = board | board.north_west_one();
+        board |= board.north_west_one();
         let next_bits = board >> 14 & !Self::RANK_1 & !Self::RANK_2;
-        board = board | next_bits;
+        board |= next_bits;
         let next_bits = board >> 28 & !Self::RANK_1 & !Self::RANK_2 & !Self::RANK_3 & !Self::RANK_4;
-        board = board | next_bits;
+        board |= next_bits;
         board
     }
 
@@ -361,7 +361,7 @@ impl Bitboard {
         debug_assert!(*self != Bitboard::EMPTY);
         let ls1b = self.least_significant_1_bit();
         let bit_idx = ls1b.bit_idx();
-        *self = Bitboard(self.0 & self.0 - 1);
+        *self = Bitboard(self.0 & (self.0 - 1));
         bit_idx
     }
 
@@ -374,7 +374,7 @@ impl Bitboard {
         let mut x = self.0;
         x = x - (x >> 1 & 0x5555555555555555);
         x = (x & 0x3333333333333333) + (x >> 2 & 0x3333333333333333);
-        x = x + (x >> 4) & 0x0f0f0f0f0f0f0f0f;
+        x = (x + (x >> 4)) & 0x0f0f0f0f0f0f0f0f;
         x = x.wrapping_mul(0x0101010101010101);
         x >>= 56;
         x as usize

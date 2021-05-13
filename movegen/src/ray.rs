@@ -590,8 +590,7 @@ impl Ray {
         // At least one bit must be set when calling square_scan_forward. Setting the most
         // significant bit does not change the targets and allows a branchless implementation.
         let first_blocked = (blocked | Bitboard(0x8000000000000000)).square_scan_forward();
-        let targets = empty_board_targets ^ Self::RAYS[direction as usize][first_blocked.idx()];
-        targets
+        empty_board_targets ^ Self::RAYS[direction as usize][first_blocked.idx()]
     }
 
     fn negative_targets(origin: Square, occupied: Bitboard, direction: Direction) -> Bitboard {
@@ -600,8 +599,7 @@ impl Ray {
         // At least one bit must be set when calling square_scan_reverse. Setting the least
         // significant bit does not change the targets and allows a branchless implementation.
         let first_blocked = (blocked | Bitboard(0x0000000000000001)).square_scan_reverse();
-        let targets = empty_board_targets ^ Self::RAYS[direction as usize][first_blocked.idx()];
-        targets
+        empty_board_targets ^ Self::RAYS[direction as usize][first_blocked.idx()]
     }
 }
 

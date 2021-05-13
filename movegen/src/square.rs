@@ -102,10 +102,10 @@ impl Square {
     pub fn from_ascii(s: &[u8; 2]) -> Result<Self, String> {
         let file = File::from_ascii(s[0]);
         let rank = Rank::from_ascii(s[1]);
-        if file.is_ok() && rank.is_ok() {
-            Ok(Self::from_file_and_rank(file.unwrap(), rank.unwrap()))
-        } else {
-            Err(format!("Invalid square `{}`", str::from_utf8(s).unwrap()))
+
+        match (file, rank) {
+            (Ok(f), Ok(r)) => Ok(Self::from_file_and_rank(f, r)),
+            _ => Err(format!("Invalid square `{}`", str::from_utf8(s).unwrap())),
         }
     }
 

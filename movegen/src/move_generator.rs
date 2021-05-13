@@ -942,7 +942,7 @@ mod tests {
         assert!(!move_list.contains(&queenside_castle));
 
         // Rook attacked (castling is legal)
-        let mut pos_rook_attacked = pos.clone();
+        let mut pos_rook_attacked = pos;
         pos_rook_attacked.set_piece_at(Square::E4, Some(piece::Piece::BLACK_BISHOP));
         pos_rook_attacked.set_piece_at(Square::E5, Some(piece::Piece::BLACK_BISHOP));
         MoveGenerator::generate_moves(&mut move_list, &pos_rook_attacked);
@@ -1013,7 +1013,7 @@ mod tests {
         assert!(!move_list.contains(&queenside_castle));
 
         // Rook attacked (castling is legal)
-        let mut pos_rook_attacked = pos.clone();
+        let mut pos_rook_attacked = pos;
         pos_rook_attacked.set_piece_at(Square::E4, Some(piece::Piece::WHITE_BISHOP));
         pos_rook_attacked.set_piece_at(Square::E5, Some(piece::Piece::WHITE_BISHOP));
         MoveGenerator::generate_moves(&mut move_list, &pos_rook_attacked);
