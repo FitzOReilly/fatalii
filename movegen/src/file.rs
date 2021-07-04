@@ -31,7 +31,7 @@ impl File {
         }
     }
 
-    pub fn to_ascii(&self) -> u8 {
+    pub fn to_ascii(self) -> u8 {
         debug_assert!(self.idx() < Self::NUM_FILES);
         self.0 + b'a'
     }
