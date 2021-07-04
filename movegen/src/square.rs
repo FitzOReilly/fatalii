@@ -109,7 +109,7 @@ impl Square {
         }
     }
 
-    pub fn to_ascii(&self) -> [u8; 2] {
+    pub fn to_ascii(self) -> [u8; 2] {
         debug_assert!(self.idx() < Self::NUM_SQUARES);
         [self.file().to_ascii(), self.rank().to_ascii()]
     }

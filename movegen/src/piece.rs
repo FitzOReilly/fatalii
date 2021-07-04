@@ -61,8 +61,8 @@ impl Piece {
         }
     }
 
-    pub fn to_ascii(&self) -> u8 {
-        match *self {
+    pub fn to_ascii(self) -> u8 {
+        match self {
             Piece::WHITE_PAWN => b'P',
             Piece::WHITE_KNIGHT => b'N',
             Piece::WHITE_BISHOP => b'B',

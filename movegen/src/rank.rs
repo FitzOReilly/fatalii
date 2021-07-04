@@ -31,7 +31,7 @@ impl Rank {
         }
     }
 
-    pub fn to_ascii(&self) -> u8 {
+    pub fn to_ascii(self) -> u8 {
         debug_assert!(self.idx() < Self::NUM_RANKS);
         self.0 + b'1'
     }
