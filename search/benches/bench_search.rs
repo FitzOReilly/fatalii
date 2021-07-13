@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput};
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 use search::alpha_beta::AlphaBeta;
@@ -7,7 +7,8 @@ use search::search::Search;
 
 fn negamax_initial_position(c: &mut Criterion) {
     let min_depth = 0;
-    let max_depth = 4;
+    let max_depth = 3;
+    let table_idx_bits = 20;
 
     let mut pos_history = PositionHistory::new(Position::initial());
 
@@ -15,7 +16,11 @@ fn negamax_initial_position(c: &mut Criterion) {
     for depth in min_depth..=max_depth {
         group.throughput(Throughput::Elements(depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), &depth, |b, &depth| {
-            b.iter(|| Negamax::search(&mut pos_history, depth));
+            b.iter_batched(
+                || Negamax::new(table_idx_bits),
+                |mut negamax| negamax.search(&mut pos_history, depth),
+                BatchSize::SmallInput,
+            );
         });
     }
     group.finish();
@@ -24,6 +29,7 @@ fn negamax_initial_position(c: &mut Criterion) {
 fn alpha_beta_initial_position(c: &mut Criterion) {
     let min_depth = 0;
     let max_depth = 5;
+    let table_idx_bits = 20;
 
     let mut pos_history = PositionHistory::new(Position::initial());
 
@@ -31,7 +37,11 @@ fn alpha_beta_initial_position(c: &mut Criterion) {
     for depth in min_depth..=max_depth {
         group.throughput(Throughput::Elements(depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), &depth, |b, &depth| {
-            b.iter(|| AlphaBeta::search(&mut pos_history, depth));
+            b.iter_batched(
+                || AlphaBeta::new(table_idx_bits),
+                |mut alpha_beta| alpha_beta.search(&mut pos_history, depth),
+                BatchSize::SmallInput,
+            );
         });
     }
     group.finish();

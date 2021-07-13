@@ -18,6 +18,18 @@ where
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.entries.iter().filter(|x| x.is_some()).count()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.iter().all(|x| x.is_none())
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.entries.len()
+    }
+
     pub fn contains_key(&self, k: &K) -> bool {
         let index = self.key_to_index(k);
         match self.entries[index] {
@@ -126,5 +138,32 @@ mod tests {
         assert_eq!(Some((hash, 0)), old_entry);
         assert_eq!(true, tt.contains_key(&hash));
         assert_eq!(Some(&2), tt.get(&hash));
+    }
+
+    #[test]
+    fn is_empty_and_len_and_capacity() {
+        let table_idx_bits: usize = 8;
+        let capacity = 2_usize.pow(table_idx_bits as u32);
+
+        let mut tt = TranspositionTable::<u64, u64>::new(table_idx_bits);
+
+        assert_eq!(0, tt.len());
+        assert_eq!(true, tt.is_empty());
+        assert_eq!(capacity, tt.capacity());
+
+        let _ = tt.insert(0, 0);
+        assert_eq!(1, tt.len());
+        assert_eq!(false, tt.is_empty());
+        assert_eq!(capacity, tt.capacity());
+
+        let _ = tt.insert(0, 1);
+        assert_eq!(1, tt.len());
+        assert_eq!(false, tt.is_empty());
+        assert_eq!(capacity, tt.capacity());
+
+        let _ = tt.insert(0xff00_0000_0000_0000, 2);
+        assert_eq!(2, tt.len());
+        assert_eq!(false, tt.is_empty());
+        assert_eq!(capacity, tt.capacity());
     }
 }

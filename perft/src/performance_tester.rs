@@ -33,27 +33,29 @@ impl PerformanceTester {
         move_list_stack: &mut Vec<MoveList>,
         depth: usize,
     ) -> usize {
-        let mut num_nodes = 0;
-
-        match depth {
-            0 => {
-                debug_assert!(move_list_stack.is_empty());
-                num_nodes = 1;
-            }
+        let hash = self.pos_history.current_pos_hash();
+        match self.transpos_table.get(&hash) {
+            Some(entry) if entry.depth == depth => entry.num_nodes,
             _ => {
-                debug_assert!(!move_list_stack.is_empty());
-                let mut move_list = move_list_stack.pop().unwrap();
-                MoveGenerator::generate_moves(&mut move_list, self.pos_history.current_pos());
+                let mut num_nodes = 0;
+
                 match depth {
-                    1 => {
+                    0 => {
                         debug_assert!(move_list_stack.is_empty());
-                        num_nodes = move_list.len();
+                        num_nodes = 1;
                     }
                     _ => {
-                        let hash = self.pos_history.current_pos_hash();
-
-                        match self.transpos_table.get(&hash) {
-                            Some(entry) if entry.depth == depth => num_nodes = entry.num_nodes,
+                        debug_assert!(!move_list_stack.is_empty());
+                        let mut move_list = move_list_stack.pop().unwrap();
+                        MoveGenerator::generate_moves(
+                            &mut move_list,
+                            self.pos_history.current_pos(),
+                        );
+                        match depth {
+                            1 => {
+                                debug_assert!(move_list_stack.is_empty());
+                                num_nodes = move_list.len();
+                            }
                             _ => {
                                 for m in move_list.iter() {
                                     self.pos_history.do_move(*m);
@@ -65,13 +67,12 @@ impl PerformanceTester {
                                     .insert(hash, TableEntry { depth, num_nodes });
                             }
                         }
+                        move_list_stack.push(move_list);
                     }
-                }
-                move_list_stack.push(move_list);
+                };
+                num_nodes
             }
-        };
-
-        num_nodes
+        }
     }
 }
 
