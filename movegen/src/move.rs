@@ -139,8 +139,7 @@ impl fmt::Display for Move {
                 }
             },
         };
-        write!(f, "{}", move_str).unwrap();
-        Ok(())
+        write!(f, "{}", move_str)
     }
 }
 
@@ -190,8 +189,7 @@ impl fmt::Display for MoveList {
             .map(|&m| format!("{}", m))
             .collect::<Vec<String>>()
             .join(" ");
-        write!(f, "{}", move_list_str).unwrap();
-        Ok(())
+        write!(f, "{}", move_list_str)
     }
 }
 

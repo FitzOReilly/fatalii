@@ -161,8 +161,7 @@ impl Square {
 
 impl fmt::Display for Square {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", str::from_utf8(&self.to_ascii()).unwrap()).unwrap();
-        Ok(())
+        write!(f, "{}", str::from_utf8(&self.to_ascii()).unwrap())
     }
 }
 
