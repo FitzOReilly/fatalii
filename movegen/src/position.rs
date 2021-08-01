@@ -275,7 +275,7 @@ impl fmt::Display for Position {
                 };
             }
             let rank_str = str::from_utf8(&squares_in_rank).unwrap();
-            writeln!(f, "{}", rank_str).unwrap();
+            writeln!(f, "{}", rank_str)?;
         }
         Ok(())
     }

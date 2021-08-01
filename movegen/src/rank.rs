@@ -40,8 +40,7 @@ impl Rank {
 impl fmt::Display for Rank {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let rank_char = self.to_ascii() as char;
-        write!(f, "{}", rank_char).unwrap();
-        Ok(())
+        write!(f, "{}", rank_char)
     }
 }
 
