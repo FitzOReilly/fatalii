@@ -104,6 +104,13 @@ impl Move {
     pub fn is_promotion(&self) -> bool {
         self.move_type().is_promotion()
     }
+
+    pub fn promotion_piece(&self) -> Option<piece::Type> {
+        match self.is_promotion() {
+            true => Some(self.move_type().promo_piece_unchecked()),
+            false => None,
+        }
+    }
 }
 
 impl fmt::Display for Move {
@@ -344,71 +351,85 @@ mod tests {
         assert_eq!(Square::E2, m.origin());
         assert_eq!(Square::E3, m.target());
         assert_eq!(MoveType::QUIET, m.move_type());
+        assert_eq!(None, m.promotion_piece());
 
         let m = Move::new(Square::E2, Square::E4, MoveType::DOUBLE_PAWN_PUSH);
         assert_eq!(Square::E2, m.origin());
         assert_eq!(Square::E4, m.target());
         assert_eq!(MoveType::DOUBLE_PAWN_PUSH, m.move_type());
+        assert_eq!(None, m.promotion_piece());
 
         let m = Move::new(Square::E1, Square::G1, MoveType::CASTLE_KINGSIDE);
         assert_eq!(Square::E1, m.origin());
         assert_eq!(Square::G1, m.target());
         assert_eq!(MoveType::CASTLE_KINGSIDE, m.move_type());
+        assert_eq!(None, m.promotion_piece());
 
         let m = Move::new(Square::E8, Square::C8, MoveType::CASTLE_QUEENSIDE);
         assert_eq!(Square::E8, m.origin());
         assert_eq!(Square::C8, m.target());
         assert_eq!(MoveType::CASTLE_QUEENSIDE, m.move_type());
+        assert_eq!(None, m.promotion_piece());
 
         let m = Move::new(Square::C4, Square::D5, MoveType::CAPTURE);
         assert_eq!(Square::C4, m.origin());
         assert_eq!(Square::D5, m.target());
         assert_eq!(MoveType::CAPTURE, m.move_type());
+        assert_eq!(None, m.promotion_piece());
 
         let m = Move::new(Square::D6, Square::E5, MoveType::EN_PASSANT_CAPTURE);
         assert_eq!(Square::D6, m.origin());
         assert_eq!(Square::E5, m.target());
         assert_eq!(MoveType::EN_PASSANT_CAPTURE, m.move_type());
+        assert_eq!(None, m.promotion_piece());
 
         let m = Move::new(Square::A7, Square::A8, MoveType::PROMOTION_KNIGHT);
         assert_eq!(Square::A7, m.origin());
         assert_eq!(Square::A8, m.target());
         assert_eq!(MoveType::PROMOTION_KNIGHT, m.move_type());
+        assert_eq!(Some(piece::Type::Knight), m.promotion_piece());
 
         let m = Move::new(Square::A7, Square::A8, MoveType::PROMOTION_BISHOP);
         assert_eq!(Square::A7, m.origin());
         assert_eq!(Square::A8, m.target());
         assert_eq!(MoveType::PROMOTION_BISHOP, m.move_type());
+        assert_eq!(Some(piece::Type::Bishop), m.promotion_piece());
 
         let m = Move::new(Square::A7, Square::A8, MoveType::PROMOTION_ROOK);
         assert_eq!(Square::A7, m.origin());
         assert_eq!(Square::A8, m.target());
         assert_eq!(MoveType::PROMOTION_ROOK, m.move_type());
+        assert_eq!(Some(piece::Type::Rook), m.promotion_piece());
 
         let m = Move::new(Square::A7, Square::A8, MoveType::PROMOTION_QUEEN);
         assert_eq!(Square::A7, m.origin());
         assert_eq!(Square::A8, m.target());
         assert_eq!(MoveType::PROMOTION_QUEEN, m.move_type());
+        assert_eq!(Some(piece::Type::Queen), m.promotion_piece());
 
         let m = Move::new(Square::G2, Square::H1, MoveType::PROMOTION_CAPTURE_KNIGHT);
         assert_eq!(Square::G2, m.origin());
         assert_eq!(Square::H1, m.target());
         assert_eq!(MoveType::PROMOTION_CAPTURE_KNIGHT, m.move_type());
+        assert_eq!(Some(piece::Type::Knight), m.promotion_piece());
 
         let m = Move::new(Square::G2, Square::H1, MoveType::PROMOTION_CAPTURE_BISHOP);
         assert_eq!(Square::G2, m.origin());
         assert_eq!(Square::H1, m.target());
         assert_eq!(MoveType::PROMOTION_CAPTURE_BISHOP, m.move_type());
+        assert_eq!(Some(piece::Type::Bishop), m.promotion_piece());
 
         let m = Move::new(Square::G2, Square::H1, MoveType::PROMOTION_CAPTURE_ROOK);
         assert_eq!(Square::G2, m.origin());
         assert_eq!(Square::H1, m.target());
         assert_eq!(MoveType::PROMOTION_CAPTURE_ROOK, m.move_type());
+        assert_eq!(Some(piece::Type::Rook), m.promotion_piece());
 
         let m = Move::new(Square::G2, Square::H1, MoveType::PROMOTION_CAPTURE_QUEEN);
         assert_eq!(Square::G2, m.origin());
         assert_eq!(Square::H1, m.target());
         assert_eq!(MoveType::PROMOTION_CAPTURE_QUEEN, m.move_type());
+        assert_eq!(Some(piece::Type::Queen), m.promotion_piece());
     }
 
     #[test]
