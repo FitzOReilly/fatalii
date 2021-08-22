@@ -925,7 +925,8 @@ mod tests {
     #[test]
     fn capture_pawn_in_check() {
         let mut move_list = MoveList::new();
-        let pos = Fen::str_to_pos("rnbq1k1r/pp1Pb1pp/2p5/8/2B2p2/6K1/PPP1N1PP/RNBQ3R w - - 0 10");
+        let pos = Fen::str_to_pos("rnbq1k1r/pp1Pb1pp/2p5/8/2B2p2/6K1/PPP1N1PP/RNBQ3R w - - 0 10")
+            .unwrap();
         MoveGenerator::generate_moves(&mut move_list, &pos);
         assert!(
             move_list.contains(&Move::new(Square::C1, Square::F4, MoveType::CAPTURE)),
