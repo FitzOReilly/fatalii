@@ -14,7 +14,21 @@ pub struct Fen;
 
 #[derive(Debug)]
 pub enum FenError {
-    InvalidFenString(String),
+    InvalidFenString(String, Box<FenError>),
+    TooFewParts,
+    TooManyParts,
+    TooFewRanks,
+    TooManyRanks,
+    TooFewSquares(Rank),
+    TooManySquares(Rank),
+    InvalidPiece(String),
+    InvalidSideToMove,
+    DuplicateCastlingRights,
+    WrongCastlingRightOrder,
+    InvalidCastlingRights,
+    InvalidEnPassantSquare,
+    InvalidPliesSincePawnMoveOrCapture,
+    InvalidMoveCount,
 }
 
 impl Error for FenError {}
@@ -22,9 +36,25 @@ impl Error for FenError {}
 impl fmt::Display for FenError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match self {
-            FenError::InvalidFenString(s) => format!("Invalid FEN string `{}`", s),
+            FenError::InvalidFenString(s, e) => format!("Invalid FEN string: `{}`: {}", s, e),
+            FenError::TooFewParts => "Too few parts".to_string(),
+            FenError::TooManyParts => "Too many parts".to_string(),
+            FenError::TooFewRanks => "Too few ranks".to_string(),
+            FenError::TooManyRanks => "Too many ranks".to_string(),
+            FenError::TooFewSquares(r) => format!("Too few squares in rank {}", r),
+            FenError::TooManySquares(r) => format!("Too many squares in rank {}", r),
+            FenError::InvalidPiece(p) => p.to_string(),
+            FenError::InvalidSideToMove => "Invalid side to move".to_string(),
+            FenError::DuplicateCastlingRights => "Duplicate castling rights".to_string(),
+            FenError::WrongCastlingRightOrder => "Wrong castling right order".to_string(),
+            FenError::InvalidCastlingRights => "Invalid castling rights".to_string(),
+            FenError::InvalidEnPassantSquare => "Invalid en passant square".to_string(),
+            FenError::InvalidPliesSincePawnMoveOrCapture => {
+                "Invalid plies since last pawn move or capture".to_string()
+            }
+            FenError::InvalidMoveCount => "Invalid move count".to_string(),
         };
-        write!(f, "FEN error: {}", msg)
+        write!(f, "{}", msg)
     }
 }
 
@@ -118,48 +148,49 @@ impl Fen {
     pub fn str_to_pos(fen: &str) -> Result<Position, FenError> {
         let mut pos = Position::empty();
         let mut iter_fen = fen.split_whitespace();
-        if iter_fen.clone().count() != 6 {
-            return Err(FenError::InvalidFenString(fen.to_string()));
-        }
-
-        match Self::str_to_pos_pieces(&mut pos, iter_fen.next().unwrap())
-            .and(Self::str_to_pos_side_to_move(
-                &mut pos,
-                iter_fen.next().unwrap(),
-            ))
-            .and(Self::str_to_pos_castling_rights(
-                &mut pos,
-                iter_fen.next().unwrap(),
-            ))
-            .and(Self::str_to_pos_en_passant_square(
-                &mut pos,
-                iter_fen.next().unwrap(),
-            ))
-            .and(Self::str_to_pos_plies_since_pawn_move_or_capture(
-                &mut pos,
-                iter_fen.next().unwrap(),
-            ))
-            .and(Self::str_to_pos_move_count(
-                &mut pos,
-                iter_fen.next().unwrap(),
-            )) {
-            Ok(()) => Ok(pos),
-            Err(()) => Err(FenError::InvalidFenString(fen.to_string())),
-        }
+        iter_fen
+            .next()
+            .map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_pieces(&mut pos, fen)
+            })
+            .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_side_to_move(&mut pos, fen)
+            }))
+            .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_castling_rights(&mut pos, fen)
+            }))
+            .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_en_passant_square(&mut pos, fen)
+            }))
+            .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_plies_since_pawn_move_or_capture(&mut pos, fen)
+            }))
+            .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_move_count(&mut pos, fen)
+            }))
+            .and(
+                iter_fen
+                    .next()
+                    .map_or(Ok(()), |_| Err(FenError::TooManyParts)),
+            )
+            .map_or_else(
+                |e| Err(FenError::InvalidFenString(fen.to_string(), Box::new(e))),
+                |_| Ok(pos),
+            )
     }
 
-    fn str_to_pos_pieces(pos: &mut Position, fen: &str) -> Result<(), ()> {
+    fn str_to_pos_pieces(pos: &mut Position, fen: &str) -> Result<(), FenError> {
         let iter_ranks = fen.split('/');
         let mut rank = Rank::NUM_RANKS;
         for fen_rank in iter_ranks {
             if rank == 0 {
-                return Err(());
+                return Err(FenError::TooManyRanks);
             }
             rank -= 1;
             let mut file = 0;
             for c in fen_rank.bytes() {
                 if file >= File::NUM_FILES {
-                    return Err(());
+                    return Err(FenError::TooManySquares(Rank::from_idx(rank)));
                 }
                 match c {
                     b'1'..=b'8' => {
@@ -168,7 +199,7 @@ impl Fen {
                     _ => {
                         let piece = match Piece::from_ascii(c) {
                             Ok(p) => p,
-                            Err(_) => return Err(()),
+                            Err(e) => return Err(FenError::InvalidPiece(e)),
                         };
                         let square =
                             Square::from_file_and_rank(File::from_idx(file), Rank::from_idx(rank));
@@ -178,58 +209,74 @@ impl Fen {
                 }
             }
             if file != File::NUM_FILES {
-                return Err(());
+                return Err(FenError::TooFewSquares(Rank::from_idx(rank)));
             }
         }
         if rank != 0 {
-            return Err(());
+            return Err(FenError::TooFewRanks);
         }
         Ok(())
     }
 
-    fn str_to_pos_side_to_move(pos: &mut Position, fen: &str) -> Result<(), ()> {
-        let c = fen.bytes().next().unwrap();
-        match c {
-            b'w' => pos.set_side_to_move(Side::White),
-            b'b' => pos.set_side_to_move(Side::Black),
-            _ => return Err(()),
+    fn str_to_pos_side_to_move(pos: &mut Position, fen: &str) -> Result<(), FenError> {
+        match fen {
+            "w" => pos.set_side_to_move(Side::White),
+            "b" => pos.set_side_to_move(Side::Black),
+            _ => return Err(FenError::InvalidSideToMove),
         }
         Ok(())
     }
 
-    fn str_to_pos_castling_rights(pos: &mut Position, fen: &str) -> Result<(), ()> {
+    fn str_to_pos_castling_rights(pos: &mut Position, fen: &str) -> Result<(), FenError> {
         let mut castling_rights = CastlingRights::empty();
-        for c in fen.bytes() {
-            castling_rights |= match c {
-                b'-' => CastlingRights::empty(),
-                b'K' => CastlingRights::WHITE_KINGSIDE,
-                b'Q' => CastlingRights::WHITE_QUEENSIDE,
-                b'k' => CastlingRights::BLACK_KINGSIDE,
-                b'q' => CastlingRights::BLACK_QUEENSIDE,
-                _ => return Err(()),
-            };
-            pos.set_castling_rights(castling_rights);
+        if fen != "-" {
+            let mut prev = 0u8;
+            for cur in fen.bytes() {
+                let cur_castling_right = match cur {
+                    b'K' | b'Q' | b'k' | b'q' if cur == prev => {
+                        return Err(FenError::DuplicateCastlingRights)
+                    }
+                    b'K' | b'Q' | b'k' | b'q' if cur < prev => {
+                        return Err(FenError::WrongCastlingRightOrder)
+                    }
+                    b'K' => CastlingRights::WHITE_KINGSIDE,
+                    b'Q' => CastlingRights::WHITE_QUEENSIDE,
+                    b'k' => CastlingRights::BLACK_KINGSIDE,
+                    b'q' => CastlingRights::BLACK_QUEENSIDE,
+                    _ => return Err(FenError::InvalidCastlingRights),
+                };
+                prev = cur;
+                castling_rights |= cur_castling_right;
+            }
         }
+        pos.set_castling_rights(castling_rights);
         Ok(())
     }
 
-    fn str_to_pos_en_passant_square(pos: &mut Position, fen: &str) -> Result<(), ()> {
+    fn str_to_pos_en_passant_square(pos: &mut Position, fen: &str) -> Result<(), FenError> {
         let mut iter_ep = fen.bytes();
-        let c = iter_ep.next().unwrap();
-        match c {
-            b'-' => {}
-            f @ b'a'..=b'h' => {
-                let file = File::from_ascii(f).unwrap();
-                let r = iter_ep.next().unwrap();
-                let rank = Rank::from_ascii(r).unwrap();
+        match iter_ep.next() {
+            Some(b'-') => {}
+            Some(c) => {
+                let file = match File::from_ascii(c) {
+                    Ok(f) => f,
+                    _ => return Err(FenError::InvalidEnPassantSquare),
+                };
+                let rank = match iter_ep.next().map(Rank::from_ascii) {
+                    Some(Ok(r)) => r,
+                    _ => return Err(FenError::InvalidEnPassantSquare),
+                };
+                if iter_ep.next().is_some() {
+                    return Err(FenError::InvalidEnPassantSquare);
+                }
                 match (pos.side_to_move(), rank) {
                     (Side::White, Rank::R6) | (Side::Black, Rank::R3) => {}
-                    _ => return Err(()),
+                    _ => return Err(FenError::InvalidEnPassantSquare),
                 }
                 let square = Square::from_file_and_rank(file, rank);
                 pos.set_en_passant_square(Bitboard::from_square(square));
             }
-            _ => return Err(()),
+            _ => return Err(FenError::InvalidEnPassantSquare),
         }
         Ok(())
     }
@@ -237,19 +284,19 @@ impl Fen {
     fn str_to_pos_plies_since_pawn_move_or_capture(
         pos: &mut Position,
         fen: &str,
-    ) -> Result<(), ()> {
+    ) -> Result<(), FenError> {
         let plies = match fen.parse::<usize>() {
             Ok(p) => p,
-            Err(_) => return Err(()),
+            Err(_) => return Err(FenError::InvalidPliesSincePawnMoveOrCapture),
         };
         pos.set_plies_since_pawn_move_or_capture(plies);
         Ok(())
     }
 
-    fn str_to_pos_move_count(pos: &mut Position, fen: &str) -> Result<(), ()> {
+    fn str_to_pos_move_count(pos: &mut Position, fen: &str) -> Result<(), FenError> {
         let move_count = match fen.parse::<usize>() {
             Ok(p) => p,
-            Err(_) => return Err(()),
+            Err(_) => return Err(FenError::InvalidMoveCount),
         };
         pos.set_move_count(move_count);
         Ok(())
@@ -264,30 +311,99 @@ mod tests {
     fn invalid_fen() {
         let missing_square_in_rank = "nbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         assert!(Fen::str_to_pos(missing_square_in_rank).is_err());
+        println!("{}", Fen::str_to_pos(missing_square_in_rank).unwrap_err());
         let too_many_squares_in_rank = "rrnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         assert!(Fen::str_to_pos(too_many_squares_in_rank).is_err());
+        println!("{}", Fen::str_to_pos(too_many_squares_in_rank).unwrap_err());
         let missing_rank = "pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         assert!(Fen::str_to_pos(missing_rank).is_err());
+        println!("{}", Fen::str_to_pos(missing_rank).unwrap_err());
         let too_many_ranks = "rnbqkbnr/rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         assert!(Fen::str_to_pos(too_many_ranks).is_err());
+        println!("{}", Fen::str_to_pos(too_many_ranks).unwrap_err());
         let invalid_piece = "xnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         assert!(Fen::str_to_pos(invalid_piece).is_err());
-        let invalid_side_to_move = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR x KQkq - 0 1";
-        assert!(Fen::str_to_pos(invalid_side_to_move).is_err());
+        println!("{}", Fen::str_to_pos(invalid_piece).unwrap_err());
+        let side_to_move_invalid_char = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR x KQkq - 0 1";
+        assert!(Fen::str_to_pos(side_to_move_invalid_char).is_err());
+        println!(
+            "{}",
+            Fen::str_to_pos(side_to_move_invalid_char).unwrap_err()
+        );
+        let side_to_move_multiple_chars =
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR bw KQkq - 0 1";
+        assert!(Fen::str_to_pos(side_to_move_multiple_chars).is_err());
+        println!(
+            "{}",
+            Fen::str_to_pos(side_to_move_multiple_chars).unwrap_err()
+        );
         let invalid_castling_rights = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w x - 0 1";
         assert!(Fen::str_to_pos(invalid_castling_rights).is_err());
+        println!("{}", Fen::str_to_pos(invalid_castling_rights).unwrap_err());
+        let invalid_castling_rights_minus_not_single =
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w -K - 0 1";
+        assert!(Fen::str_to_pos(invalid_castling_rights_minus_not_single).is_err());
+        println!(
+            "{}",
+            Fen::str_to_pos(invalid_castling_rights_minus_not_single).unwrap_err()
+        );
+        let invalid_castling_rights_multiple_minuses =
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w -- - 0 1";
+        assert!(Fen::str_to_pos(invalid_castling_rights_multiple_minuses).is_err());
+        println!(
+            "{}",
+            Fen::str_to_pos(invalid_castling_rights_multiple_minuses).unwrap_err()
+        );
+        let invalid_castling_rights_invalid_char =
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w Kx - 0 1";
+        assert!(Fen::str_to_pos(invalid_castling_rights_invalid_char).is_err());
+        println!(
+            "{}",
+            Fen::str_to_pos(invalid_castling_rights_invalid_char).unwrap_err()
+        );
+        let duplicate_castling_rights = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KK - 0 1";
+        assert!(Fen::str_to_pos(duplicate_castling_rights).is_err());
+        println!(
+            "{}",
+            Fen::str_to_pos(duplicate_castling_rights).unwrap_err()
+        );
+        let wrong_castling_right_order = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w qkQK - 0 1";
+        assert!(Fen::str_to_pos(wrong_castling_right_order).is_err());
+        println!(
+            "{}",
+            Fen::str_to_pos(wrong_castling_right_order).unwrap_err()
+        );
         let invalid_en_passant = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq x 0 1";
         assert!(Fen::str_to_pos(invalid_en_passant).is_err());
-        let illegal_en_passant = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq e1 0 1";
-        assert!(Fen::str_to_pos(illegal_en_passant).is_err());
+        println!("{}", Fen::str_to_pos(invalid_en_passant).unwrap_err());
+        let missing_en_passant_file = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq 1 0 1";
+        assert!(Fen::str_to_pos(missing_en_passant_file).is_err());
+        println!("{}", Fen::str_to_pos(missing_en_passant_file).unwrap_err());
+        let missing_en_passant_rank = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq e 0 1";
+        assert!(Fen::str_to_pos(missing_en_passant_rank).is_err());
+        println!("{}", Fen::str_to_pos(missing_en_passant_rank).unwrap_err());
+        let invalid_en_passant_rank = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq e1 0 1";
+        assert!(Fen::str_to_pos(invalid_en_passant_rank).is_err());
+        println!("{}", Fen::str_to_pos(invalid_en_passant_rank).unwrap_err());
+        let en_passant_too_many_chars =
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq e6x 0 1";
+        assert!(Fen::str_to_pos(en_passant_too_many_chars).is_err());
+        println!(
+            "{}",
+            Fen::str_to_pos(en_passant_too_many_chars).unwrap_err()
+        );
         let invalid_halfmove_clock = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - x 1";
         assert!(Fen::str_to_pos(invalid_halfmove_clock).is_err());
+        println!("{}", Fen::str_to_pos(invalid_halfmove_clock).unwrap_err());
         let invalid_move_count = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 x";
         assert!(Fen::str_to_pos(invalid_move_count).is_err());
-        let too_short = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
-        assert!(Fen::str_to_pos(too_short).is_err());
-        let too_long = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 2";
-        assert!(Fen::str_to_pos(too_long).is_err());
+        println!("{}", Fen::str_to_pos(invalid_move_count).unwrap_err());
+        let too_few_parts = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+        assert!(Fen::str_to_pos(too_few_parts).is_err());
+        println!("{}", Fen::str_to_pos(too_few_parts).unwrap_err());
+        let too_many_parts = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 2";
+        assert!(Fen::str_to_pos(too_many_parts).is_err());
+        println!("{}", Fen::str_to_pos(too_many_parts).unwrap_err());
     }
 
     #[test]
