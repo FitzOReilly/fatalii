@@ -58,7 +58,7 @@ impl Search for Negamax {
             Side::White => self.search_recursive(pos_history, depth),
             Side::Black => -self.search_recursive(pos_history, depth),
         };
-        SearchResult::new(node.score(), node.best_move())
+        SearchResult::new(depth, node.score(), node.best_move())
     }
 }
 
@@ -233,6 +233,7 @@ mod tests {
         let search_result = negamax.search(&mut pos_history, depth);
         assert_eq!(
             SearchResult::new(
+                depth,
                 CHECKMATE_WHITE,
                 Move::new(Square::D8, Square::H4, MoveType::QUIET)
             ),
@@ -256,6 +257,7 @@ mod tests {
         let search_result = negamax.search(&mut pos_history, depth);
         assert_eq!(
             SearchResult::new(
+                depth,
                 CHECKMATE_BLACK,
                 Move::new(Square::A1, Square::A8, MoveType::QUIET)
             ),
@@ -275,7 +277,10 @@ mod tests {
 
         let depth = 1;
         let search_result = negamax.search(&mut pos_history, depth);
-        assert_eq!(SearchResult::new(EQUAL_POSITION, Move::NULL), search_result);
+        assert_eq!(
+            SearchResult::new(depth, EQUAL_POSITION, Move::NULL),
+            search_result
+        );
     }
 
     #[test]

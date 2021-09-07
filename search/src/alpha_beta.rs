@@ -78,7 +78,7 @@ impl Search for AlphaBeta {
             Side::Black => -self.search_recursive(pos_history, depth, NEGATIVE_INF, POSITIVE_INF),
         };
         debug_assert_eq!(ScoreType::Exact, ab_node.score_type());
-        SearchResult::new(ab_node.score(), ab_node.best_move())
+        SearchResult::new(depth, ab_node.score(), ab_node.best_move())
     }
 }
 
@@ -398,6 +398,7 @@ mod tests {
         let search_result = alpha_beta.search(&mut pos_history, depth);
         assert_eq!(
             SearchResult::new(
+                depth,
                 CHECKMATE_WHITE,
                 Move::new(Square::D8, Square::H4, MoveType::QUIET)
             ),
@@ -421,6 +422,7 @@ mod tests {
         let search_result = alpha_beta.search(&mut pos_history, depth);
         assert_eq!(
             SearchResult::new(
+                depth,
                 CHECKMATE_BLACK,
                 Move::new(Square::A1, Square::A8, MoveType::QUIET)
             ),
@@ -440,7 +442,10 @@ mod tests {
 
         let depth = 1;
         let search_result = alpha_beta.search(&mut pos_history, depth);
-        assert_eq!(SearchResult::new(EQUAL_POSITION, Move::NULL), search_result);
+        assert_eq!(
+            SearchResult::new(depth, EQUAL_POSITION, Move::NULL),
+            search_result
+        );
     }
 
     #[test]
