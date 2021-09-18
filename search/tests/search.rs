@@ -7,34 +7,72 @@ use movegen::side::Side;
 use movegen::square::Square;
 use search::alpha_beta::AlphaBeta;
 use search::negamax::Negamax;
-use search::search::{Search, SearchResult};
+use search::search::{Search, SearchInfo, SearchResult};
+use search::searcher::Searcher;
+use std::sync::mpsc;
+use std::time::Duration;
 
 const TABLE_IDX_BITS: usize = 16;
+const TIMEOUT_PER_TEST: Duration = Duration::from_millis(10000);
 
-fn search_result_independent_of_transposition_table_size(
-    min_depth: usize,
-    max_depth: usize,
-    mut searchers: Vec<impl Search>,
-) {
-    // Expected: The search result should be the same for different table sizes. The
-    // transposition table should only improve the performance of the search, but not the
-    // evaluation or the best move.
+struct SearchTester {
+    searcher: Searcher,
+    result_receiver: mpsc::Receiver<SearchInfo>,
+}
 
+impl SearchTester {
+    fn new(search_algo: impl Search + Send + 'static) -> SearchTester {
+        let (sender, receiver) = mpsc::channel();
+        let info_callback = Box::new(move |search_info| {
+            sender.send(search_info).unwrap();
+        });
+
+        SearchTester {
+            searcher: Searcher::new(search_algo, info_callback),
+            result_receiver: receiver,
+        }
+    }
+
+    fn search(&mut self, pos_hist: PositionHistory, depth: usize) -> SearchResult {
+        self.searcher.search(pos_hist);
+        loop {
+            let search_result = match self.result_receiver.recv_timeout(TIMEOUT_PER_TEST) {
+                Ok(SearchInfo::SearchFinished(res)) => res,
+                unexp => panic!("Expected SearchInfo::SearchFinished(_), got {:?}", unexp),
+            };
+            assert!(
+                search_result.depth() <= depth,
+                "Expected max depth: {}, actual depth: {}",
+                depth,
+                search_result.depth()
+            );
+            if search_result.depth() == depth {
+                self.searcher.stop();
+                loop {
+                    if let Ok(SearchInfo::Stopped) = self.result_receiver.recv() {
+                        break;
+                    }
+                }
+                return search_result;
+            }
+        }
+    }
+}
+
+fn search_results_equal(min_depth: usize, max_depth: usize, mut searchers: Vec<SearchTester>) {
     assert!(searchers.len() >= 2);
 
     let ref_searcher = &mut searchers[0];
-    let mut pos_history = PositionHistory::new(Position::initial());
+    let pos_history = PositionHistory::new(Position::initial());
     let mut exp_search_result = Vec::new();
     for depth in min_depth..=max_depth {
-        exp_search_result.push(ref_searcher.search(&mut pos_history, depth));
+        exp_search_result.push(ref_searcher.search(pos_history.clone(), depth));
     }
 
     for (idx, searcher) in searchers[1..].iter_mut().enumerate() {
-        let mut pos_history = PositionHistory::new(Position::initial());
-
         for depth in min_depth..=max_depth {
             let exp_sr = &exp_search_result[depth - 1];
-            let act_sr = searcher.search(&mut pos_history, depth);
+            let act_sr = searcher.search(pos_history.clone(), depth);
             assert_eq!(
                 *exp_sr, act_sr,
                 "Iteration: {}, Depth: {}, Score (exp / act): ({} / {}), Best move (exp / act): ({} / {})",
@@ -49,7 +87,7 @@ fn search_result_independent_of_transposition_table_size(
     }
 }
 
-fn checkmate_white(mut searcher: impl Search) {
+fn checkmate_white(search_algo: impl Search + Send + 'static) {
     let mut pos_history = PositionHistory::new(Position::initial());
     pos_history.do_move(Move::new(Square::F2, Square::F3, MoveType::QUIET));
     pos_history.do_move(Move::new(Square::E7, Square::E6, MoveType::QUIET));
@@ -60,18 +98,17 @@ fn checkmate_white(mut searcher: impl Search) {
     ));
 
     let depth = 2;
-    let search_result = searcher.search(&mut pos_history, depth);
-    assert_eq!(
-        SearchResult::new(
-            depth,
-            CHECKMATE_WHITE,
-            Move::new(Square::D8, Square::H4, MoveType::QUIET)
-        ),
-        search_result
+    let expected = SearchResult::new(
+        depth,
+        CHECKMATE_WHITE,
+        Move::new(Square::D8, Square::H4, MoveType::QUIET),
     );
+
+    let mut tester = SearchTester::new(search_algo);
+    assert_eq!(expected, tester.search(pos_history, depth));
 }
 
-fn checkmate_black(mut searcher: impl Search) {
+fn checkmate_black(search_algo: impl Search + Send + 'static) {
     let mut pos = Position::empty();
     pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
     pos.set_piece_at(Square::A1, Some(piece::Piece::WHITE_ROOK));
@@ -79,37 +116,37 @@ fn checkmate_black(mut searcher: impl Search) {
     pos.set_piece_at(Square::H7, Some(piece::Piece::BLACK_PAWN));
     pos.set_piece_at(Square::H8, Some(piece::Piece::BLACK_KING));
     pos.set_side_to_move(Side::White);
-    let mut pos_history = PositionHistory::new(pos);
+    let pos_history = PositionHistory::new(pos);
 
     let depth = 2;
-    let search_result = searcher.search(&mut pos_history, depth);
-    assert_eq!(
-        SearchResult::new(
-            depth,
-            CHECKMATE_BLACK,
-            Move::new(Square::A1, Square::A8, MoveType::QUIET)
-        ),
-        search_result
+    let expected = SearchResult::new(
+        depth,
+        CHECKMATE_BLACK,
+        Move::new(Square::A1, Square::A8, MoveType::QUIET),
     );
+
+    let mut tester = SearchTester::new(search_algo);
+    assert_eq!(expected, tester.search(pos_history, depth));
 }
 
-fn stalemate(mut searcher: impl Search) {
+fn stalemate(search_algo: impl Search + Send + 'static) {
     let mut pos = Position::empty();
     pos.set_piece_at(Square::E6, Some(piece::Piece::WHITE_KING));
     pos.set_piece_at(Square::E7, Some(piece::Piece::WHITE_PAWN));
     pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
     pos.set_side_to_move(Side::Black);
-    let mut pos_history = PositionHistory::new(pos);
+    let pos_history = PositionHistory::new(pos);
 
     let depth = 1;
-    let search_result = searcher.search(&mut pos_history, depth);
-    assert_eq!(
-        SearchResult::new(depth, EQUAL_POSITION, Move::NULL),
-        search_result
-    );
+    let expected = SearchResult::new(depth, EQUAL_POSITION, Move::NULL);
+
+    let mut tester = SearchTester::new(search_algo);
+    assert_eq!(expected, tester.search(pos_history, depth));
 }
 
-fn search_quiescence(mut searcher: impl Search) {
+fn search_quiescence(search_algo: impl Search + Send + 'static) {
+    let mut tester = SearchTester::new(search_algo);
+
     // Quiescence search should be invoked immediately because the search depth is 0.
     // Expected: If there are no captures, the quiescence search equals the static evaluation
     let depth = 0;
@@ -122,7 +159,7 @@ fn search_quiescence(mut searcher: impl Search) {
     ));
     assert_eq!(
         Eval::eval(pos_history.current_pos()),
-        searcher.search(&mut pos_history, depth).score()
+        tester.search(pos_history.clone(), depth).score()
     );
 
     pos_history.do_move(Move::new(
@@ -132,19 +169,19 @@ fn search_quiescence(mut searcher: impl Search) {
     ));
     assert_eq!(
         Eval::eval(pos_history.current_pos()),
-        searcher.search(&mut pos_history, depth).score()
+        tester.search(pos_history.clone(), depth).score()
     );
 
     pos_history.do_move(Move::new(Square::G1, Square::F3, MoveType::QUIET));
     assert_eq!(
         Eval::eval(pos_history.current_pos()),
-        searcher.search(&mut pos_history, depth).score()
+        tester.search(pos_history.clone(), depth).score()
     );
 
     pos_history.do_move(Move::new(Square::D7, Square::D6, MoveType::QUIET));
     assert_eq!(
         Eval::eval(pos_history.current_pos()),
-        searcher.search(&mut pos_history, depth).score()
+        tester.search(pos_history.clone(), depth).score()
     );
 
     pos_history.do_move(Move::new(
@@ -170,26 +207,30 @@ fn search_quiescence(mut searcher: impl Search) {
         .iter()
         .max()
         .unwrap();
-    assert_eq!(score, searcher.search(&mut pos_history, depth).score());
+    assert_eq!(score, tester.search(pos_history.clone(), depth).score());
 
     pos_history.do_move(Move::new(Square::F3, Square::D4, MoveType::CAPTURE));
     assert_eq!(
         Eval::eval(pos_history.current_pos()),
-        searcher.search(&mut pos_history, depth).score()
+        tester.search(pos_history.clone(), depth).score()
     );
 }
 
 #[test]
 #[ignore]
-fn negamax_search_result_independent_of_transposition_table_size() {
+fn negamax_search_results_independent_of_transposition_table_size() {
+    // Expected: The search result should be the same for different table sizes. The
+    // transposition table should only improve the performance of the search, but not the
+    // evaluation or the best move.
+
     let max_table_idx_bits = TABLE_IDX_BITS;
     let min_depth = 1;
     let max_depth = 2;
     let mut searchers = Vec::new();
     for table_idx_bits in 1..=max_table_idx_bits {
-        searchers.push(Negamax::new(table_idx_bits));
+        searchers.push(SearchTester::new(Negamax::new(table_idx_bits)));
     }
-    search_result_independent_of_transposition_table_size(min_depth, max_depth, searchers);
+    search_results_equal(min_depth, max_depth, searchers);
 }
 
 #[test]
@@ -218,15 +259,19 @@ fn negamax_search_quiescence() {
 
 #[test]
 #[ignore]
-fn alpha_beta_search_result_independent_of_transposition_table_size() {
+fn alpha_beta_search_results_independent_of_transposition_table_size() {
+    // Expected: The search result should be the same for different table sizes. The
+    // transposition table should only improve the performance of the search, but not the
+    // evaluation or the best move.
+
     let max_table_idx_bits = TABLE_IDX_BITS;
     let min_depth = 1;
     let max_depth = 5;
     let mut searchers = Vec::new();
     for table_idx_bits in 1..=max_table_idx_bits {
-        searchers.push(AlphaBeta::new(table_idx_bits));
+        searchers.push(SearchTester::new(AlphaBeta::new(table_idx_bits)));
     }
-    search_result_independent_of_transposition_table_size(min_depth, max_depth, searchers);
+    search_results_equal(min_depth, max_depth, searchers);
 }
 
 #[test]

@@ -1,4 +1,4 @@
-use crate::search::{Search, SearchResult};
+use crate::search::{Search, SearchCommand, SearchInfo, SearchResult, MAX_SEARCH_DEPTH};
 use eval::eval::{Eval, Score, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF};
 use movegen::move_generator::MoveGenerator;
 use movegen::position_history::PositionHistory;
@@ -8,6 +8,7 @@ use movegen::transposition_table::TranspositionTable;
 use movegen::zobrist::Zobrist;
 use std::cmp;
 use std::ops::Neg;
+use std::sync::mpsc;
 
 #[derive(Clone, Copy, Debug)]
 struct NegamaxTableEntry {
@@ -18,7 +19,7 @@ struct NegamaxTableEntry {
 
 impl NegamaxTableEntry {
     fn new(depth: usize, score: Score, best_move: Move) -> Self {
-        debug_assert!(depth < 256);
+        debug_assert!(depth <= MAX_SEARCH_DEPTH);
         Self {
             depth: depth as u8,
             score,
@@ -53,12 +54,38 @@ pub struct Negamax {
 }
 
 impl Search for Negamax {
-    fn search(&mut self, pos_history: &mut PositionHistory, depth: usize) -> SearchResult {
-        let node = match pos_history.current_pos().side_to_move() {
-            Side::White => self.search_recursive(pos_history, depth),
-            Side::Black => -self.search_recursive(pos_history, depth),
-        };
-        SearchResult::new(depth, node.score(), node.best_move())
+    fn search(
+        &mut self,
+        pos_history: &mut PositionHistory,
+        command_receiver: &mut mpsc::Receiver<SearchCommand>,
+        info_sender: &mut mpsc::Sender<SearchInfo>,
+    ) {
+        for depth in 0..=MAX_SEARCH_DEPTH {
+            if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
+                break;
+            }
+
+            match self.search_recursive(pos_history, depth, command_receiver, info_sender) {
+                Some(rel_negamax_res) => {
+                    let abs_negamax_res = match pos_history.current_pos().side_to_move() {
+                        Side::White => rel_negamax_res,
+                        Side::Black => -rel_negamax_res,
+                    };
+                    let search_res = SearchResult::new(
+                        depth,
+                        abs_negamax_res.score(),
+                        abs_negamax_res.best_move(),
+                    );
+                    info_sender
+                        .send(SearchInfo::SearchFinished(search_res))
+                        .expect("Error sending SearchInfo");
+                }
+                None => break,
+            }
+        }
+        info_sender
+            .send(SearchInfo::Stopped)
+            .expect("Error sending SearchInfo");
     }
 }
 
@@ -74,19 +101,25 @@ impl Negamax {
         &mut self,
         pos_history: &mut PositionHistory,
         depth: usize,
-    ) -> NegamaxTableEntry {
+        command_receiver: &mut mpsc::Receiver<SearchCommand>,
+        info_sender: &mut mpsc::Sender<SearchInfo>,
+    ) -> Option<NegamaxTableEntry> {
+        if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
+            return None;
+        }
+
         let pos = pos_history.current_pos();
         let pos_hash = pos_history.current_pos_hash();
 
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
-            return *entry;
+            return Some(*entry);
         }
 
         let mut best_score = NEGATIVE_INF;
         let mut best_move = Move::NULL;
 
         match depth {
-            0 => self.search_quiescence(pos_history),
+            0 => Some(self.search_quiescence(pos_history)),
             _ => {
                 let mut move_list = MoveList::new();
                 MoveGenerator::generate_moves(&mut move_list, pos);
@@ -102,22 +135,34 @@ impl Negamax {
                 } else {
                     for m in move_list.iter() {
                         pos_history.do_move(*m);
-                        let search_result = -self.search_recursive(pos_history, depth - 1);
-                        let score = search_result.score();
+                        let opt_neg_res = self.search_recursive(
+                            pos_history,
+                            depth - 1,
+                            command_receiver,
+                            info_sender,
+                        );
                         pos_history.undo_last_move();
 
-                        if score > best_score {
-                            best_score = score;
-                            best_move = *m;
+                        match opt_neg_res {
+                            Some(neg_search_res) => {
+                                let search_result = -neg_search_res;
+                                let score = search_result.score();
+                                if score > best_score {
+                                    best_score = score;
+                                    best_move = *m;
+                                }
+                            }
+                            None => return None,
                         }
+
+                        let node = NegamaxTableEntry::new(depth, best_score, best_move);
+                        self.update_table(pos_hash, node);
                     }
-                    let node = NegamaxTableEntry::new(depth, best_score, best_move);
-                    self.update_table(pos_hash, node);
                 }
                 debug_assert!(self.transpos_table.get(&pos_hash).is_some());
                 let node = NegamaxTableEntry::new(depth, best_score, best_move);
                 self.update_table(pos_hash, node);
-                node
+                Some(node)
             }
         }
     }
