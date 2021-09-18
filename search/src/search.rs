@@ -3,6 +3,9 @@ use movegen::position_history::PositionHistory;
 use movegen::r#move::Move;
 use std::fmt;
 use std::ops::Neg;
+use std::sync::mpsc;
+
+pub const MAX_SEARCH_DEPTH: usize = u8::MAX as usize;
 
 #[derive(Debug, PartialEq)]
 pub struct SearchResult {
@@ -13,7 +16,7 @@ pub struct SearchResult {
 
 impl SearchResult {
     pub fn new(depth: usize, score: Score, best_move: Move) -> SearchResult {
-        debug_assert!(depth < 256);
+        debug_assert!(depth <= MAX_SEARCH_DEPTH);
         SearchResult {
             depth: depth as u8,
             score,
@@ -21,7 +24,7 @@ impl SearchResult {
         }
     }
 
-    fn depth(&self) -> usize {
+    pub fn depth(&self) -> usize {
         self.depth as usize
     }
 
@@ -55,6 +58,25 @@ impl fmt::Display for SearchResult {
     }
 }
 
+#[derive(Debug)]
+pub enum SearchCommand {
+    Search(PositionHistory),
+    Stop,
+    Terminate,
+}
+
+#[derive(Debug)]
+pub enum SearchInfo {
+    SearchFinished(SearchResult),
+    Stopped,
+    Terminated,
+}
+
 pub trait Search {
-    fn search(&mut self, pos_history: &mut PositionHistory, depth: usize) -> SearchResult;
+    fn search(
+        &mut self,
+        pos_history: &mut PositionHistory,
+        command_receiver: &mut mpsc::Receiver<SearchCommand>,
+        info_sender: &mut mpsc::Sender<SearchInfo>,
+    );
 }

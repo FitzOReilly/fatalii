@@ -1,4 +1,4 @@
-use crate::search::{Search, SearchResult};
+use crate::search::{Search, SearchCommand, SearchInfo, SearchResult, MAX_SEARCH_DEPTH};
 use eval::eval::{Eval, Score, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF, POSITIVE_INF};
 use movegen::move_generator::MoveGenerator;
 use movegen::position_history::PositionHistory;
@@ -7,6 +7,7 @@ use movegen::side::Side;
 use movegen::transposition_table::TranspositionTable;
 use movegen::zobrist::Zobrist;
 use std::ops::Neg;
+use std::sync::mpsc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -26,7 +27,7 @@ struct AlphaBetaTableEntry {
 
 impl AlphaBetaTableEntry {
     fn new(depth: usize, score: Score, score_type: ScoreType, best_move: Move) -> Self {
-        debug_assert!(depth < 256);
+        debug_assert!(depth <= MAX_SEARCH_DEPTH);
         Self {
             depth: depth as u8,
             score,
@@ -72,13 +73,46 @@ pub struct AlphaBeta {
 }
 
 impl Search for AlphaBeta {
-    fn search(&mut self, pos_history: &mut PositionHistory, depth: usize) -> SearchResult {
-        let ab_node = match pos_history.current_pos().side_to_move() {
-            Side::White => self.search_recursive(pos_history, depth, NEGATIVE_INF, POSITIVE_INF),
-            Side::Black => -self.search_recursive(pos_history, depth, NEGATIVE_INF, POSITIVE_INF),
-        };
-        debug_assert_eq!(ScoreType::Exact, ab_node.score_type());
-        SearchResult::new(depth, ab_node.score(), ab_node.best_move())
+    fn search(
+        &mut self,
+        pos_history: &mut PositionHistory,
+        command_receiver: &mut mpsc::Receiver<SearchCommand>,
+        info_sender: &mut mpsc::Sender<SearchInfo>,
+    ) {
+        for depth in 0..=MAX_SEARCH_DEPTH {
+            if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
+                break;
+            }
+
+            match self.search_recursive(
+                pos_history,
+                depth,
+                NEGATIVE_INF,
+                POSITIVE_INF,
+                command_receiver,
+                info_sender,
+            ) {
+                Some(rel_alpha_beta_res) => {
+                    let abs_alpha_beta_res = match pos_history.current_pos().side_to_move() {
+                        Side::White => rel_alpha_beta_res,
+                        Side::Black => -rel_alpha_beta_res,
+                    };
+                    debug_assert_eq!(ScoreType::Exact, abs_alpha_beta_res.score_type());
+                    let search_res = SearchResult::new(
+                        depth,
+                        abs_alpha_beta_res.score(),
+                        abs_alpha_beta_res.best_move(),
+                    );
+                    info_sender
+                        .send(SearchInfo::SearchFinished(search_res))
+                        .expect("Error sending SearchInfo");
+                }
+                None => break,
+            }
+        }
+        info_sender
+            .send(SearchInfo::Stopped)
+            .expect("Error sending SearchInfo");
     }
 }
 
@@ -123,13 +157,19 @@ impl AlphaBeta {
         depth: usize,
         mut alpha: Score,
         beta: Score,
-    ) -> AlphaBetaTableEntry {
+        command_receiver: &mut mpsc::Receiver<SearchCommand>,
+        info_sender: &mut mpsc::Sender<SearchInfo>,
+    ) -> Option<AlphaBetaTableEntry> {
+        if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
+            return None;
+        }
+
         let pos = pos_history.current_pos();
         let pos_hash = pos_history.current_pos_hash();
 
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             if let Some(bounded) = self.bound_hard(entry, alpha, beta) {
-                return bounded;
+                return Some(bounded);
             }
         }
 
@@ -137,7 +177,7 @@ impl AlphaBeta {
         let mut best_move = Move::NULL;
 
         match depth {
-            0 => self.search_quiescence(pos_history, alpha, beta),
+            0 => Some(self.search_quiescence(pos_history, alpha, beta)),
             _ => {
                 let mut move_list = MoveList::new();
                 MoveGenerator::generate_moves(&mut move_list, pos);
@@ -155,7 +195,7 @@ impl AlphaBeta {
                             Move::NULL,
                         );
                         self.update_table(pos_hash, node);
-                        return node;
+                        return Some(node);
                     }
                     if score < alpha {
                         let node = AlphaBetaTableEntry::new(
@@ -165,29 +205,45 @@ impl AlphaBeta {
                             Move::NULL,
                         );
                         self.update_table(pos_hash, node);
-                        return node;
+                        return Some(node);
                     }
                     let node = AlphaBetaTableEntry::new(depth, score, ScoreType::Exact, Move::NULL);
                     self.update_table(pos_hash, node);
-                    node
+                    Some(node)
                 } else {
                     for m in move_list.iter() {
                         pos_history.do_move(*m);
-                        let search_result =
-                            -self.search_recursive(pos_history, depth - 1, -beta, -alpha);
-                        let score = search_result.score();
+                        let opt_neg_res = self.search_recursive(
+                            pos_history,
+                            depth - 1,
+                            -beta,
+                            -alpha,
+                            command_receiver,
+                            info_sender,
+                        );
                         pos_history.undo_last_move();
 
-                        if score >= beta {
-                            let node =
-                                AlphaBetaTableEntry::new(depth, beta, ScoreType::LowerBound, *m);
-                            self.update_table(pos_hash, node);
-                            return node;
-                        }
-                        if score > alpha {
-                            alpha = score;
-                            score_type = ScoreType::Exact;
-                            best_move = *m;
+                        match opt_neg_res {
+                            Some(neg_search_res) => {
+                                let search_res = -neg_search_res;
+                                let score = search_res.score();
+                                if score >= beta {
+                                    let node = AlphaBetaTableEntry::new(
+                                        depth,
+                                        beta,
+                                        ScoreType::LowerBound,
+                                        *m,
+                                    );
+                                    self.update_table(pos_hash, node);
+                                    return Some(node);
+                                }
+                                if score > alpha {
+                                    alpha = score;
+                                    score_type = ScoreType::Exact;
+                                    best_move = *m;
+                                }
+                            }
+                            None => return None,
                         }
                     }
                     debug_assert!(
@@ -195,7 +251,7 @@ impl AlphaBeta {
                     );
                     let node = AlphaBetaTableEntry::new(depth, alpha, score_type, best_move);
                     self.update_table(pos_hash, node);
-                    node
+                    Some(node)
                 }
             }
         }
