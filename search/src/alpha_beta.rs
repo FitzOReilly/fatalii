@@ -104,7 +104,7 @@ impl Search for AlphaBeta {
                         abs_alpha_beta_res.best_move(),
                     );
                     info_sender
-                        .send(SearchInfo::SearchFinished(search_res))
+                        .send(SearchInfo::DepthFinished(search_res))
                         .expect("Error sending SearchInfo");
                 }
                 None => break,
