@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "engine",
     "eval",
     "movegen",
     "perft",
