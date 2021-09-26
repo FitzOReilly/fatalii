@@ -3,7 +3,7 @@ use search::alpha_beta::AlphaBeta;
 use std::io::Write;
 use std::str;
 use uci::parser::Parser;
-use uci::uci_in::uci as cmd_uci;
+use uci::uci_in::{is_ready, uci as cmd_uci};
 
 const TABLE_IDX_BITS: usize = 16;
 
@@ -51,5 +51,21 @@ fn run_command_uci() {
     let out = str::from_utf8(&test_writer).unwrap();
     assert!(out.contains("id name"));
     assert!(out.contains("id author"));
-    assert!(out.contains("uciok"));
+    assert!(out.contains("uciok\n"));
+}
+
+#[test]
+fn run_command_isready() {
+    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let mut engine = Engine::new(search_algo);
+    let mut test_writer = Vec::new();
+    let mut p = Parser::new(&mut test_writer);
+
+    p.register_command(String::from("isready"), Box::new(is_ready::run_command));
+
+    assert!(p.run_command("isready invalid\n", &mut engine).is_err());
+    assert!(p.run_command("isready\n", &mut engine).is_ok());
+
+    let out = str::from_utf8(&test_writer).unwrap();
+    assert_eq!("readyok\n", out);
 }
