@@ -11,10 +11,10 @@ pub struct Searcher {
 }
 
 impl Searcher {
-    pub fn search(&self, pos_hist: PositionHistory) {
+    pub fn search(&self, pos_hist: PositionHistory, depth: usize) {
         self.stop();
         self.command_sender
-            .send(SearchCommand::Search(pos_hist))
+            .send(SearchCommand::Search(pos_hist, depth))
             .expect("Error sending SearchCommand");
     }
 
@@ -80,10 +80,11 @@ impl Worker {
                 .expect("Error receiving SearchCommand");
 
             match message {
-                SearchCommand::Search(pos_hist) => {
+                SearchCommand::Search(pos_hist, depth) => {
                     Self::search(
                         &mut search_algo,
                         pos_hist,
+                        depth,
                         &mut command_receiver,
                         &mut info_sender,
                     );
@@ -100,10 +101,11 @@ impl Worker {
     fn search(
         search: &mut impl Search,
         mut pos_hist: PositionHistory,
+        depth: usize,
         command_receiver: &mut mpsc::Receiver<SearchCommand>,
         info_sender: &mut mpsc::Sender<SearchInfo>,
     ) {
-        search.search(&mut pos_hist, command_receiver, info_sender);
+        search.search(&mut pos_hist, depth, command_receiver, info_sender);
     }
 }
 

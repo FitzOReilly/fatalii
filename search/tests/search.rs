@@ -34,7 +34,7 @@ impl SearchTester {
     }
 
     fn search(&mut self, pos_hist: PositionHistory, depth: usize) -> SearchResult {
-        self.searcher.search(pos_hist);
+        self.searcher.search(pos_hist, depth);
         loop {
             let search_result = match self.result_receiver.recv_timeout(TIMEOUT_PER_TEST) {
                 Ok(SearchInfo::DepthFinished(res)) => res,
