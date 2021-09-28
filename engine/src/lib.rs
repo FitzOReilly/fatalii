@@ -1,7 +1,7 @@
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::Move;
-use search::search::{Search, SearchInfo};
+use search::search::{Search, SearchInfo, MAX_SEARCH_DEPTH};
 use search::searcher::Searcher;
 use std::error::Error;
 use std::fmt;
@@ -54,14 +54,18 @@ impl Engine {
         self.pos_hist = pos_hist;
     }
 
-    pub fn search(&mut self) -> Result<(), EngineError> {
+    pub fn search(&mut self, depth: usize) -> Result<(), EngineError> {
         match &self.pos_hist {
             Some(pos_hist) => {
-                self.searcher.search(pos_hist.clone());
+                self.searcher.search(pos_hist.clone(), depth);
                 Ok(())
             }
             None => Err(EngineError::SearchWithoutPosition),
         }
+    }
+
+    pub fn search_infinite(&mut self) -> Result<(), EngineError> {
+        self.search(MAX_SEARCH_DEPTH)
     }
 
     pub fn stop(&mut self) {

@@ -57,10 +57,11 @@ impl Search for Negamax {
     fn search(
         &mut self,
         pos_history: &mut PositionHistory,
+        depth: usize,
         command_receiver: &mut mpsc::Receiver<SearchCommand>,
         info_sender: &mut mpsc::Sender<SearchInfo>,
     ) {
-        for depth in 0..=MAX_SEARCH_DEPTH {
+        for depth in 0..=depth {
             if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
                 break;
             }
