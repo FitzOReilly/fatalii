@@ -188,26 +188,6 @@ impl AlphaBeta {
                     } else {
                         EQUAL_POSITION
                     };
-                    if score >= beta {
-                        let node = AlphaBetaTableEntry::new(
-                            depth,
-                            beta,
-                            ScoreType::LowerBound,
-                            Move::NULL,
-                        );
-                        self.update_table(pos_hash, node);
-                        return Some(node);
-                    }
-                    if score < alpha {
-                        let node = AlphaBetaTableEntry::new(
-                            depth,
-                            alpha,
-                            ScoreType::UpperBound,
-                            Move::NULL,
-                        );
-                        self.update_table(pos_hash, node);
-                        return Some(node);
-                    }
                     let node = AlphaBetaTableEntry::new(depth, score, ScoreType::Exact, Move::NULL);
                     self.update_table(pos_hash, node);
                     Some(node)
@@ -296,17 +276,6 @@ impl AlphaBeta {
             } else {
                 EQUAL_POSITION
             };
-            if score >= beta {
-                let node = AlphaBetaTableEntry::new(depth, beta, ScoreType::LowerBound, Move::NULL);
-                self.update_table(pos_hash, node);
-                return node;
-            }
-            if score < alpha {
-                let node =
-                    AlphaBetaTableEntry::new(depth, alpha, ScoreType::UpperBound, Move::NULL);
-                self.update_table(pos_hash, node);
-                return node;
-            }
             let node = AlphaBetaTableEntry::new(depth, score, ScoreType::Exact, Move::NULL);
             self.update_table(pos_hash, node);
             node
