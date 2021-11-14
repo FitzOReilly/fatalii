@@ -1,4 +1,5 @@
 use crate::search::{Search, SearchCommand, SearchInfo, SearchResult, MAX_SEARCH_DEPTH};
+use crossbeam_channel::{Receiver, Sender};
 use eval::eval::{Eval, Score, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF, POSITIVE_INF};
 use movegen::move_generator::MoveGenerator;
 use movegen::position_history::PositionHistory;
@@ -7,7 +8,6 @@ use movegen::side::Side;
 use movegen::transposition_table::TranspositionTable;
 use movegen::zobrist::Zobrist;
 use std::ops::Neg;
-use std::sync::mpsc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -77,8 +77,8 @@ impl Search for AlphaBeta {
         &mut self,
         pos_history: &mut PositionHistory,
         depth: usize,
-        command_receiver: &mut mpsc::Receiver<SearchCommand>,
-        info_sender: &mut mpsc::Sender<SearchInfo>,
+        command_receiver: &mut Receiver<SearchCommand>,
+        info_sender: &mut Sender<SearchInfo>,
     ) {
         for depth in 0..=depth {
             if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
@@ -158,8 +158,8 @@ impl AlphaBeta {
         depth: usize,
         mut alpha: Score,
         beta: Score,
-        command_receiver: &mut mpsc::Receiver<SearchCommand>,
-        info_sender: &mut mpsc::Sender<SearchInfo>,
+        command_receiver: &mut Receiver<SearchCommand>,
+        info_sender: &mut Sender<SearchInfo>,
     ) -> Option<AlphaBetaTableEntry> {
         if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
             return None;

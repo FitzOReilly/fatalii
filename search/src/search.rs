@@ -1,9 +1,9 @@
+use crossbeam_channel::{Receiver, Sender};
 use eval::eval::Score;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::Move;
 use std::fmt;
 use std::ops::Neg;
-use std::sync::mpsc;
 
 pub const MAX_SEARCH_DEPTH: usize = u8::MAX as usize;
 
@@ -87,7 +87,7 @@ pub trait Search {
         &mut self,
         pos_history: &mut PositionHistory,
         depth: usize,
-        command_receiver: &mut mpsc::Receiver<SearchCommand>,
-        info_sender: &mut mpsc::Sender<SearchInfo>,
+        command_receiver: &mut Receiver<SearchCommand>,
+        info_sender: &mut Sender<SearchInfo>,
     );
 }

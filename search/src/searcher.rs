@@ -1,11 +1,12 @@
 use crate::search::{Search, SearchCommand, SearchInfo};
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use movegen::position_history::PositionHistory;
-use std::sync::mpsc;
+
 use std::thread;
 
 pub struct Searcher {
-    command_sender: mpsc::Sender<SearchCommand>,
-    info_sender: mpsc::Sender<SearchInfo>,
+    command_sender: Sender<SearchCommand>,
+    info_sender: Sender<SearchInfo>,
     worker: Worker,
     search_info_handler: SearchInfoHandler,
 }
@@ -28,8 +29,8 @@ impl Searcher {
         search_algo: impl Search + Send + 'static,
         info_callback: Box<dyn Fn(SearchInfo) + Send>,
     ) -> Self {
-        let (command_sender, command_receiver) = mpsc::channel();
-        let (info_sender, info_receiver) = mpsc::channel();
+        let (command_sender, command_receiver) = unbounded();
+        let (info_sender, info_receiver) = unbounded();
 
         let worker = Worker::new(search_algo, command_receiver, info_sender.clone());
         let search_info_handler = SearchInfoHandler::new(info_receiver, info_callback);
@@ -71,8 +72,8 @@ struct Worker {
 impl Worker {
     fn new(
         mut search_algo: impl Search + Send + 'static,
-        mut command_receiver: mpsc::Receiver<SearchCommand>,
-        mut info_sender: mpsc::Sender<SearchInfo>,
+        mut command_receiver: Receiver<SearchCommand>,
+        mut info_sender: Sender<SearchInfo>,
     ) -> Self {
         let thread = thread::spawn(move || loop {
             let message = command_receiver
@@ -102,8 +103,8 @@ impl Worker {
         search: &mut impl Search,
         mut pos_hist: PositionHistory,
         depth: usize,
-        command_receiver: &mut mpsc::Receiver<SearchCommand>,
-        info_sender: &mut mpsc::Sender<SearchInfo>,
+        command_receiver: &mut Receiver<SearchCommand>,
+        info_sender: &mut Sender<SearchInfo>,
     ) {
         search.search(&mut pos_hist, depth, command_receiver, info_sender);
     }
@@ -115,7 +116,7 @@ struct SearchInfoHandler {
 
 impl SearchInfoHandler {
     fn new(
-        info_receiver: mpsc::Receiver<SearchInfo>,
+        info_receiver: Receiver<SearchInfo>,
         info_callback: Box<dyn Fn(SearchInfo) + Send>,
     ) -> Self {
         let thread = thread::spawn(move || loop {
