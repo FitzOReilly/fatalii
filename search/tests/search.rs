@@ -1,3 +1,4 @@
+use crossbeam_channel::{unbounded, Receiver};
 use eval::eval::{Eval, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION};
 use movegen::piece;
 use movegen::position::Position;
@@ -9,7 +10,6 @@ use search::alpha_beta::AlphaBeta;
 use search::negamax::Negamax;
 use search::search::{Search, SearchInfo, SearchResult};
 use search::searcher::Searcher;
-use std::sync::mpsc;
 use std::time::Duration;
 
 const TABLE_IDX_BITS: usize = 16;
@@ -17,12 +17,12 @@ const TIMEOUT_PER_TEST: Duration = Duration::from_millis(10000);
 
 struct SearchTester {
     searcher: Searcher,
-    result_receiver: mpsc::Receiver<SearchInfo>,
+    result_receiver: Receiver<SearchInfo>,
 }
 
 impl SearchTester {
     fn new(search_algo: impl Search + Send + 'static) -> SearchTester {
-        let (sender, receiver) = mpsc::channel();
+        let (sender, receiver) = unbounded();
         let info_callback = Box::new(move |search_info| {
             sender.send(search_info).unwrap();
         });

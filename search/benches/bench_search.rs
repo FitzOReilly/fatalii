@@ -1,23 +1,23 @@
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput};
+use crossbeam_channel::{unbounded, Receiver};
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 use search::alpha_beta::AlphaBeta;
 use search::negamax::Negamax;
 use search::search::{Search, SearchInfo, SearchResult};
 use search::searcher::Searcher;
-use std::sync::mpsc;
 use std::time::Duration;
 
 const TIMEOUT_PER_BENCH: Duration = Duration::from_millis(10000);
 
 struct SearchBencher {
     searcher: Searcher,
-    result_receiver: mpsc::Receiver<SearchInfo>,
+    result_receiver: Receiver<SearchInfo>,
 }
 
 impl SearchBencher {
     fn new(search_algo: impl Search + Send + 'static) -> SearchBencher {
-        let (sender, receiver) = mpsc::channel();
+        let (sender, receiver) = unbounded();
         let info_callback = Box::new(move |search_info| {
             sender.send(search_info).unwrap();
         });

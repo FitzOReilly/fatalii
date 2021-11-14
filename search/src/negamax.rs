@@ -1,4 +1,5 @@
 use crate::search::{Search, SearchCommand, SearchInfo, SearchResult, MAX_SEARCH_DEPTH};
+use crossbeam_channel::{Receiver, Sender};
 use eval::eval::{Eval, Score, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF};
 use movegen::move_generator::MoveGenerator;
 use movegen::position_history::PositionHistory;
@@ -8,7 +9,6 @@ use movegen::transposition_table::TranspositionTable;
 use movegen::zobrist::Zobrist;
 use std::cmp;
 use std::ops::Neg;
-use std::sync::mpsc;
 
 #[derive(Clone, Copy, Debug)]
 struct NegamaxTableEntry {
@@ -58,8 +58,8 @@ impl Search for Negamax {
         &mut self,
         pos_history: &mut PositionHistory,
         depth: usize,
-        command_receiver: &mut mpsc::Receiver<SearchCommand>,
-        info_sender: &mut mpsc::Sender<SearchInfo>,
+        command_receiver: &mut Receiver<SearchCommand>,
+        info_sender: &mut Sender<SearchInfo>,
     ) {
         for depth in 0..=depth {
             if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
@@ -102,8 +102,8 @@ impl Negamax {
         &mut self,
         pos_history: &mut PositionHistory,
         depth: usize,
-        command_receiver: &mut mpsc::Receiver<SearchCommand>,
-        info_sender: &mut mpsc::Sender<SearchInfo>,
+        command_receiver: &mut Receiver<SearchCommand>,
+        info_sender: &mut Sender<SearchInfo>,
     ) -> Option<NegamaxTableEntry> {
         if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
             return None;
