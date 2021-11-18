@@ -25,6 +25,10 @@ impl Searcher {
             .expect("Error sending SearchCommand");
     }
 
+    pub fn clone_command_sender(&self) -> Sender<SearchCommand> {
+        self.command_sender.clone()
+    }
+
     pub fn new(
         search_algo: impl Search + Send + 'static,
         info_callback: Box<dyn Fn(SearchInfo) + Send>,

@@ -1,6 +1,7 @@
 use engine::Engine;
 use movegen::fen::Fen;
 use movegen::position::Position;
+use movegen::r#move::Move;
 use search::alpha_beta::AlphaBeta;
 use std::io::Write;
 use std::str;
@@ -10,10 +11,14 @@ use uci::uci_in::{is_ready, position, uci as cmd_uci};
 const TABLE_IDX_BITS: usize = 16;
 const FEN_STR: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
 
+fn best_move_callback(m: Option<Move>) {
+    println!("Best move: {}", m.unwrap());
+}
+
 #[test]
 fn register_command() {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
-    let mut engine = Engine::new(search_algo);
+    let mut engine = Engine::new(search_algo, Box::new(best_move_callback));
     let mut test_writer = Vec::new();
     let mut p = Parser::new(&mut test_writer);
 
@@ -42,7 +47,7 @@ fn register_command() {
 #[test]
 fn run_command_uci() {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
-    let mut engine = Engine::new(search_algo);
+    let mut engine = Engine::new(search_algo, Box::new(best_move_callback));
     let mut test_writer = Vec::new();
     let mut p = Parser::new(&mut test_writer);
 
@@ -60,7 +65,7 @@ fn run_command_uci() {
 #[test]
 fn run_command_isready() {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
-    let mut engine = Engine::new(search_algo);
+    let mut engine = Engine::new(search_algo, Box::new(best_move_callback));
     let mut test_writer = Vec::new();
     let mut p = Parser::new(&mut test_writer);
 
@@ -76,7 +81,7 @@ fn run_command_isready() {
 #[test]
 fn run_command_position() {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
-    let mut engine = Engine::new(search_algo);
+    let mut engine = Engine::new(search_algo, Box::new(best_move_callback));
     let mut test_writer = Vec::new();
     let mut p = Parser::new(&mut test_writer);
 
