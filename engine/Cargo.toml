@@ -7,5 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+crossbeam-channel = "0.5"
 movegen = { path = "../movegen" }
 search = { path = "../search" }
+
+[dev-dependencies]
+more-asserts = "0.2"

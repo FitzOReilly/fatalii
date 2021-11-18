@@ -13,7 +13,7 @@ use search::searcher::Searcher;
 use std::time::Duration;
 
 const TABLE_IDX_BITS: usize = 16;
-const TIMEOUT_PER_TEST: Duration = Duration::from_millis(10000);
+const TIMEOUT_PER_TEST: Duration = Duration::from_millis(30000);
 
 struct SearchTester {
     searcher: Searcher,
