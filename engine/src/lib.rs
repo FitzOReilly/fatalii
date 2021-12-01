@@ -35,7 +35,7 @@ pub struct Engine {
 impl Engine {
     pub fn new(
         search_algo: impl Search + Send + 'static,
-        best_move_callback: Box<dyn Fn(Option<Move>) + Send>,
+        mut best_move_callback: Box<dyn FnMut(Option<Move>) + Send>,
     ) -> Self {
         let best_move = Arc::new(Mutex::new(None));
         let (timer_sender, timer_receiver) = unbounded();
@@ -51,9 +51,7 @@ impl Engine {
                     // Make sure that the timer is stopped. This is for cases in which the search
                     // finished earlier than the given time, e.g. checkmate positions.
                     Ok(m) => {
-                        timer_sender_clone
-                            .send(TimerCommand::Stop)
-                            .expect("Error sending TimerCommand");
+                        let _ = timer_sender_clone.send(TimerCommand::Stop);
                         best_move_callback(*m);
                     }
                     Err(e) => panic!("{}", e),
@@ -90,6 +88,19 @@ impl Engine {
         self.pos_hist = pos_hist;
     }
 
+    pub fn search(
+        &mut self,
+        max_depth: Option<usize>,
+        max_dur: Option<Duration>,
+    ) -> Result<(), EngineError> {
+        let depth = max_depth.unwrap_or(MAX_SEARCH_DEPTH);
+        let res = self.search_depth(depth);
+        if let Some(dur) = max_dur {
+            self.start_timer(dur);
+        }
+        res
+    }
+
     pub fn search_depth(&mut self, depth: usize) -> Result<(), EngineError> {
         match &self.pos_hist {
             Some(pos_hist) => {
@@ -103,9 +114,7 @@ impl Engine {
     pub fn search_timeout(&mut self, dur: Duration) -> Result<(), EngineError> {
         let res = self.search_infinite();
         if res.is_ok() {
-            self.timer_sender
-                .send(TimerCommand::Start(dur))
-                .expect("Error sending TimerCommand");
+            self.start_timer(dur);
         };
         res
     }
@@ -114,10 +123,8 @@ impl Engine {
         self.search_depth(MAX_SEARCH_DEPTH)
     }
 
-    pub fn stop(&mut self) {
-        self.timer_sender
-            .send(TimerCommand::Stop)
-            .expect("Error sending TimerCommand");
+    pub fn stop(&self) {
+        self.stop_timer();
         self.searcher.stop();
     }
 
@@ -125,6 +132,18 @@ impl Engine {
         self.pos_hist
             .as_ref()
             .map(|pos_hist| pos_hist.current_pos())
+    }
+
+    fn start_timer(&self, dur: Duration) {
+        self.timer_sender
+            .send(TimerCommand::Start(dur))
+            .expect("Error sending TimerCommand");
+    }
+
+    fn stop_timer(&self) {
+        self.timer_sender
+            .send(TimerCommand::Stop)
+            .expect("Error sending TimerCommand");
     }
 }
 

@@ -31,7 +31,7 @@ impl Searcher {
 
     pub fn new(
         search_algo: impl Search + Send + 'static,
-        info_callback: Box<dyn Fn(SearchInfo) + Send>,
+        info_callback: Box<dyn FnMut(SearchInfo) + Send>,
     ) -> Self {
         let (command_sender, command_receiver) = unbounded();
         let (info_sender, info_receiver) = unbounded();
@@ -121,7 +121,7 @@ struct SearchInfoHandler {
 impl SearchInfoHandler {
     fn new(
         info_receiver: Receiver<SearchInfo>,
-        info_callback: Box<dyn Fn(SearchInfo) + Send>,
+        mut info_callback: Box<dyn FnMut(SearchInfo) + Send>,
     ) -> Self {
         let thread = thread::spawn(move || loop {
             match info_receiver.recv() {

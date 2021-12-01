@@ -3,16 +3,24 @@ use movegen::fen::Fen;
 use movegen::position::Position;
 use movegen::r#move::Move;
 use search::alpha_beta::AlphaBeta;
-use std::io::Write;
+use std::io::{stdout, Write};
 use std::str;
+use std::time::Duration;
 use uci::parser::Parser;
-use uci::uci_in::{is_ready, position, uci as cmd_uci};
+use uci::uci_in::{go, is_ready, position, stop, uci as cmd_uci};
+use uci::uci_out::best_move;
+
+mod test_buffer;
 
 const TABLE_IDX_BITS: usize = 16;
 const FEN_STR: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
 
 fn best_move_callback(m: Option<Move>) {
-    println!("Best move: {}", m.unwrap());
+    best_move::write(&mut stdout(), m).unwrap();
+}
+
+fn contains(v: Vec<u8>, s: &str) -> bool {
+    String::from_utf8(v).unwrap().contains(s)
 }
 
 #[test]
@@ -117,4 +125,67 @@ fn run_command_position() {
         .is_ok());
     let fen = "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2";
     assert_eq!(Fen::str_to_pos(fen).ok().as_ref(), engine.position());
+}
+
+#[test]
+fn run_command_go() {
+    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let mut test_writer = test_buffer::TestBuffer::new();
+
+    {
+        let mut test_writer_engine = test_writer.clone();
+        let mut test_writer_parser = test_writer.clone();
+        let best_move_callback =
+            Box::new(move |m| best_move::write(&mut test_writer_engine, m).unwrap());
+
+        let mut engine = Engine::new(search_algo, best_move_callback);
+        let mut p = Parser::new(&mut test_writer_parser);
+
+        p.register_command(String::from("position"), Box::new(position::run_command));
+        p.register_command(String::from("go"), Box::new(go::run_command));
+        p.register_command(String::from("stop"), Box::new(stop::run_command));
+
+        // Run "go" without setting a position
+        assert!(p.run_command("go invalid\n", &mut engine).is_err());
+        assert!(p.run_command("go\n", &mut engine).is_err());
+
+        // Run "go" with invalid options
+        assert!(p.run_command("position startpos\n", &mut engine).is_ok());
+        assert!(p.run_command("go invalid\n", &mut engine).is_err());
+        assert!(p.run_command("go depth\n", &mut engine).is_err());
+        assert!(p.run_command("go depth invalid\n", &mut engine).is_err());
+        assert!(p.run_command("go movetime\n", &mut engine).is_err());
+        assert!(p.run_command("go movetime invalid\n", &mut engine).is_err());
+        // Options must not appear more than once
+        assert!(p.run_command("go depth 3 depth 3\n", &mut engine).is_err());
+
+        // Run "go" followed by "stop" after setting a position
+        assert!(p.run_command("position startpos\n", &mut engine).is_ok());
+        assert!(p.run_command("go\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(200));
+        assert!(!contains(test_writer.split_off(0), "bestmove"));
+        assert!(p.run_command("stop\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(contains(test_writer.split_off(0), "bestmove"));
+
+        // Option "depth"
+        assert!(p.run_command("position startpos\n", &mut engine).is_ok());
+        assert!(p.run_command("go depth 3\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(200));
+        assert!(contains(test_writer.split_off(0), "bestmove"));
+
+        // Option "movetime"
+        assert!(p.run_command("position startpos\n", &mut engine).is_ok());
+        assert!(p.run_command("go movetime 100\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(200));
+        assert!(contains(test_writer.split_off(0), "bestmove"));
+
+        // Combine multiple options
+        assert!(p.run_command("position startpos\n", &mut engine).is_ok());
+        assert!(p
+            .run_command("go depth 3 movetime 100\n", &mut engine)
+            .is_ok());
+        std::thread::sleep(Duration::from_millis(200));
+        assert!(contains(test_writer.split_off(0), "bestmove"));
+    }
 }
