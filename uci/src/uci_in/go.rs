@@ -1,23 +1,9 @@
 use crate::parser::{split_first_word, UciError};
-use engine::Engine;
+use engine::{Engine, SearchOptions};
 use std::collections::HashSet;
 use std::error::Error;
 use std::io::Write;
 use std::time::Duration;
-
-struct GoOptions {
-    depth: Option<usize>,
-    movetime: Option<Duration>,
-}
-
-impl GoOptions {
-    fn new() -> Self {
-        Self {
-            depth: None,
-            movetime: None,
-        }
-    }
-}
 
 pub fn run_command(
     _writer: &mut dyn Write,
@@ -28,8 +14,8 @@ pub fn run_command(
     run(options, engine)
 }
 
-fn parse_options(args: &str) -> Result<GoOptions, Box<dyn Error>> {
-    let mut options = GoOptions::new();
+fn parse_options(args: &str) -> Result<SearchOptions, Box<dyn Error>> {
+    let mut options = SearchOptions::new();
     let mut seen_options = HashSet::new();
     let mut s = args;
     while let Some((cmd, tail)) = split_first_word(s) {
@@ -42,6 +28,10 @@ fn parse_options(args: &str) -> Result<GoOptions, Box<dyn Error>> {
         s = match cmd {
             "depth" => parse_leading_usize(tail, &mut options.depth)?,
             "movetime" => parse_leading_duration(tail, &mut options.movetime)?,
+            "infinite" => {
+                options.infinite = true;
+                tail
+            }
             _ => return Err(Box::new(UciError::InvalidArgument(format!("go {}", args)))),
         }
     }
@@ -76,8 +66,6 @@ fn parse_leading_duration<'a>(
     }
 }
 
-fn run(options: GoOptions, engine: &mut Engine) -> Result<(), Box<dyn Error>> {
-    engine
-        .search(options.depth, options.movetime)
-        .map_err(|e| e.into())
+fn run(options: SearchOptions, engine: &mut Engine) -> Result<(), Box<dyn Error>> {
+    engine.search(options).map_err(|e| e.into())
 }

@@ -13,6 +13,7 @@ impl TestBuffer {
         }
     }
 
+    #[allow(dead_code)]
     pub fn into_inner(self) -> Vec<u8> {
         Arc::try_unwrap(self.buf)
             .expect("More than one Arc refers to the inner Vec")
@@ -20,6 +21,7 @@ impl TestBuffer {
             .expect("Error accessing inner value of mutex")
     }
 
+    #[allow(dead_code)]
     pub fn into_string(self) -> String {
         String::from_utf8(self.into_inner()).expect("Error converting Vec<u8> to String")
     }

@@ -167,18 +167,39 @@ fn run_command_go() {
         assert!(p.run_command("stop\n", &mut engine).is_ok());
         std::thread::sleep(Duration::from_millis(10));
         assert!(contains(test_writer.split_off(0), "bestmove"));
+        assert!(p.run_command("stop\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(!contains(test_writer.split_off(0), "bestmove"));
 
         // Option "depth"
         assert!(p.run_command("position startpos\n", &mut engine).is_ok());
         assert!(p.run_command("go depth 3\n", &mut engine).is_ok());
         std::thread::sleep(Duration::from_millis(200));
         assert!(contains(test_writer.split_off(0), "bestmove"));
+        assert!(p.run_command("stop\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(!contains(test_writer.split_off(0), "bestmove"));
 
         // Option "movetime"
         assert!(p.run_command("position startpos\n", &mut engine).is_ok());
         assert!(p.run_command("go movetime 100\n", &mut engine).is_ok());
         std::thread::sleep(Duration::from_millis(200));
         assert!(contains(test_writer.split_off(0), "bestmove"));
+        assert!(p.run_command("stop\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(!contains(test_writer.split_off(0), "bestmove"));
+
+        // Option "infinite"
+        assert!(p.run_command("position startpos\n", &mut engine).is_ok());
+        assert!(p.run_command("go infinite\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(200));
+        assert!(!contains(test_writer.split_off(0), "bestmove"));
+        assert!(p.run_command("stop\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(contains(test_writer.split_off(0), "bestmove"));
+        assert!(p.run_command("stop\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(!contains(test_writer.split_off(0), "bestmove"));
 
         // Combine multiple options
         assert!(p.run_command("position startpos\n", &mut engine).is_ok());
@@ -187,5 +208,30 @@ fn run_command_go() {
             .is_ok());
         std::thread::sleep(Duration::from_millis(200));
         assert!(contains(test_writer.split_off(0), "bestmove"));
+        assert!(p.run_command("stop\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(!contains(test_writer.split_off(0), "bestmove"));
+
+        assert!(p.run_command("go depth 3 infinite\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(200));
+        assert!(!contains(test_writer.split_off(0), "bestmove"));
+        assert!(p.run_command("stop\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(contains(test_writer.split_off(0), "bestmove"));
+        assert!(p.run_command("stop\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(!contains(test_writer.split_off(0), "bestmove"));
+
+        assert!(p
+            .run_command("go movetime 100 infinite\n", &mut engine)
+            .is_ok());
+        std::thread::sleep(Duration::from_millis(200));
+        assert!(!contains(test_writer.split_off(0), "bestmove"));
+        assert!(p.run_command("stop\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(contains(test_writer.split_off(0), "bestmove"));
+        assert!(p.run_command("stop\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(10));
+        assert!(!contains(test_writer.split_off(0), "bestmove"));
     }
 }
