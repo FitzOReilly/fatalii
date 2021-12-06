@@ -1,4 +1,4 @@
-use crate::parser::{split_first_word, UciError};
+use crate::parser::{split_first_word, ParserMessage, UciError};
 use engine::{Engine, SearchOptions};
 use std::collections::HashSet;
 use std::error::Error;
@@ -9,7 +9,7 @@ pub fn run_command(
     _writer: &mut dyn Write,
     args: &str,
     engine: &mut Engine,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<Option<ParserMessage>, Box<dyn Error>> {
     let options = parse_options(args)?;
     run(options, engine)
 }
@@ -66,6 +66,12 @@ fn parse_leading_duration<'a>(
     }
 }
 
-fn run(options: SearchOptions, engine: &mut Engine) -> Result<(), Box<dyn Error>> {
-    engine.search(options).map_err(|e| e.into())
+fn run(
+    options: SearchOptions,
+    engine: &mut Engine,
+) -> Result<Option<ParserMessage>, Box<dyn Error>> {
+    match engine.search(options) {
+        Ok(_) => Ok(None),
+        Err(e) => Err(e.into()),
+    }
 }

@@ -1,4 +1,4 @@
-use crate::parser::{split_first_word, UciError};
+use crate::parser::{split_first_word, ParserMessage, UciError};
 use crate::uci_move::UciMove;
 use engine::Engine;
 use movegen::fen::Fen;
@@ -11,7 +11,7 @@ pub fn run_command(
     _writer: &mut dyn Write,
     args: &str,
     engine: &mut Engine,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<Option<ParserMessage>, Box<dyn Error>> {
     let (mut pos_hist, moves_str) = match split_first_word(args) {
         Some(("fen", tail)) => parse_fen(tail)?,
         Some(("startpos", tail)) => (PositionHistory::new(Pos::initial()), tail),
@@ -48,7 +48,7 @@ pub fn run_command(
     };
 
     engine.set_position_history(Some(pos_hist));
-    Ok(())
+    Ok(None)
 }
 
 fn parse_fen(args: &str) -> Result<(PositionHistory, &str), Box<dyn Error>> {

@@ -4,11 +4,17 @@ use std::error::Error;
 use std::fmt;
 use std::io::Write;
 
-type UciInputHandler = dyn Fn(&mut dyn Write, &str, &mut Engine) -> Result<(), Box<dyn Error>>;
+type UciInputHandler =
+    dyn Fn(&mut dyn Write, &str, &mut Engine) -> Result<Option<ParserMessage>, Box<dyn Error>>;
 
-pub struct Parser<'a> {
+#[derive(Debug, PartialEq, Eq)]
+pub enum ParserMessage {
+    Quit,
+}
+
+pub struct Parser {
     commands: HashMap<String, Box<UciInputHandler>>,
-    writer: &'a mut dyn Write,
+    writer: Box<dyn Write>,
 }
 
 #[derive(Debug)]
@@ -29,15 +35,19 @@ impl fmt::Display for UciError {
     }
 }
 
-impl<'a> Parser<'a> {
-    pub fn new(writer: &'a mut dyn Write) -> Self {
+impl Parser {
+    pub fn new(writer: Box<dyn Write>) -> Self {
         Self {
             commands: HashMap::new(),
             writer,
         }
     }
 
-    pub fn run_command(&mut self, s: &str, engine: &mut Engine) -> Result<(), Box<dyn Error + '_>> {
+    pub fn run_command(
+        &mut self,
+        s: &str,
+        engine: &mut Engine,
+    ) -> Result<Option<ParserMessage>, Box<dyn Error + '_>> {
         debug_assert!(s.ends_with('\n') || s.is_empty());
         // From the UCI specification:
         // If the engine or the GUI receives an unknown command or token it should just
@@ -49,7 +59,7 @@ impl<'a> Parser<'a> {
             }
             tail = args;
         }
-        Err(Box::new(UciError::UnknownCommand(s.to_string())))
+        Err(Box::new(UciError::UnknownCommand(s.trim_end().to_string())))
     }
 
     pub fn register_command(&mut self, cmd: String, handler: Box<UciInputHandler>) {
