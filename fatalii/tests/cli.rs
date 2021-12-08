@@ -14,12 +14,18 @@ fn test_cli() -> Result<()> {
     p.send_line("isready")?;
     p.exp_string("readyok")?;
 
+    p.send_line("ucinewgame")?;
+
     p.send_line("position startpos")?;
     p.send_line("go infinite")?;
     thread::sleep(Duration::from_millis(100));
     p.send_line("stop")?;
     thread::sleep(Duration::from_millis(10));
     p.exp_string("bestmove")?;
+
+    p.send_line("ucinewgame")?;
+    p.send_line("go infinite")?;
+    p.exp_string("Engine error")?;
 
     assert_matches!(p.process.status(), Some(WaitStatus::StillAlive));
     p.send_line("quit")?;

@@ -10,7 +10,7 @@ use std::io::{stdout, Write};
 use std::str;
 use std::time::Duration;
 use uci::parser::{Parser, ParserMessage};
-use uci::uci_in::{go, is_ready, position, quit, stop, uci as cmd_uci};
+use uci::uci_in::{go, is_ready, position, quit, stop, uci as cmd_uci, ucinewgame};
 use uci::uci_out::best_move;
 
 const TABLE_IDX_BITS: usize = 16;
@@ -125,6 +125,33 @@ fn run_command_position() {
         .is_ok());
     let fen = "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2";
     assert_eq!(Fen::str_to_pos(fen).ok().as_ref(), engine.position());
+}
+
+#[test]
+fn run_command_ucinewgame() {
+    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let mut engine = Engine::new(search_algo, Box::new(best_move_callback));
+    let test_writer = Vec::new();
+    let mut p = Parser::new(Box::new(test_writer));
+
+    p.register_command(String::from("position"), Box::new(position::run_command));
+    p.register_command(
+        String::from("ucinewgame"),
+        Box::new(ucinewgame::run_command),
+    );
+
+    assert_eq!(None, engine.position());
+
+    assert!(p.run_command("ucinewgame invalid\n", &mut engine).is_err());
+
+    assert!(p.run_command("ucinewgame\n", &mut engine).is_ok());
+    assert_eq!(None, engine.position());
+
+    assert!(p.run_command("position startpos\n", &mut engine).is_ok());
+    assert_eq!(Some(&Position::initial()), engine.position());
+
+    assert!(p.run_command("ucinewgame\n", &mut engine).is_ok());
+    assert_eq!(None, engine.position());
 }
 
 #[test]
