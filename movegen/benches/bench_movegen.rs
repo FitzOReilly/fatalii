@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput};
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
-use perft::performance_tester::PerformanceTester;
+use perft::PerformanceTester;
 
 fn perft_initial_position(c: &mut Criterion) {
     let min_depth = 0;

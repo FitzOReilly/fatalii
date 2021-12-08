@@ -1,6 +1,4 @@
-#[macro_use]
-extern crate assert_matches;
-
+use assert_matches::assert_matches;
 use rexpect::{errors::Result, process::wait::WaitStatus, spawn};
 use std::{thread, time::Duration};
 

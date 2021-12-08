@@ -1,8 +1,6 @@
-#[macro_use]
-extern crate more_asserts;
-
 use crossbeam_channel::unbounded;
 use engine::Engine;
+use more_asserts::assert_le;
 use movegen::piece::Piece;
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;

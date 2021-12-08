@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate bitflags;
-
 pub mod bishop;
 pub mod bitboard;
 pub mod fen;

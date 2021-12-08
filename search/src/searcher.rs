@@ -39,7 +39,7 @@ impl Searcher {
         let worker = Worker::new(search_algo, command_receiver, info_sender.clone());
         let search_info_handler = SearchInfoHandler::new(info_receiver, info_callback);
 
-        Searcher {
+        Self {
             command_sender,
             info_sender,
             worker,
@@ -98,7 +98,7 @@ impl Worker {
                 SearchCommand::Terminate => break,
             }
         });
-        Worker {
+        Self {
             thread: Some(thread),
         }
     }
@@ -130,7 +130,7 @@ impl SearchInfoHandler {
                 Err(_) => break,
             }
         });
-        SearchInfoHandler {
+        Self {
             thread: Some(thread),
         }
     }

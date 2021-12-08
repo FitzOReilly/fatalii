@@ -1,3 +1,5 @@
+mod test_buffer;
+
 use crate::test_buffer::TestBuffer;
 use engine::Engine;
 use movegen::fen::Fen;
@@ -10,8 +12,6 @@ use std::time::Duration;
 use uci::parser::{Parser, ParserMessage};
 use uci::uci_in::{go, is_ready, position, quit, stop, uci as cmd_uci};
 use uci::uci_out::best_move;
-
-mod test_buffer;
 
 const TABLE_IDX_BITS: usize = 16;
 const FEN_STR: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";

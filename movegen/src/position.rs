@@ -11,6 +11,7 @@ use crate::rank::Rank;
 use crate::rook::Rook;
 use crate::side::Side;
 use crate::square::Square;
+use bitflags::bitflags;
 use std::fmt;
 use std::str;
 

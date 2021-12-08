@@ -15,9 +15,9 @@ pub struct SearchResult {
 }
 
 impl SearchResult {
-    pub fn new(depth: usize, score: Score, best_move: Move) -> SearchResult {
+    pub fn new(depth: usize, score: Score, best_move: Move) -> Self {
         debug_assert!(depth <= MAX_SEARCH_DEPTH);
-        SearchResult {
+        Self {
             depth: depth as u8,
             score,
             best_move,
