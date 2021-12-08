@@ -4,3 +4,4 @@ pub mod position;
 pub mod quit;
 pub mod stop;
 pub mod uci;
+pub mod ucinewgame;
