@@ -4,7 +4,6 @@ members = [
     "eval",
     "fatalii",
     "movegen",
-    "perft",
     "search",
     "uci",
 ]
