@@ -1,5 +1,5 @@
 use crossbeam_channel::unbounded;
-use engine::Engine;
+use engine::{Engine, SearchOptions};
 use more_asserts::assert_le;
 use movegen::piece::Piece;
 use movegen::position::Position;
@@ -29,17 +29,20 @@ fn search_timeout() {
     let tol = 50;
 
     let start = Instant::now();
-    assert!(engine.search_timeout(movetime).is_ok());
+    assert!(engine
+        .search(SearchOptions {
+            depth: None,
+            movetime: Some(movetime),
+            infinite: false,
+        })
+        .is_ok());
     assert!(receiver.recv_timeout(waittime).is_ok());
     let stop = Instant::now();
     assert_le!(
         (stop.duration_since(start).as_millis() as i128 - movetime.as_millis() as i128).abs(),
         tol
     );
-    println!(
-        "Search time (movetime): {} µs",
-        stop.duration_since(start).as_micros()
-    );
+    println!("Search time (movetime): {:?}", stop.duration_since(start));
 }
 
 #[test]
@@ -60,7 +63,13 @@ fn search_timeout_aborted() {
     let tol = 50;
 
     let start = Instant::now();
-    assert!(engine.search_timeout(movetime).is_ok());
+    assert!(engine
+        .search(SearchOptions {
+            depth: None,
+            movetime: Some(movetime),
+            infinite: false,
+        })
+        .is_ok());
     thread::sleep(sleeptime);
     engine.stop();
     assert!(receiver.recv_timeout(waittime).is_ok());
@@ -69,10 +78,7 @@ fn search_timeout_aborted() {
         (stop.duration_since(start).as_millis() as i128 - sleeptime.as_millis() as i128).abs(),
         tol
     );
-    println!(
-        "Search time (abort): {} µs",
-        stop.duration_since(start).as_micros()
-    );
+    println!("Search time (abort): {:?}", stop.duration_since(start));
 }
 
 #[test]
@@ -85,7 +91,10 @@ fn search_timeout_finished_early() {
         search_algo,
         Box::new(move |m| {
             sender.send(true).unwrap();
-            println!("Best move: {}", m.unwrap());
+            match m {
+                Some(mv) => println!("Best move: {}", mv),
+                None => println!("Best move: None"),
+            }
         }),
     );
     let mut pos = Position::empty();
@@ -98,12 +107,18 @@ fn search_timeout_finished_early() {
     let waittime = Duration::from_millis(100);
 
     let start = Instant::now();
-    assert!(engine.search_timeout(movetime).is_ok());
+    assert!(engine
+        .search(SearchOptions {
+            depth: None,
+            movetime: Some(movetime),
+            infinite: false,
+        })
+        .is_ok());
     assert!(receiver.recv_timeout(waittime).is_ok());
     let stop = Instant::now();
     println!(
-        "Search time (finished early): {} µs",
-        stop.duration_since(start).as_micros()
+        "Search time (finished early): {:?}",
+        stop.duration_since(start)
     );
 
     // Test if the timer was properly stopped, even though it didn't receive an explicit stop
@@ -112,10 +127,16 @@ fn search_timeout_finished_early() {
 
     let movetime = Duration::from_millis(2000);
     let waittime = Duration::from_millis(4000);
-    let tol = 50;
+    let tol = 80;
 
     let start = Instant::now();
-    assert!(engine.search_timeout(movetime).is_ok());
+    assert!(engine
+        .search(SearchOptions {
+            depth: None,
+            movetime: Some(movetime),
+            infinite: false,
+        })
+        .is_ok());
     assert!(receiver.recv_timeout(waittime).is_ok());
     let stop = Instant::now();
     assert_le!(

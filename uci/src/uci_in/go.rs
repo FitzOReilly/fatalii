@@ -32,7 +32,12 @@ fn parse_options(args: &str) -> Result<SearchOptions, Box<dyn Error>> {
                 options.infinite = true;
                 tail
             }
-            _ => return Err(Box::new(UciError::InvalidArgument(format!("go {}", args)))),
+            _ => {
+                return Err(Box::new(UciError::InvalidArgument(format!(
+                    "go {}",
+                    args.trim_end()
+                ))))
+            }
         }
     }
     Ok(options)
