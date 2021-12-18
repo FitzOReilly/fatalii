@@ -18,7 +18,7 @@ pub fn run_command(
         _ => {
             return Err(Box::new(UciError::InvalidArgument(format!(
                 "position {}",
-                args
+                args.trim_end()
             ))))
         }
     };
@@ -32,7 +32,8 @@ pub fn run_command(
                     None => {
                         return Err(Box::new(UciError::InvalidArgument(format!(
                             "Invalid move `{}` in command: position {}",
-                            move_str, args
+                            move_str,
+                            args.trim_end()
                         ))))
                     }
                 }
@@ -42,7 +43,7 @@ pub fn run_command(
         _ => {
             return Err(Box::new(UciError::InvalidArgument(format!(
                 "position {}",
-                args
+                args.trim_end()
             ))))
         }
     };

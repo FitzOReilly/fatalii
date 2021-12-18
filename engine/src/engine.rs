@@ -52,7 +52,6 @@ impl Engine {
         let best_move_sender_clone = best_move_sender.clone();
 
         let (timer_sender, timer_command_receiver) = unbounded();
-        let timer_sender_clone = timer_sender.clone();
 
         let search_info_callback = Box::new(move |info| match info {
             SearchInfo::DepthFinished(res) => match best_move.lock() {
@@ -60,9 +59,6 @@ impl Engine {
                 Err(e) => panic!("{}", e),
             },
             SearchInfo::Stopped => {
-                // Make sure that the timer is stopped. This is for cases in which the search
-                // finished earlier than the given time, e.g. checkmate positions.
-                let _ = timer_sender_clone.send(TimerCommand::Stop);
                 let _ = best_move_sender_clone.send(BestMoveCommand::Stop(StopReason::Finished));
             }
             SearchInfo::Terminated => {}
@@ -88,16 +84,29 @@ impl Engine {
     }
 
     pub fn search(&mut self, options: SearchOptions) -> Result<(), EngineError> {
+        self.clear_best_move();
         self.set_search_options(options);
         let depth = options.depth.unwrap_or(MAX_SEARCH_DEPTH);
-        let res = self.search_depth(depth);
+        self.search_depth(depth)?;
         if let Some(dur) = options.movetime {
             self.start_timer(dur);
         }
-        res
+        Ok(())
     }
 
-    pub fn search_depth(&mut self, depth: usize) -> Result<(), EngineError> {
+    pub fn stop(&self) {
+        self.stop_best_move_handler();
+        self.stop_timer();
+        self.searcher.stop();
+    }
+
+    pub fn position(&self) -> Option<&Position> {
+        self.pos_hist
+            .as_ref()
+            .map(|pos_hist| pos_hist.current_pos())
+    }
+
+    fn search_depth(&mut self, depth: usize) -> Result<(), EngineError> {
         match &self.pos_hist {
             Some(pos_hist) => {
                 self.searcher.search(pos_hist.clone(), depth);
@@ -107,28 +116,16 @@ impl Engine {
         }
     }
 
-    pub fn search_timeout(&mut self, dur: Duration) -> Result<(), EngineError> {
-        let res = self.search_infinite();
-        if res.is_ok() {
-            self.start_timer(dur);
-        };
-        res
-    }
-
-    pub fn search_infinite(&mut self) -> Result<(), EngineError> {
-        self.search_depth(MAX_SEARCH_DEPTH)
-    }
-
-    pub fn stop(&self) {
+    fn clear_best_move(&self) {
+        self.clear_best_move_handler();
         self.stop_timer();
-        self.stop_best_move_handler();
         self.searcher.stop();
     }
 
-    pub fn position(&self) -> Option<&Position> {
-        self.pos_hist
-            .as_ref()
-            .map(|pos_hist| pos_hist.current_pos())
+    fn clear_best_move_handler(&self) {
+        self.best_move_sender
+            .send(BestMoveCommand::Clear)
+            .expect("Error sending BestMoveCommand");
     }
 
     fn set_search_options(&self, options: SearchOptions) {
