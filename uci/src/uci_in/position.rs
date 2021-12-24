@@ -74,7 +74,7 @@ fn parse_fen(args: &str) -> Result<(PositionHistory, &str), Box<dyn Error>> {
         None => {
             return Err(Box::new(UciError::InvalidArgument(format!(
                 "position fen {}",
-                args
+                args.trim_end()
             ))))
         }
     }

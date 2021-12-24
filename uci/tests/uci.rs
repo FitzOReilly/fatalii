@@ -4,20 +4,25 @@ use crate::test_buffer::TestBuffer;
 use engine::Engine;
 use movegen::fen::Fen;
 use movegen::position::Position;
-use movegen::r#move::Move;
+use regex::Regex;
 use search::alpha_beta::AlphaBeta;
+use search::search::SearchResult;
 use std::io::{stdout, Write};
 use std::str;
 use std::time::Duration;
 use uci::parser::{Parser, ParserMessage};
 use uci::uci_in::{go, is_ready, position, quit, stop, uci as cmd_uci, ucinewgame};
-use uci::uci_out::best_move;
+use uci::uci_out::{best_move, info};
 
 const TABLE_IDX_BITS: usize = 16;
 const FEN_STR: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
 
-fn best_move_callback(m: Option<Move>) {
-    best_move::write(&mut stdout(), m).unwrap();
+fn search_info_callback(res: Option<SearchResult>) {
+    info::write(&mut stdout(), res).unwrap();
+}
+
+fn best_move_callback(res: Option<SearchResult>) {
+    best_move::write(&mut stdout(), res).unwrap();
 }
 
 fn contains(v: Vec<u8>, s: &str) -> bool {
@@ -27,7 +32,11 @@ fn contains(v: Vec<u8>, s: &str) -> bool {
 #[test]
 fn register_command() {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
-    let mut engine = Engine::new(search_algo, Box::new(best_move_callback));
+    let mut engine = Engine::new(
+        search_algo,
+        Box::new(search_info_callback),
+        Box::new(best_move_callback),
+    );
     let test_writer = TestBuffer::new();
     {
         let mut p = Parser::new(Box::new(test_writer.clone()));
@@ -58,7 +67,11 @@ fn register_command() {
 #[test]
 fn run_command_uci() {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
-    let mut engine = Engine::new(search_algo, Box::new(best_move_callback));
+    let mut engine = Engine::new(
+        search_algo,
+        Box::new(search_info_callback),
+        Box::new(best_move_callback),
+    );
     let test_writer = TestBuffer::new();
     {
         let mut p = Parser::new(Box::new(test_writer.clone()));
@@ -75,7 +88,11 @@ fn run_command_uci() {
 #[test]
 fn run_command_isready() {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
-    let mut engine = Engine::new(search_algo, Box::new(best_move_callback));
+    let mut engine = Engine::new(
+        search_algo,
+        Box::new(search_info_callback),
+        Box::new(best_move_callback),
+    );
     let test_writer = TestBuffer::new();
     {
         let mut p = Parser::new(Box::new(test_writer.clone()));
@@ -89,7 +106,11 @@ fn run_command_isready() {
 #[test]
 fn run_command_position() {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
-    let mut engine = Engine::new(search_algo, Box::new(best_move_callback));
+    let mut engine = Engine::new(
+        search_algo,
+        Box::new(search_info_callback),
+        Box::new(best_move_callback),
+    );
     let test_writer = Vec::new();
     let mut p = Parser::new(Box::new(test_writer));
 
@@ -130,7 +151,11 @@ fn run_command_position() {
 #[test]
 fn run_command_ucinewgame() {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
-    let mut engine = Engine::new(search_algo, Box::new(best_move_callback));
+    let mut engine = Engine::new(
+        search_algo,
+        Box::new(search_info_callback),
+        Box::new(best_move_callback),
+    );
     let test_writer = Vec::new();
     let mut p = Parser::new(Box::new(test_writer));
 
@@ -159,12 +184,15 @@ fn run_command_go() {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
 
-    let mut test_writer_engine = test_writer.clone();
+    let mut test_writer_info = test_writer.clone();
+    let mut test_writer_best_move = test_writer.clone();
     let test_writer_parser = test_writer.clone();
+    let search_info_callback =
+        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
     let best_move_callback =
-        Box::new(move |m| best_move::write(&mut test_writer_engine, m).unwrap());
+        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
 
-    let mut engine = Engine::new(search_algo, best_move_callback);
+    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
     let mut p = Parser::new(Box::new(test_writer_parser));
 
     p.register_command(String::from("position"), Box::new(position::run_command));
@@ -189,19 +217,33 @@ fn run_command_go() {
     assert!(p.run_command("position startpos\n", &mut engine).is_ok());
     assert!(p.run_command("go\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(200));
-    assert!(!contains(test_writer.split_off(0), "bestmove"));
+    let output = String::from_utf8(test_writer.split_off(0)).unwrap();
+    assert!(output.contains("info"));
+    assert!(output.contains("depth"));
+    assert!(output.contains("score"));
+    assert!(!output.contains("bestmove"));
     assert!(p.run_command("stop\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(20));
-    assert!(contains(test_writer.split_off(0), "bestmove"));
+    let output = String::from_utf8(test_writer.split_off(0)).unwrap();
+    assert!(output.contains("info"));
+    assert!(output.contains("depth"));
+    assert!(output.contains("score"));
+    assert!(output.contains("bestmove"));
     assert!(p.run_command("stop\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(20));
-    assert!(!contains(test_writer.split_off(0), "bestmove"));
+    let output = String::from_utf8(test_writer.split_off(0)).unwrap();
+    assert!(!output.contains("info"));
+    assert!(!output.contains("depth"));
+    assert!(!output.contains("score"));
+    assert!(!output.contains("bestmove"));
 
     // Option "depth"
     assert!(p.run_command("position startpos\n", &mut engine).is_ok());
     assert!(p.run_command("go depth 2\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(200));
-    assert!(contains(test_writer.split_off(0), "bestmove"));
+    let output = String::from_utf8(test_writer.split_off(0)).unwrap();
+    assert!(output.contains("depth 2"));
+    assert!(output.contains("bestmove"));
     assert!(p.run_command("stop\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(20));
     assert!(!contains(test_writer.split_off(0), "bestmove"));
@@ -266,12 +308,15 @@ fn run_command_go_twice() {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
 
-    let mut test_writer_engine = test_writer.clone();
+    let mut test_writer_info = test_writer.clone();
+    let mut test_writer_best_move = test_writer.clone();
     let test_writer_parser = test_writer.clone();
+    let search_info_callback =
+        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
     let best_move_callback =
-        Box::new(move |m| best_move::write(&mut test_writer_engine, m).unwrap());
+        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
 
-    let mut engine = Engine::new(search_algo, best_move_callback);
+    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
     let mut p = Parser::new(Box::new(test_writer_parser));
 
     p.register_command(String::from("position"), Box::new(position::run_command));
@@ -295,12 +340,15 @@ fn run_command_isready_during_go() {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
 
-    let mut test_writer_engine = test_writer.clone();
+    let mut test_writer_info = test_writer.clone();
+    let mut test_writer_best_move = test_writer.clone();
     let test_writer_parser = test_writer.clone();
+    let search_info_callback =
+        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
     let best_move_callback =
-        Box::new(move |m| best_move::write(&mut test_writer_engine, m).unwrap());
+        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
 
-    let mut engine = Engine::new(search_algo, best_move_callback);
+    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
     let mut p = Parser::new(Box::new(test_writer_parser));
 
     p.register_command(String::from("isready"), Box::new(is_ready::run_command));
@@ -314,13 +362,12 @@ fn run_command_isready_during_go() {
     assert!(!contains(test_writer.split_off(0), "bestmove"));
     assert!(p.run_command("isready\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(20));
-    assert_eq!(
-        "readyok\n",
-        String::from_utf8(test_writer.split_off(0)).unwrap()
-    );
+    let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
+    assert!(out_str.contains("readyok\n"));
     assert!(p.run_command("stop\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(20));
-    assert!(contains(test_writer.split_off(0), "bestmove"));
+    let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
+    assert!(out_str.contains("bestmove"));
 }
 
 #[test]
@@ -328,12 +375,15 @@ fn run_command_quit() {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
 
-    let mut test_writer_engine = test_writer.clone();
+    let mut test_writer_info = test_writer.clone();
+    let mut test_writer_best_move = test_writer.clone();
     let test_writer_parser = test_writer.clone();
+    let search_info_callback =
+        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
     let best_move_callback =
-        Box::new(move |m| best_move::write(&mut test_writer_engine, m).unwrap());
+        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
 
-    let mut engine = Engine::new(search_algo, best_move_callback);
+    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
     let mut p = Parser::new(Box::new(test_writer_parser));
 
     p.register_command(String::from("quit"), Box::new(quit::run_command));
@@ -351,4 +401,77 @@ fn run_command_quit() {
     assert!(String::from_utf8(test_writer.split_off(0))
         .unwrap()
         .is_empty());
+}
+
+#[test]
+fn info_score_equal_from_both_sides() {
+    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let mut test_writer = TestBuffer::new();
+
+    let mut test_writer_info = test_writer.clone();
+    let mut test_writer_best_move = test_writer.clone();
+    let test_writer_parser = test_writer.clone();
+    let search_info_callback =
+        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
+    let best_move_callback =
+        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
+
+    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
+    let mut p = Parser::new(Box::new(test_writer_parser));
+
+    p.register_command(String::from("position"), Box::new(position::run_command));
+    p.register_command(String::from("go"), Box::new(go::run_command));
+
+    let re_info_score = Regex::new(r"score cp \d+").unwrap();
+
+    // Set up King's Gambit
+    assert!(p
+        .run_command(
+            "position fen rnbqkbnr/pppp1ppp/8/4p3/4PP2/8/PPPP2PP/RNBQKBNR b KQkq - 0 2\n",
+            &mut engine
+        )
+        .is_ok());
+    std::thread::sleep(Duration::from_millis(20));
+    assert!(p.run_command("go depth 1\n", &mut engine).is_ok());
+    std::thread::sleep(Duration::from_millis(200));
+
+    let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
+    let out_lines = out_str.split('\n');
+    let mut rev_out_lines = out_lines.rev();
+    let _empty = rev_out_lines.next();
+    let best_move_first = rev_out_lines.next().unwrap();
+    let info_first = rev_out_lines.next().unwrap();
+    let score_first = re_info_score
+        .captures(info_first)
+        .unwrap()
+        .get(0)
+        .unwrap()
+        .as_str();
+
+    // Set up mirrored position
+    assert!(p
+        .run_command(
+            "position fen rnbqkbnr/pppp2pp/8/4pp2/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2\n",
+            &mut engine
+        )
+        .is_ok());
+    std::thread::sleep(Duration::from_millis(20));
+    assert!(p.run_command("go depth 1\n", &mut engine).is_ok());
+    std::thread::sleep(Duration::from_millis(200));
+
+    let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
+    let out_lines = out_str.split('\n');
+    let mut rev_out_lines = out_lines.rev();
+    let _empty = rev_out_lines.next();
+    let best_move_second = rev_out_lines.next().unwrap();
+    let info_second = rev_out_lines.next().unwrap();
+    let score_second = re_info_score
+        .captures(info_second)
+        .unwrap()
+        .get(0)
+        .unwrap()
+        .as_str();
+
+    assert_ne!(best_move_first, best_move_second);
+    assert_eq!(score_first, score_second);
 }

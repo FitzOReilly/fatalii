@@ -7,7 +7,7 @@ use std::ops::Neg;
 
 pub const MAX_SEARCH_DEPTH: usize = u8::MAX as usize;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SearchResult {
     depth: u8,
     score: Score,

@@ -18,7 +18,8 @@ fn search_timeout() {
     let (sender, receiver) = unbounded();
     let mut engine = Engine::new(
         search_algo,
-        Box::new(move |_m| {
+        Box::new(move |_res| {}),
+        Box::new(move |_res| {
             sender.send(true).unwrap();
         }),
     );
@@ -51,7 +52,8 @@ fn search_timeout_aborted() {
     let (sender, receiver) = unbounded();
     let mut engine = Engine::new(
         search_algo,
-        Box::new(move |_m| {
+        Box::new(move |_res| {}),
+        Box::new(move |_res| {
             sender.send(true).unwrap();
         }),
     );
@@ -89,10 +91,11 @@ fn search_timeout_finished_early() {
     let (sender, receiver) = unbounded();
     let mut engine = Engine::new(
         search_algo,
-        Box::new(move |m| {
+        Box::new(move |_res| {}),
+        Box::new(move |res| {
             sender.send(true).unwrap();
-            match m {
-                Some(mv) => println!("Best move: {}", mv),
+            match res {
+                Some(r) => println!("Best move: {}", r),
                 None => println!("Best move: None"),
             }
         }),

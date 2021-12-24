@@ -10,6 +10,4 @@ edition = "2018"
 regex = "1"
 engine = { path = "../engine" }
 movegen = { path = "../movegen" }
-
-[dev-dependencies]
 search = { path = "../search" }
