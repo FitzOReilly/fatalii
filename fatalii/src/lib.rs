@@ -4,15 +4,17 @@ use std::error::Error;
 use std::io;
 use uci::parser::{Parser, ParserMessage};
 use uci::uci_in::{go, is_ready, position, quit, stop, uci as cmd_uci, ucinewgame};
-use uci::uci_out::best_move;
+use uci::uci_out::{best_move, info};
 
 const TABLE_IDX_BITS: usize = 20;
 
 pub fn run() -> Result<(), Box<dyn Error>> {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_info_callback =
+        Box::new(move |m| info::write(&mut io::stdout(), m).expect("Error writing search info"));
     let best_move_callback =
         Box::new(move |m| best_move::write(&mut io::stdout(), m).expect("Error writing best move"));
-    let mut engine = Engine::new(search_algo, best_move_callback);
+    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
 
     let writer = Box::new(io::stdout());
     let mut parser = Parser::new(writer);
