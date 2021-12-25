@@ -15,7 +15,7 @@ pub fn run_command(
 }
 
 fn parse_options(args: &str) -> Result<SearchOptions, Box<dyn Error>> {
-    let mut options = SearchOptions::new();
+    let mut options = SearchOptions::default();
     let mut seen_options = HashSet::new();
     let mut s = args;
     while let Some((cmd, tail)) = split_first_word(s) {
@@ -26,6 +26,10 @@ fn parse_options(args: &str) -> Result<SearchOptions, Box<dyn Error>> {
             ))));
         }
         s = match cmd {
+            "wtime" => parse_leading_duration(tail, &mut options.white_time)?,
+            "btime" => parse_leading_duration(tail, &mut options.black_time)?,
+            "winc" => parse_leading_duration(tail, &mut options.white_inc)?,
+            "binc" => parse_leading_duration(tail, &mut options.black_inc)?,
             "depth" => parse_leading_usize(tail, &mut options.depth)?,
             "movetime" => parse_leading_duration(tail, &mut options.movetime)?,
             "infinite" => {

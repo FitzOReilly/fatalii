@@ -1,24 +1,12 @@
 use std::time::Duration;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct SearchOptions {
+    pub white_time: Option<Duration>,
+    pub black_time: Option<Duration>,
+    pub white_inc: Option<Duration>,
+    pub black_inc: Option<Duration>,
     pub depth: Option<usize>,
     pub movetime: Option<Duration>,
     pub infinite: bool,
-}
-
-impl SearchOptions {
-    pub fn new() -> Self {
-        Self {
-            depth: None,
-            movetime: None,
-            infinite: false,
-        }
-    }
-}
-
-impl Default for SearchOptions {
-    fn default() -> Self {
-        SearchOptions::new()
-    }
 }

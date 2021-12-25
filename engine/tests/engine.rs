@@ -32,9 +32,8 @@ fn search_timeout() {
     let start = Instant::now();
     assert!(engine
         .search(SearchOptions {
-            depth: None,
             movetime: Some(movetime),
-            infinite: false,
+            ..Default::default()
         })
         .is_ok());
     assert!(receiver.recv_timeout(waittime).is_ok());
@@ -67,9 +66,8 @@ fn search_timeout_aborted() {
     let start = Instant::now();
     assert!(engine
         .search(SearchOptions {
-            depth: None,
             movetime: Some(movetime),
-            infinite: false,
+            ..Default::default()
         })
         .is_ok());
     thread::sleep(sleeptime);
@@ -112,9 +110,8 @@ fn search_timeout_finished_early() {
     let start = Instant::now();
     assert!(engine
         .search(SearchOptions {
-            depth: None,
             movetime: Some(movetime),
-            infinite: false,
+            ..Default::default()
         })
         .is_ok());
     assert!(receiver.recv_timeout(waittime).is_ok());
@@ -135,9 +132,8 @@ fn search_timeout_finished_early() {
     let start = Instant::now();
     assert!(engine
         .search(SearchOptions {
-            depth: None,
             movetime: Some(movetime),
-            infinite: false,
+            ..Default::default()
         })
         .is_ok());
     assert!(receiver.recv_timeout(waittime).is_ok());
