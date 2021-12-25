@@ -16,7 +16,7 @@ impl BestMoveHandler {
         mut search_info_callback: Box<dyn FnMut(Option<SearchResult>) + Send>,
         mut best_move_callback: Box<dyn FnMut(Option<SearchResult>) + Send>,
     ) -> Self {
-        let options = Arc::new(Mutex::new(SearchOptions::new()));
+        let options = Arc::new(Mutex::new(SearchOptions::default()));
         let mut side_to_move = None;
 
         let thread = thread::spawn(move || loop {

@@ -7,6 +7,7 @@ use movegen::position_history::PositionHistory;
 use movegen::side::Side;
 use search::search::{Search, SearchInfo, SearchResult, MAX_SEARCH_DEPTH};
 use search::searcher::Searcher;
+use std::cmp;
 use std::error::Error;
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -95,6 +96,19 @@ impl Engine {
         self.search_depth(depth)?;
         if let Some(dur) = options.movetime {
             self.start_timer(dur);
+        } else if let Some(pos) = self.position() {
+            match pos.side_to_move() {
+                Side::White => {
+                    if let Some(time) = options.white_time {
+                        self.start_timer(Self::calc_movetime(time))
+                    }
+                }
+                Side::Black => {
+                    if let Some(time) = options.black_time {
+                        self.start_timer(Self::calc_movetime(time))
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -162,6 +176,16 @@ impl Engine {
         self.timer_sender
             .send(TimerCommand::Stop)
             .expect("Error sending TimerCommand");
+    }
+
+    fn calc_movetime(time: Duration) -> Duration {
+        const MAX_TIME: Duration = Duration::from_secs(60);
+        const MAX_FRACTION: f64 = 8.0;
+        const MARGIN: Duration = Duration::from_millis(5);
+        match time.checked_sub(MARGIN) {
+            Some(t) => cmp::min(MAX_TIME, t.div_f64(MAX_FRACTION)),
+            None => Duration::from_millis(0),
+        }
     }
 }
 
