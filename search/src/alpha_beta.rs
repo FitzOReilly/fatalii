@@ -103,6 +103,7 @@ impl Search for AlphaBeta {
                         depth,
                         abs_alpha_beta_res.score(),
                         abs_alpha_beta_res.best_move(),
+                        self.principal_variation(pos_history, depth),
                     );
                     info_sender
                         .send(SearchInfo::DepthFinished(search_res))
@@ -125,7 +126,6 @@ impl AlphaBeta {
         }
     }
 
-    #[allow(dead_code)]
     fn principal_variation(&self, pos_history: &mut PositionHistory, depth: usize) -> MoveList {
         let mut move_list = MoveList::new();
 

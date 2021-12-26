@@ -1,26 +1,28 @@
 use crossbeam_channel::{Receiver, Sender};
 use eval::eval::Score;
 use movegen::position_history::PositionHistory;
-use movegen::r#move::Move;
+use movegen::r#move::{Move, MoveList};
 use std::fmt;
 use std::ops::Neg;
 
 pub const MAX_SEARCH_DEPTH: usize = u8::MAX as usize;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SearchResult {
     depth: u8,
     score: Score,
     best_move: Move,
+    pv: MoveList,
 }
 
 impl SearchResult {
-    pub fn new(depth: usize, score: Score, best_move: Move) -> Self {
+    pub fn new(depth: usize, score: Score, best_move: Move, pv: MoveList) -> Self {
         debug_assert!(depth <= MAX_SEARCH_DEPTH);
         Self {
             depth: depth as u8,
             score,
             best_move,
+            pv,
         }
     }
 
@@ -35,6 +37,10 @@ impl SearchResult {
     pub fn best_move(&self) -> Move {
         self.best_move
     }
+
+    pub fn principal_variation(&self) -> &MoveList {
+        &self.pv
+    }
 }
 
 impl Neg for SearchResult {
@@ -42,7 +48,12 @@ impl Neg for SearchResult {
 
     // Changes the sign of the score and leaves the best move unchanged
     fn neg(self) -> Self::Output {
-        Self::new(self.depth(), -self.score(), self.best_move())
+        Self::new(
+            self.depth(),
+            -self.score(),
+            self.best_move(),
+            self.principal_variation().clone(),
+        )
     }
 }
 

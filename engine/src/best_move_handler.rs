@@ -35,9 +35,10 @@ impl BestMoveHandler {
                 },
                 BestMoveCommand::SetSideToMove(s) => side_to_move = s,
                 BestMoveCommand::DepthFinished => match search_result.lock() {
-                    Ok(res) => {
-                        search_info_callback(Self::search_result_to_relative(*res, side_to_move))
-                    }
+                    Ok(res) => search_info_callback(Self::search_result_to_relative(
+                        res.clone(),
+                        side_to_move,
+                    )),
                     Err(e) => panic!("{}", e),
                 },
                 BestMoveCommand::Stop(StopReason::Command) => match search_result.lock() {
