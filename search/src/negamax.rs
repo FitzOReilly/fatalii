@@ -76,6 +76,7 @@ impl Search for Negamax {
                         depth,
                         abs_negamax_res.score(),
                         abs_negamax_res.best_move(),
+                        self.principal_variation(pos_history, depth),
                     );
                     info_sender
                         .send(SearchInfo::DepthFinished(search_res))
@@ -96,6 +97,32 @@ impl Negamax {
         Self {
             transpos_table: TranspositionTable::new(table_idx_bits),
         }
+    }
+
+    fn principal_variation(&self, pos_history: &mut PositionHistory, depth: usize) -> MoveList {
+        let mut move_list = MoveList::new();
+
+        let mut d = depth;
+        let mut num_moves = 0;
+        while let Some(entry) = self.transpos_table.get(&pos_history.current_pos_hash()) {
+            if entry.depth() == d {
+                move_list.push(entry.best_move());
+                pos_history.do_move(entry.best_move());
+                num_moves += 1;
+                if d > 0 {
+                    d -= 1;
+                }
+            } else {
+                break;
+            }
+        }
+
+        while num_moves > 0 {
+            num_moves -= 1;
+            pos_history.undo_last_move();
+        }
+
+        move_list
     }
 
     fn search_recursive(

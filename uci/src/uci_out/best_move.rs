@@ -5,7 +5,7 @@ use std::error::Error;
 use std::io::Write;
 
 pub fn write(writer: &mut impl Write, res: Option<SearchResult>) -> Result<(), Box<dyn Error>> {
-    info::write(writer, res)?;
+    info::write(writer, res.clone())?;
     match res {
         Some(sr) => Ok(writeln!(
             writer,

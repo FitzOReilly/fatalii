@@ -3,7 +3,7 @@ use eval::eval::{Eval, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION};
 use movegen::piece;
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
-use movegen::r#move::{Move, MoveType};
+use movegen::r#move::{Move, MoveList, MoveType};
 use movegen::side::Side;
 use movegen::square::Square;
 use search::alpha_beta::AlphaBeta;
@@ -73,8 +73,7 @@ fn search_results_equal(min_depth: usize, max_depth: usize, mut searchers: Vec<S
         for depth in min_depth..=max_depth {
             let exp_sr = &exp_search_result[depth - 1];
             let act_sr = searcher.search(pos_history.clone(), depth);
-            assert_eq!(
-                *exp_sr, act_sr,
+            println!(
                 "Iteration: {}, Depth: {}, Score (exp / act): ({} / {}), Best move (exp / act): ({} / {})",
                 idx,
                 depth,
@@ -83,6 +82,8 @@ fn search_results_equal(min_depth: usize, max_depth: usize, mut searchers: Vec<S
                 exp_sr.best_move(),
                 act_sr.best_move()
             );
+            assert_eq!(exp_sr.score(), act_sr.score());
+            assert_eq!(exp_sr.best_move(), act_sr.best_move());
         }
     }
 }
@@ -102,10 +103,14 @@ fn checkmate_white(search_algo: impl Search + Send + 'static) {
         depth,
         CHECKMATE_WHITE,
         Move::new(Square::D8, Square::H4, MoveType::QUIET),
+        MoveList::new(),
     );
 
     let mut tester = SearchTester::new(search_algo);
-    assert_eq!(expected, tester.search(pos_history, depth));
+    let actual = tester.search(pos_history, depth);
+    assert_eq!(expected.depth(), actual.depth());
+    assert_eq!(expected.score(), actual.score());
+    assert_eq!(expected.best_move(), actual.best_move());
 }
 
 fn checkmate_black(search_algo: impl Search + Send + 'static) {
@@ -123,10 +128,14 @@ fn checkmate_black(search_algo: impl Search + Send + 'static) {
         depth,
         CHECKMATE_BLACK,
         Move::new(Square::A1, Square::A8, MoveType::QUIET),
+        MoveList::new(),
     );
 
     let mut tester = SearchTester::new(search_algo);
-    assert_eq!(expected, tester.search(pos_history, depth));
+    let actual = tester.search(pos_history, depth);
+    assert_eq!(expected.depth(), actual.depth());
+    assert_eq!(expected.score(), actual.score());
+    assert_eq!(expected.best_move(), actual.best_move());
 }
 
 fn stalemate(search_algo: impl Search + Send + 'static) {
@@ -138,10 +147,13 @@ fn stalemate(search_algo: impl Search + Send + 'static) {
     let pos_history = PositionHistory::new(pos);
 
     let depth = 1;
-    let expected = SearchResult::new(depth, EQUAL_POSITION, Move::NULL);
+    let expected = SearchResult::new(depth, EQUAL_POSITION, Move::NULL, MoveList::new());
 
     let mut tester = SearchTester::new(search_algo);
-    assert_eq!(expected, tester.search(pos_history, depth));
+    let actual = tester.search(pos_history, depth);
+    assert_eq!(expected.depth(), actual.depth());
+    assert_eq!(expected.score(), actual.score());
+    assert_eq!(expected.best_move(), actual.best_move());
 }
 
 fn search_quiescence(search_algo: impl Search + Send + 'static) {

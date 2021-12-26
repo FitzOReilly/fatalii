@@ -150,7 +150,7 @@ impl fmt::Display for Move {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MoveList(Vec<Move>);
 
 impl MoveList {
