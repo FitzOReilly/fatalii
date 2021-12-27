@@ -57,13 +57,13 @@ impl Engine {
         let (timer_sender, timer_command_receiver) = unbounded();
 
         let search_info_callback = Box::new(move |info| match info {
-            SearchInfo::DepthFinished(res) => match search_result.lock() {
-                Ok(mut data) => {
-                    *data = Some(res);
-                    let _ = best_move_sender_clone.send(BestMoveCommand::DepthFinished);
+            SearchInfo::DepthFinished(res) => {
+                let _ = best_move_sender_clone.send(BestMoveCommand::DepthFinished(res.clone()));
+                match search_result.lock() {
+                    Ok(mut data) => *data = Some(res),
+                    Err(e) => panic!("{}", e),
                 }
-                Err(e) => panic!("{}", e),
-            },
+            }
             SearchInfo::Stopped => {
                 let _ = best_move_sender_clone.send(BestMoveCommand::Stop(StopReason::Finished));
             }
