@@ -34,13 +34,9 @@ impl BestMoveHandler {
                     Err(e) => panic!("{}", e),
                 },
                 BestMoveCommand::SetSideToMove(s) => side_to_move = s,
-                BestMoveCommand::DepthFinished => match search_result.lock() {
-                    Ok(res) => search_info_callback(Self::search_result_to_relative(
-                        res.clone(),
-                        side_to_move,
-                    )),
-                    Err(e) => panic!("{}", e),
-                },
+                BestMoveCommand::DepthFinished(res) => {
+                    search_info_callback(Self::search_result_to_relative(Some(res), side_to_move));
+                }
                 BestMoveCommand::Stop(StopReason::Command) => match search_result.lock() {
                     Ok(mut res) => best_move_callback(Self::search_result_to_relative(
                         res.take(),
@@ -84,12 +80,12 @@ impl BestMoveHandler {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum BestMoveCommand {
     Clear,
     SetOptions(SearchOptions),
     SetSideToMove(Option<Side>),
-    DepthFinished,
+    DepthFinished(SearchResult),
     Stop(StopReason),
     Terminate,
 }

@@ -127,28 +127,27 @@ impl AlphaBeta {
     }
 
     fn principal_variation(&self, pos_history: &mut PositionHistory, depth: usize) -> MoveList {
-        let mut move_list = MoveList::new();
-
+        let mut move_list = MoveList::with_capacity(depth);
         let mut d = depth;
-        let mut num_moves = 0;
-        while let Some(entry) = self.transpos_table.get(&pos_history.current_pos_hash()) {
-            if entry.depth() == d && entry.score_type() == ScoreType::Exact {
-                move_list.push(entry.best_move());
-                pos_history.do_move(entry.best_move());
-                num_moves += 1;
-                if d > 0 {
+        while d > 0 {
+            match self.transpos_table.get(&pos_history.current_pos_hash()) {
+                Some(entry)
+                    if entry.depth() == d
+                        && entry.score_type() == ScoreType::Exact
+                        && entry.best_move != Move::NULL =>
+                {
+                    move_list.push(entry.best_move());
+                    debug_assert!(move_list.len() <= depth);
+                    pos_history.do_move(entry.best_move());
                     d -= 1;
                 }
-            } else {
-                break;
+                _ => break,
             }
         }
-
-        while num_moves > 0 {
-            num_moves -= 1;
+        while d < depth {
+            d += 1;
             pos_history.undo_last_move();
         }
-
         move_list
     }
 
