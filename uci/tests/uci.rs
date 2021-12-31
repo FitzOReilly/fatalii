@@ -517,3 +517,73 @@ fn info_score_equal_from_both_sides() {
     assert_ne!(best_move_first, best_move_second);
     assert_eq!(score_first, score_second);
 }
+
+#[test]
+fn mate_in_one_white_to_move() {
+    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let mut test_writer = TestBuffer::new();
+
+    let mut test_writer_info = test_writer.clone();
+    let mut test_writer_best_move = test_writer.clone();
+    let test_writer_parser = test_writer.clone();
+    let search_info_callback =
+        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
+    let best_move_callback =
+        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
+
+    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
+    let mut p = Parser::new(Box::new(test_writer_parser));
+
+    p.register_command(String::from("position"), Box::new(position::run_command));
+    p.register_command(String::from("go"), Box::new(go::run_command));
+
+    // Set up mate in one
+    assert!(p
+        .run_command(
+            "position fen 8/7k/7P/8/8/8/6Q1/6K1 w - - 0 1\n",
+            &mut engine
+        )
+        .is_ok());
+    std::thread::sleep(Duration::from_millis(20));
+    assert!(p.run_command("go movetime 800\n", &mut engine).is_ok());
+    std::thread::sleep(Duration::from_millis(810));
+
+    let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
+    println!("{}", out_str);
+    assert!(out_str.contains("bestmove g2g7"));
+}
+
+#[test]
+fn mate_in_one_black_to_move() {
+    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let mut test_writer = TestBuffer::new();
+
+    let mut test_writer_info = test_writer.clone();
+    let mut test_writer_best_move = test_writer.clone();
+    let test_writer_parser = test_writer.clone();
+    let search_info_callback =
+        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
+    let best_move_callback =
+        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
+
+    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
+    let mut p = Parser::new(Box::new(test_writer_parser));
+
+    p.register_command(String::from("position"), Box::new(position::run_command));
+    p.register_command(String::from("go"), Box::new(go::run_command));
+
+    // Set up mate in one
+    assert!(p
+        .run_command(
+            "position fen 6k1/6q1/8/8/8/7p/7K/8 b - - 0 1\n",
+            &mut engine
+        )
+        .is_ok());
+    std::thread::sleep(Duration::from_millis(20));
+    assert!(p.run_command("go movetime 800\n", &mut engine).is_ok());
+    std::thread::sleep(Duration::from_millis(810));
+
+    let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
+    println!("{}", out_str);
+    assert!(out_str.contains("bestmove g7g2"));
+}

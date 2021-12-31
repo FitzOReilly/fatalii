@@ -1,6 +1,6 @@
 use crate::search::{Search, SearchCommand, SearchInfo, SearchResult, MAX_SEARCH_DEPTH};
 use crossbeam_channel::{Receiver, Sender};
-use eval::eval::{Eval, Score, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF};
+use eval::eval::{Eval, Score, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF};
 use movegen::move_generator::MoveGenerator;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
@@ -81,6 +81,9 @@ impl Search for Negamax {
                     info_sender
                         .send(SearchInfo::DepthFinished(search_res))
                         .expect("Error sending SearchInfo");
+                    if let CHECKMATE_WHITE | CHECKMATE_BLACK = abs_negamax_res.score() {
+                        break;
+                    }
                 }
                 None => break,
             }
@@ -205,31 +208,20 @@ impl Negamax {
 
         let mut move_list = MoveList::new();
         MoveGenerator::generate_moves(&mut move_list, pos);
-        if move_list.is_empty() {
-            score = if pos.is_in_check(pos.side_to_move()) {
-                CHECKMATE_WHITE
-            } else {
-                EQUAL_POSITION
-            };
-            let node = NegamaxTableEntry::new(depth, score, Move::NULL);
-            self.update_table(pos_hash, node);
-            node
-        } else {
-            for m in move_list.iter().filter(|m| m.is_capture()) {
-                pos_history.do_move(*m);
-                let search_result = -self.search_quiescence(pos_history);
-                score = search_result.score();
-                pos_history.undo_last_move();
+        for m in move_list.iter().filter(|m| m.is_capture()) {
+            pos_history.do_move(*m);
+            let search_result = -self.search_quiescence(pos_history);
+            score = search_result.score();
+            pos_history.undo_last_move();
 
-                if score > best_score {
-                    best_score = score;
-                    best_move = *m;
-                }
+            if score > best_score {
+                best_score = score;
+                best_move = *m;
             }
-            let node = NegamaxTableEntry::new(depth, best_score, best_move);
-            self.update_table(pos_hash, node);
-            node
         }
+        let node = NegamaxTableEntry::new(depth, best_score, best_move);
+        self.update_table(pos_hash, node);
+        node
     }
 
     fn update_table(&mut self, pos_hash: Zobrist, node: NegamaxTableEntry) {
