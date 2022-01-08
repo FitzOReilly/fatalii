@@ -55,7 +55,7 @@ impl SearchBencher {
 }
 
 fn negamax_initial_position(c: &mut Criterion) {
-    let min_depth = 0;
+    let min_depth = 1;
     let max_depth = 3;
     let table_idx_bits = 20;
 
@@ -76,7 +76,7 @@ fn negamax_initial_position(c: &mut Criterion) {
 }
 
 fn alpha_beta_initial_position(c: &mut Criterion) {
-    let min_depth = 0;
+    let min_depth = 1;
     let max_depth = 5;
     let table_idx_bits = 20;
 
