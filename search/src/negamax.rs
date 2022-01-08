@@ -1,3 +1,4 @@
+use crate::pv_table::PvTable;
 use crate::search::{Search, SearchCommand, SearchInfo, SearchResult, MAX_SEARCH_DEPTH};
 use crossbeam_channel::{Receiver, Sender};
 use eval::eval::{Eval, Score, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF};
@@ -51,6 +52,7 @@ impl Neg for NegamaxTableEntry {
 
 pub struct Negamax {
     transpos_table: TranspositionTable<Zobrist, NegamaxTableEntry>,
+    pv_table: PvTable,
 }
 
 impl Search for Negamax {
@@ -61,7 +63,7 @@ impl Search for Negamax {
         command_receiver: &mut Receiver<SearchCommand>,
         info_sender: &mut Sender<SearchInfo>,
     ) {
-        for depth in 0..=depth {
+        for depth in 1..=depth {
             if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
                 break;
             }
@@ -76,7 +78,7 @@ impl Search for Negamax {
                         depth,
                         abs_negamax_res.score(),
                         abs_negamax_res.best_move(),
-                        self.principal_variation(pos_history, depth),
+                        self.principal_variation(depth),
                     );
                     info_sender
                         .send(SearchInfo::DepthFinished(search_res))
@@ -99,28 +101,12 @@ impl Negamax {
         assert!(table_idx_bits > 0);
         Self {
             transpos_table: TranspositionTable::new(table_idx_bits),
+            pv_table: PvTable::new(),
         }
     }
 
-    fn principal_variation(&self, pos_history: &mut PositionHistory, depth: usize) -> MoveList {
-        let mut move_list = MoveList::with_capacity(depth);
-        let mut d = depth;
-        while d > 0 {
-            match self.transpos_table.get(&pos_history.current_pos_hash()) {
-                Some(entry) if entry.depth() == d && entry.best_move != Move::NULL => {
-                    move_list.push(entry.best_move());
-                    debug_assert!(move_list.len() <= depth);
-                    pos_history.do_move(entry.best_move());
-                    d -= 1;
-                }
-                _ => break,
-            }
-        }
-        while d < depth {
-            d += 1;
-            pos_history.undo_last_move();
-        }
-        move_list
+    fn principal_variation(&self, depth: usize) -> MoveList {
+        self.pv_table.pv_into_movelist(depth)
     }
 
     fn search_recursive(
@@ -157,6 +143,7 @@ impl Negamax {
                     };
                     let node = NegamaxTableEntry::new(depth, score, Move::NULL);
                     self.update_table(pos_hash, node);
+                    self.pv_table.update_move_and_copy(depth, Move::NULL);
                     best_score = cmp::max(best_score, score);
                 } else {
                     for m in move_list.iter() {
@@ -188,6 +175,7 @@ impl Negamax {
                 debug_assert!(self.transpos_table.get(&pos_hash).is_some());
                 let node = NegamaxTableEntry::new(depth, best_score, best_move);
                 self.update_table(pos_hash, node);
+                self.pv_table.update_move_and_copy(depth, best_move);
                 Some(node)
             }
         }
