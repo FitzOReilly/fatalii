@@ -12,6 +12,12 @@ pub struct Searcher {
 }
 
 impl Searcher {
+    pub fn set_hash_size(&self, bytes: usize) {
+        self.command_sender
+            .send(SearchCommand::SetHashSize(bytes))
+            .expect("Error sending SearchCommand");
+    }
+
     pub fn search(&self, pos_hist: PositionHistory, depth: usize) {
         self.stop();
         self.command_sender
@@ -85,6 +91,7 @@ impl Worker {
                 .expect("Error receiving SearchCommand");
 
             match message {
+                SearchCommand::SetHashSize(bytes) => Self::set_hash_size(&mut search_algo, bytes),
                 SearchCommand::Search(pos_hist, depth) => {
                     Self::search(
                         &mut search_algo,
@@ -101,6 +108,10 @@ impl Worker {
         Self {
             thread: Some(thread),
         }
+    }
+
+    fn set_hash_size(search: &mut impl Search, bytes: usize) {
+        search.set_hash_size(bytes);
     }
 
     fn search(

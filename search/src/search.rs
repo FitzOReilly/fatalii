@@ -71,6 +71,7 @@ impl fmt::Display for SearchResult {
 
 #[derive(Debug)]
 pub enum SearchCommand {
+    SetHashSize(usize),
     Search(PositionHistory, usize),
     Stop,
     Terminate,
@@ -94,6 +95,8 @@ impl fmt::Display for SearchInfo {
 }
 
 pub trait Search {
+    fn set_hash_size(&mut self, bytes: usize);
+
     fn search(
         &mut self,
         pos_history: &mut PositionHistory,
