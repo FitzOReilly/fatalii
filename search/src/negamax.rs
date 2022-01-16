@@ -56,6 +56,13 @@ pub struct Negamax {
 }
 
 impl Search for Negamax {
+    fn set_hash_size(&mut self, _bytes: usize) {
+        unimplemented!(
+            "This will be moved to Searcher when multithreaded search \
+            with shared hash table is implemented"
+        );
+    }
+
     fn search(
         &mut self,
         pos_history: &mut PositionHistory,

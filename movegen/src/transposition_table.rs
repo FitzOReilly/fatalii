@@ -1,3 +1,5 @@
+use std::mem;
+
 #[derive(Debug)]
 pub struct TranspositionTable<K, V> {
     index_bits: usize,
@@ -54,6 +56,10 @@ where
         let old_entry = self.entries[index];
         self.entries[index] = Some((k, value));
         old_entry
+    }
+
+    pub fn reserved_memory(&self) -> usize {
+        mem::size_of_val(&*self.entries)
     }
 
     fn key_to_index(&self, k: &K) -> usize {

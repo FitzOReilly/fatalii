@@ -10,6 +10,7 @@ use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
 use movegen::transposition_table::TranspositionTable;
 use movegen::zobrist::Zobrist;
+use std::mem;
 use std::ops::Neg;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -76,7 +77,19 @@ pub struct AlphaBeta {
     pv_table: PvTable,
 }
 
+const HASH_ENTRY_SIZE: usize = mem::size_of::<Option<(Zobrist, AlphaBetaTableEntry)>>();
+
 impl Search for AlphaBeta {
+    fn set_hash_size(&mut self, bytes: usize) {
+        debug_assert!(bytes <= u64::MAX as usize);
+        debug_assert_ne!(0, HASH_ENTRY_SIZE);
+        let max_num_entries = (bytes / HASH_ENTRY_SIZE) as u64;
+        // The actual number of entries must be a power of 2.
+        let index_bits = 64 - max_num_entries.leading_zeros() - 1;
+        debug_assert!(index_bits > 0);
+        self.transpos_table = TranspositionTable::new(index_bits as usize);
+    }
+
     fn search(
         &mut self,
         pos_history: &mut PositionHistory,
@@ -332,5 +345,36 @@ impl AlphaBeta {
             )),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn set_hash_size() {
+        let mut searcher = AlphaBeta::new(1);
+
+        searcher.set_hash_size(2 * HASH_ENTRY_SIZE);
+        assert_eq!(
+            2 * HASH_ENTRY_SIZE,
+            searcher.transpos_table.reserved_memory()
+        );
+        searcher.set_hash_size(4 * HASH_ENTRY_SIZE - 1);
+        assert_eq!(
+            2 * HASH_ENTRY_SIZE,
+            searcher.transpos_table.reserved_memory()
+        );
+        searcher.set_hash_size(4 * HASH_ENTRY_SIZE);
+        assert_eq!(
+            4 * HASH_ENTRY_SIZE,
+            searcher.transpos_table.reserved_memory()
+        );
+        searcher.set_hash_size(4 * HASH_ENTRY_SIZE + 1);
+        assert_eq!(
+            4 * HASH_ENTRY_SIZE,
+            searcher.transpos_table.reserved_memory()
+        );
     }
 }

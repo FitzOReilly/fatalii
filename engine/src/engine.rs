@@ -85,6 +85,10 @@ impl Engine {
         }
     }
 
+    pub fn set_hash_size(&self, bytes: usize) {
+        self.searcher.set_hash_size(bytes);
+    }
+
     pub fn set_position_history(&mut self, pos_hist: Option<PositionHistory>) {
         self.pos_hist = pos_hist;
     }
