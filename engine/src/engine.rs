@@ -36,6 +36,7 @@ pub struct Engine {
     best_move_sender: Sender<BestMoveCommand>,
     timer: Timer,
     timer_sender: Sender<TimerCommand>,
+    move_overhead: Duration,
 }
 
 impl Engine {
@@ -82,11 +83,16 @@ impl Engine {
             best_move_sender,
             timer,
             timer_sender,
+            move_overhead: Duration::from_millis(0),
         }
     }
 
     pub fn set_hash_size(&self, bytes: usize) {
         self.searcher.set_hash_size(bytes);
+    }
+
+    pub fn set_move_overhead(&mut self, move_overhead: Duration) {
+        self.move_overhead = move_overhead;
     }
 
     pub fn set_position_history(&mut self, pos_hist: Option<PositionHistory>) {
@@ -104,12 +110,12 @@ impl Engine {
             match pos.side_to_move() {
                 Side::White => {
                     if let Some(time) = options.white_time {
-                        self.start_timer(Self::calc_movetime(time))
+                        self.start_timer(self.calc_movetime(time))
                     }
                 }
                 Side::Black => {
                     if let Some(time) = options.black_time {
-                        self.start_timer(Self::calc_movetime(time))
+                        self.start_timer(self.calc_movetime(time))
                     }
                 }
             }
@@ -182,11 +188,10 @@ impl Engine {
             .expect("Error sending TimerCommand");
     }
 
-    fn calc_movetime(time: Duration) -> Duration {
+    fn calc_movetime(&self, time: Duration) -> Duration {
         const MAX_TIME: Duration = Duration::from_secs(60);
         const MAX_FRACTION: f64 = 8.0;
-        const MARGIN: Duration = Duration::from_millis(5);
-        match time.checked_sub(MARGIN) {
+        match time.checked_sub(self.move_overhead) {
             Some(t) => cmp::min(MAX_TIME, t.div_f64(MAX_FRACTION)),
             None => Duration::from_millis(0),
         }
