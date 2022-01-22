@@ -9,6 +9,7 @@ fn test_cli() -> Result<()> {
     p.send_line("uci")?;
     p.exp_string("id name")?;
     p.exp_string("id author")?;
+    p.exp_string("option name")?;
     p.exp_string("uciok")?;
 
     p.send_line("isready")?;
