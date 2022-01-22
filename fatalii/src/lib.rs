@@ -3,7 +3,7 @@ use search::alpha_beta::AlphaBeta;
 use std::error::Error;
 use std::io;
 use uci::parser::{Parser, ParserMessage};
-use uci::uci_in::{go, is_ready, position, quit, stop, uci as cmd_uci, ucinewgame};
+use uci::uci_in::{go, is_ready, position, quit, set_option, stop, uci as cmd_uci, ucinewgame};
 use uci::uci_out::{best_move, info};
 
 const TABLE_IDX_BITS: usize = 20;
@@ -23,6 +23,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     parser.register_command(String::from("isready"), Box::new(is_ready::run_command));
     parser.register_command(String::from("position"), Box::new(position::run_command));
     parser.register_command(String::from("quit"), Box::new(quit::run_command));
+    parser.register_command(String::from("setoption"), Box::new(set_option::run_command));
     parser.register_command(String::from("stop"), Box::new(stop::run_command));
     parser.register_command(String::from("uci"), Box::new(cmd_uci::run_command));
     parser.register_command(
