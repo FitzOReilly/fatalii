@@ -386,6 +386,47 @@ fn run_command_go_time() {
 }
 
 #[test]
+fn run_command_go_time_limit_exceeded() {
+    // Even if the time limit is exceeded, the engine should still send
+    // a bestmove response to a go command
+    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let mut test_writer = TestBuffer::new();
+
+    let mut test_writer_info = test_writer.clone();
+    let mut test_writer_best_move = test_writer.clone();
+    let test_writer_parser = test_writer.clone();
+    let search_info_callback =
+        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
+    let best_move_callback =
+        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
+
+    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
+    let mut p = Parser::new(Box::new(test_writer_parser));
+
+    p.register_command(String::from("setoption"), Box::new(set_option::run_command));
+    p.register_command(String::from("position"), Box::new(position::run_command));
+    p.register_command(String::from("go"), Box::new(go::run_command));
+
+    assert!(p
+        .run_command("setoption name Move Overhead value 100\n", &mut engine)
+        .is_ok());
+
+    assert!(p.run_command("position startpos\n", &mut engine).is_ok());
+    std::thread::sleep(Duration::from_millis(20));
+    assert!(p.run_command("go wtime 0 btime 0\n", &mut engine).is_ok());
+    std::thread::sleep(Duration::from_millis(50));
+    assert!(contains(test_writer.split_off(0), "bestmove"));
+
+    assert!(p
+        .run_command("position startpos moves e2e4\n", &mut engine)
+        .is_ok());
+    std::thread::sleep(Duration::from_millis(20));
+    assert!(p.run_command("go wtime 0 btime 0\n", &mut engine).is_ok());
+    std::thread::sleep(Duration::from_millis(50));
+    assert!(contains(test_writer.split_off(0), "bestmove"));
+}
+
+#[test]
 fn run_command_go_twice() {
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
