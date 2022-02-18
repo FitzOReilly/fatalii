@@ -11,16 +11,18 @@ pub const MAX_SEARCH_DEPTH: usize = u8::MAX as usize;
 pub struct SearchResult {
     depth: u8,
     score: Score,
+    nodes: u64,
     best_move: Move,
     pv: MoveList,
 }
 
 impl SearchResult {
-    pub fn new(depth: usize, score: Score, best_move: Move, pv: MoveList) -> Self {
+    pub fn new(depth: usize, score: Score, nodes: u64, best_move: Move, pv: MoveList) -> Self {
         debug_assert!(depth <= MAX_SEARCH_DEPTH);
         Self {
             depth: depth as u8,
             score,
+            nodes,
             best_move,
             pv,
         }
@@ -32,6 +34,10 @@ impl SearchResult {
 
     pub fn score(&self) -> Score {
         self.score
+    }
+
+    pub fn nodes(&self) -> u64 {
+        self.nodes
     }
 
     pub fn best_move(&self) -> Move {
@@ -51,6 +57,7 @@ impl Neg for SearchResult {
         Self::new(
             self.depth(),
             -self.score(),
+            self.nodes(),
             self.best_move(),
             self.principal_variation().clone(),
         )
@@ -61,9 +68,10 @@ impl fmt::Display for SearchResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "depth: {}, score: {}, best move: {}",
+            "depth: {}, score: {}, nodes: {}, best move: {}",
             self.depth(),
             self.score(),
+            self.nodes(),
             self.best_move()
         )
     }

@@ -107,6 +107,7 @@ fn checkmate_white(search_algo: impl Search + Send + 'static) {
     let expected = SearchResult::new(
         depth,
         CHECKMATE_WHITE,
+        0,
         Move::new(Square::D8, Square::H4, MoveType::QUIET),
         MoveList::new(),
     );
@@ -132,6 +133,7 @@ fn checkmate_black(search_algo: impl Search + Send + 'static) {
     let expected = SearchResult::new(
         depth,
         CHECKMATE_BLACK,
+        0,
         Move::new(Square::A1, Square::A8, MoveType::QUIET),
         MoveList::new(),
     );
@@ -152,12 +154,13 @@ fn stalemate(search_algo: impl Search + Send + 'static) {
     let pos_history = PositionHistory::new(pos);
 
     let depth = 1;
-    let expected = SearchResult::new(depth, EQUAL_POSITION, Move::NULL, MoveList::new());
+    let expected = SearchResult::new(depth, EQUAL_POSITION, 0, Move::NULL, MoveList::new());
 
     let mut tester = SearchTester::new(search_algo);
     let actual = tester.search(pos_history, depth);
     assert_eq!(expected.depth(), actual.depth());
     assert_eq!(expected.score(), actual.score());
+    assert_eq!(expected.nodes(), actual.nodes());
     assert_eq!(expected.best_move(), actual.best_move());
 }
 

@@ -1,3 +1,4 @@
+use crate::node_counter::NodeCounter;
 use crate::pv_table::PvTable;
 use crate::search::{Search, SearchCommand, SearchInfo, SearchResult, MAX_SEARCH_DEPTH};
 use crossbeam_channel::{Receiver, Sender};
@@ -75,6 +76,7 @@ impl Neg for AlphaBetaTableEntry {
 pub struct AlphaBeta {
     transpos_table: TranspositionTable<Zobrist, AlphaBetaTableEntry>,
     pv_table: PvTable,
+    node_counter: NodeCounter,
     search_depth: usize,
 }
 
@@ -98,6 +100,7 @@ impl Search for AlphaBeta {
         command_receiver: &mut Receiver<SearchCommand>,
         info_sender: &mut Sender<SearchInfo>,
     ) {
+        self.node_counter.clear();
         for d in 1..=depth {
             self.search_depth = d;
 
@@ -124,6 +127,7 @@ impl Search for AlphaBeta {
                     let search_res = SearchResult::new(
                         d,
                         abs_alpha_beta_res.score(),
+                        self.node_counter.sum_nodes(),
                         abs_alpha_beta_res.best_move(),
                         self.principal_variation(d),
                     );
@@ -149,6 +153,7 @@ impl AlphaBeta {
         Self {
             transpos_table: TranspositionTable::new(table_idx_bits),
             pv_table: PvTable::new(),
+            node_counter: NodeCounter::new(),
             search_depth: 0,
         }
     }
@@ -177,6 +182,8 @@ impl AlphaBeta {
 
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             if let Some(bounded) = self.bound_hard(entry, alpha, beta) {
+                self.node_counter
+                    .increment_cache_hits(self.search_depth, depth);
                 match (bounded.score_type(), depth) {
                     (ScoreType::Exact, 0) => return Some(bounded),
                     (ScoreType::Exact, 1) => {
@@ -212,6 +219,7 @@ impl AlphaBeta {
                     Some(node)
                 } else {
                     for m in move_list.iter() {
+                        self.node_counter.increment_nodes(self.search_depth, depth);
                         pos_history.do_move(*m);
                         let opt_neg_res = self.search_recursive(
                             pos_history,
@@ -270,10 +278,13 @@ impl AlphaBeta {
 
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             if let Some(bounded) = self.bound_hard(entry, alpha, beta) {
+                self.node_counter
+                    .increment_cache_hits(self.search_depth, depth);
                 return bounded;
             }
         }
 
+        self.node_counter.increment_eval_calls(self.search_depth);
         let mut score = Eval::eval_relative(pos);
         let mut score_type = ScoreType::UpperBound;
         let mut best_move = Move::NULL;
@@ -291,6 +302,7 @@ impl AlphaBeta {
         let mut move_list = MoveList::new();
         MoveGenerator::generate_moves(&mut move_list, pos);
         for m in move_list.iter().filter(|m| m.is_capture()) {
+            self.node_counter.increment_nodes(self.search_depth, depth);
             pos_history.do_move(*m);
             let search_result = -self.search_quiescence(pos_history, -beta, -alpha);
             score = search_result.score();
