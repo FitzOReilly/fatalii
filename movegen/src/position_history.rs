@@ -62,6 +62,7 @@ impl PositionHistory {
             Move::NULL => self.do_null_move(),
             _ => self.do_regular_move(m),
         }
+        debug_assert_eq!(Zobrist::new(self.current_pos()), self.current_pos_hash());
     }
 
     fn do_null_move(&mut self) {
@@ -226,6 +227,7 @@ impl PositionHistory {
             Move::NULL => self.undo_null_move(irr),
             _ => self.undo_regular_move(m, irr),
         }
+        debug_assert_eq!(Zobrist::new(self.current_pos()), self.current_pos_hash());
     }
 
     fn undo_null_move(&mut self, irr: &IrreversibleProperties) {

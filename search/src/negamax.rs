@@ -9,7 +9,6 @@ use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
 use movegen::transposition_table::TranspositionTable;
 use movegen::zobrist::Zobrist;
-use std::cmp;
 use std::ops::Neg;
 
 #[derive(Clone, Copy, Debug)]
@@ -73,6 +72,7 @@ impl Search for Negamax {
         command_receiver: &mut Receiver<SearchCommand>,
         info_sender: &mut Sender<SearchInfo>,
     ) {
+        self.node_counter.clear();
         for d in 1..=depth {
             self.search_depth = d;
 
@@ -142,7 +142,16 @@ impl Negamax {
             let e = *entry;
             self.node_counter
                 .increment_cache_hits(self.search_depth, depth);
-            return Some(e);
+            match depth {
+                0 => return Some(e),
+                1 => {
+                    self.pv_table.update_move_and_truncate(depth, e.best_move());
+                    return Some(e);
+                }
+                _ => {
+                    // For greater depths, we need to keep searching in order to obtain the PV
+                }
+            }
         }
 
         let mut best_score = NEGATIVE_INF;
@@ -161,8 +170,8 @@ impl Negamax {
                     };
                     let node = NegamaxTableEntry::new(depth, score, Move::NULL);
                     self.update_table(pos_hash, node);
-                    self.pv_table.update_move_and_copy(depth, Move::NULL);
-                    best_score = cmp::max(best_score, score);
+                    self.pv_table.update_move_and_truncate(depth, Move::NULL);
+                    Some(node)
                 } else {
                     for m in move_list.iter() {
                         self.node_counter.increment_nodes(self.search_depth, depth);
@@ -182,20 +191,16 @@ impl Negamax {
                                 if score > best_score {
                                     best_score = score;
                                     best_move = *m;
+                                    self.pv_table.update_move_and_copy(depth, best_move);
                                 }
                             }
                             None => return None,
                         }
-
-                        let node = NegamaxTableEntry::new(depth, best_score, best_move);
-                        self.update_table(pos_hash, node);
                     }
+                    let node = NegamaxTableEntry::new(depth, best_score, best_move);
+                    self.update_table(pos_hash, node);
+                    Some(node)
                 }
-                debug_assert!(self.transpos_table.get(&pos_hash).is_some());
-                let node = NegamaxTableEntry::new(depth, best_score, best_move);
-                self.update_table(pos_hash, node);
-                self.pv_table.update_move_and_copy(depth, best_move);
-                Some(node)
             }
         }
     }

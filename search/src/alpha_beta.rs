@@ -180,7 +180,18 @@ impl AlphaBeta {
             if let Some(bounded) = self.bound_hard(entry, alpha, beta) {
                 self.node_counter
                     .increment_cache_hits(self.search_depth, depth);
-                return Some(bounded);
+                match (bounded.score_type(), depth) {
+                    (ScoreType::Exact, 0) => return Some(bounded),
+                    (ScoreType::Exact, 1) => {
+                        self.pv_table
+                            .update_move_and_truncate(depth, bounded.best_move());
+                        return Some(bounded);
+                    }
+                    (ScoreType::Exact, _) => {
+                        // For greater depths, we need to keep searching in order to obtain the PV
+                    }
+                    _ => return Some(bounded),
+                }
             }
         }
 
@@ -200,7 +211,7 @@ impl AlphaBeta {
                     };
                     let node = AlphaBetaTableEntry::new(depth, score, ScoreType::Exact, Move::NULL);
                     self.update_table(pos_hash, node);
-                    self.pv_table.update_move_and_copy(depth, Move::NULL);
+                    self.pv_table.update_move_and_truncate(depth, Move::NULL);
                     Some(node)
                 } else {
                     for m in move_list.iter() {
@@ -234,6 +245,7 @@ impl AlphaBeta {
                                     alpha = score;
                                     score_type = ScoreType::Exact;
                                     best_move = *m;
+                                    self.pv_table.update_move_and_copy(depth, best_move);
                                 }
                             }
                             None => return None,
@@ -244,7 +256,6 @@ impl AlphaBeta {
                     );
                     let node = AlphaBetaTableEntry::new(depth, alpha, score_type, best_move);
                     self.update_table(pos_hash, node);
-                    self.pv_table.update_move_and_copy(depth, best_move);
                     Some(node)
                 }
             }
