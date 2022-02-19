@@ -75,6 +75,7 @@ impl Neg for AlphaBetaTableEntry {
 pub struct AlphaBeta {
     transpos_table: TranspositionTable<Zobrist, AlphaBetaTableEntry>,
     pv_table: PvTable,
+    search_depth: usize,
 }
 
 const HASH_ENTRY_SIZE: usize = mem::size_of::<Option<(Zobrist, AlphaBetaTableEntry)>>();
@@ -97,14 +98,16 @@ impl Search for AlphaBeta {
         command_receiver: &mut Receiver<SearchCommand>,
         info_sender: &mut Sender<SearchInfo>,
     ) {
-        for depth in 1..=depth {
+        for d in 1..=depth {
+            self.search_depth = d;
+
             if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
                 break;
             }
 
             match self.search_recursive(
                 pos_history,
-                depth,
+                d,
                 NEGATIVE_INF,
                 POSITIVE_INF,
                 command_receiver,
@@ -117,10 +120,10 @@ impl Search for AlphaBeta {
                     };
                     debug_assert_eq!(ScoreType::Exact, abs_alpha_beta_res.score_type());
                     let search_res = SearchResult::new(
-                        depth,
+                        d,
                         abs_alpha_beta_res.score(),
                         abs_alpha_beta_res.best_move(),
-                        self.principal_variation(depth),
+                        self.principal_variation(d),
                     );
                     info_sender
                         .send(SearchInfo::DepthFinished(search_res))
@@ -144,6 +147,7 @@ impl AlphaBeta {
         Self {
             transpos_table: TranspositionTable::new(table_idx_bits),
             pv_table: PvTable::new(),
+            search_depth: 0,
         }
     }
 
@@ -169,7 +173,18 @@ impl AlphaBeta {
 
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             if let Some(bounded) = self.bound_hard(entry, alpha, beta) {
-                return Some(bounded);
+                match (bounded.score_type(), depth) {
+                    (ScoreType::Exact, 0) => return Some(bounded),
+                    (ScoreType::Exact, 1) => {
+                        self.pv_table
+                            .update_move_and_truncate(depth, bounded.best_move());
+                        return Some(bounded);
+                    }
+                    (ScoreType::Exact, _) => {
+                        // For greater depths, we need to keep searching in order to obtain the PV
+                    }
+                    _ => return Some(bounded),
+                }
             }
         }
 
@@ -189,7 +204,7 @@ impl AlphaBeta {
                     };
                     let node = AlphaBetaTableEntry::new(depth, score, ScoreType::Exact, Move::NULL);
                     self.update_table(pos_hash, node);
-                    self.pv_table.update_move_and_copy(depth, Move::NULL);
+                    self.pv_table.update_move_and_truncate(depth, Move::NULL);
                     Some(node)
                 } else {
                     for m in move_list.iter() {
@@ -222,6 +237,7 @@ impl AlphaBeta {
                                     alpha = score;
                                     score_type = ScoreType::Exact;
                                     best_move = *m;
+                                    self.pv_table.update_move_and_copy(depth, best_move);
                                 }
                             }
                             None => return None,
@@ -232,7 +248,6 @@ impl AlphaBeta {
                     );
                     let node = AlphaBetaTableEntry::new(depth, alpha, score_type, best_move);
                     self.update_table(pos_hash, node);
-                    self.pv_table.update_move_and_copy(depth, best_move);
                     Some(node)
                 }
             }
