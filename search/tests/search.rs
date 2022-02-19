@@ -1,5 +1,6 @@
 use crossbeam_channel::{unbounded, Receiver};
 use eval::eval::{Eval, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF};
+use movegen::fen::Fen;
 use movegen::move_generator::MoveGenerator;
 use movegen::piece;
 use movegen::position::Position;
@@ -182,6 +183,68 @@ fn search_quiescence(search_algo: impl Search + Send + 'static) {
     assert_eq!(max_score, tester.search(pos_history.clone(), depth).score());
 }
 
+fn pv_valid_after_hash_table_hit_depth_1(search_algo: impl Search + Send + 'static) {
+    let pos = Position::initial();
+    let depth = 1;
+    let mut tester = SearchTester::new(search_algo);
+
+    // Fill hash table in initial position
+    let mut pos_history = PositionHistory::new(pos.clone());
+    let _ = tester.search(pos_history.clone(), depth);
+    // Fill PV table with PV after 1. e4
+    pos_history.do_move(Move::new(
+        Square::E2,
+        Square::E4,
+        MoveType::DOUBLE_PAWN_PUSH,
+    ));
+    let _ = tester.search(pos_history.clone(), depth);
+    // Search again in initial position. This time, we hit a hash table entry.
+    // The PV should still be correct.
+    pos_history.undo_last_move();
+    let res = tester.search(pos_history.clone(), depth);
+
+    assert!(
+        check_moves_valid(&mut pos_history, &mut res.principal_variation().clone()),
+        "\nPosition: {}\n{}Invalid PV: {}\n",
+        Fen::pos_to_str(&pos),
+        pos,
+        res.principal_variation()
+    );
+}
+
+fn pv_valid_after_hash_table_hit_depth_greater_than_1(search_algo: impl Search + Send + 'static) {
+    let fen = "6k1/p3nr2/7Q/2B5/4N3/8/br1K1PPP/6NR w - - 3 26";
+    let pos = Fen::str_to_pos(fen).unwrap();
+    let depth = 4;
+    let mut tester = SearchTester::new(search_algo);
+
+    let mut pos_history = PositionHistory::new(pos.clone());
+    let res = tester.search(pos_history.clone(), depth);
+
+    assert!(
+        check_moves_valid(&mut pos_history, &mut res.principal_variation().clone()),
+        "\nPosition: {}\n{}Invalid PV: {}\n",
+        fen,
+        pos,
+        res.principal_variation()
+    );
+}
+
+fn check_moves_valid(pos_history: &mut PositionHistory, pv: &mut MoveList) -> bool {
+    if pv.is_empty() {
+        return true;
+    }
+    let m = pv.remove(0);
+    let mut move_list = MoveList::new();
+    MoveGenerator::generate_moves(&mut move_list, pos_history.current_pos());
+    if move_list.contains(&m) {
+        pos_history.do_move(m);
+        check_moves_valid(pos_history, pv)
+    } else {
+        false
+    }
+}
+
 #[test]
 #[ignore]
 fn negamax_search_results_independent_of_transposition_table_size() {
@@ -224,6 +287,19 @@ fn negamax_search_quiescence() {
 }
 
 #[test]
+fn negamax_pv_valid_after_hash_table_hit_depth_1() {
+    let negamax = Negamax::new(TABLE_IDX_BITS);
+    pv_valid_after_hash_table_hit_depth_1(negamax);
+}
+
+#[test]
+#[ignore]
+fn negamax_pv_valid_after_hash_table_hit_depth_greater_than_1() {
+    let negamax = Negamax::new(TABLE_IDX_BITS);
+    pv_valid_after_hash_table_hit_depth_greater_than_1(negamax);
+}
+
+#[test]
 #[ignore]
 fn alpha_beta_search_results_independent_of_transposition_table_size() {
     // Expected: The search result should be the same for different table sizes. The
@@ -262,4 +338,17 @@ fn alpha_beta_stalemate() {
 fn alpha_beta_search_quiescence() {
     let alpha_beta = AlphaBeta::new(TABLE_IDX_BITS);
     search_quiescence(alpha_beta);
+}
+
+#[test]
+fn alpha_beta_pv_valid_after_hash_table_hit_depth_1() {
+    let alpha_beta = AlphaBeta::new(TABLE_IDX_BITS);
+    pv_valid_after_hash_table_hit_depth_1(alpha_beta);
+}
+
+#[test]
+#[ignore]
+fn alpha_beta_pv_valid_after_hash_table_hit_depth_greater_than_1() {
+    let alpha_beta = AlphaBeta::new(TABLE_IDX_BITS);
+    pv_valid_after_hash_table_hit_depth_greater_than_1(alpha_beta);
 }
