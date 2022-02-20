@@ -44,6 +44,11 @@ impl MoveGenerator {
             KingNotXrayedGenerator::generate_moves(move_list, &attacks_to_king);
         }
     }
+
+    pub fn generate_captures(move_list: &mut MoveList, pos: &Position) {
+        Self::generate_moves(move_list, pos);
+        move_list.retain(|m| m.is_capture());
+    }
 }
 
 #[cfg(test)]
@@ -51,9 +56,11 @@ mod tests {
     use super::*;
     use crate::fen::Fen;
     use crate::position::{CastlingRights, Position};
+    use crate::position_history::PositionHistory;
     use crate::r#move::{Move, MoveType};
     use crate::side::Side;
     use crate::square::Square;
+    use rand::seq::SliceRandom;
 
     #[test]
     fn initial_position() {
@@ -1021,5 +1028,37 @@ mod tests {
             Square::B6,
             MoveType::EN_PASSANT_CAPTURE
         )));
+    }
+
+    #[test]
+    fn generate_captures() {
+        let pos = Position::initial();
+        let mut pos_hist = PositionHistory::new(pos.clone());
+        let gen_then_filter = |move_list: &mut MoveList, pos: &Position| {
+            MoveGenerator::generate_moves(move_list, pos);
+            move_list.retain(|x| x.is_capture());
+        };
+
+        let max_moves = 40;
+
+        let mut move_list = MoveList::new();
+        let mut move_list_fn = MoveList::new();
+        let mut move_list_closure = MoveList::new();
+
+        for _ in 0..max_moves {
+            MoveGenerator::generate_captures(&mut move_list_fn, pos_hist.current_pos());
+            gen_then_filter(&mut move_list_closure, pos_hist.current_pos());
+
+            assert_eq!(move_list_fn.len(), move_list_closure.len());
+            for m in move_list_fn.iter() {
+                assert!(move_list_closure.contains(m));
+            }
+
+            MoveGenerator::generate_moves(&mut move_list, pos_hist.current_pos());
+            match move_list.choose(&mut rand::thread_rng()) {
+                Some(m) => pos_hist.do_move(*m),
+                None => pos_hist = PositionHistory::new(pos.clone()),
+            }
+        }
     }
 }

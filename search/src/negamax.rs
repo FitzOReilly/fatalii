@@ -227,8 +227,8 @@ impl Negamax {
         let mut best_move = Move::NULL;
 
         let mut move_list = MoveList::new();
-        MoveGenerator::generate_moves(&mut move_list, pos);
-        for m in move_list.iter().filter(|m| m.is_capture()) {
+        MoveGenerator::generate_captures(&mut move_list, pos);
+        for m in move_list.iter() {
             self.node_counter.increment_nodes(self.search_depth, depth);
             pos_history.do_move(*m);
             let search_result = -self.search_quiescence(pos_history);
