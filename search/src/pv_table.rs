@@ -17,7 +17,7 @@ impl PvTable {
         }
     }
 
-    fn pv(&self, depth: usize) -> &[Move] {
+    pub fn pv(&self, depth: usize) -> &[Move] {
         let begin = self.index(depth);
         let end = begin + depth;
         &self.table[begin..end]

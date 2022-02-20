@@ -78,6 +78,7 @@ pub struct AlphaBeta {
     pv_table: PvTable,
     node_counter: NodeCounter,
     search_depth: usize,
+    pv_depth: usize,
 }
 
 const HASH_ENTRY_SIZE: usize = mem::size_of::<Option<(Zobrist, AlphaBetaTableEntry)>>();
@@ -103,6 +104,7 @@ impl Search for AlphaBeta {
         self.node_counter.clear();
         for d in 1..=depth {
             self.search_depth = d;
+            self.pv_depth = d - 1;
 
             if self.search_depth > 1 {
                 if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
@@ -155,6 +157,7 @@ impl AlphaBeta {
             pv_table: PvTable::new(),
             node_counter: NodeCounter::new(),
             search_depth: 0,
+            pv_depth: 0,
         }
     }
 
@@ -218,9 +221,9 @@ impl AlphaBeta {
                     self.pv_table.update_move_and_truncate(depth, Move::NULL);
                     Some(node)
                 } else {
-                    for m in move_list.iter() {
+                    while let Some(m) = self.select_next_move(depth, &mut move_list) {
                         self.node_counter.increment_nodes(self.search_depth, depth);
-                        pos_history.do_move(*m);
+                        pos_history.do_move(m);
                         let opt_neg_res = self.search_recursive(
                             pos_history,
                             depth - 1,
@@ -240,7 +243,7 @@ impl AlphaBeta {
                                         depth,
                                         beta,
                                         ScoreType::LowerBound,
-                                        *m,
+                                        m,
                                     );
                                     self.update_table(pos_hash, node);
                                     return Some(node);
@@ -248,7 +251,7 @@ impl AlphaBeta {
                                 if score > alpha {
                                     alpha = score;
                                     score_type = ScoreType::Exact;
-                                    best_move = *m;
+                                    best_move = m;
                                     self.pv_table.update_move_and_copy(depth, best_move);
                                 }
                             }
@@ -375,6 +378,29 @@ impl AlphaBeta {
                 Move::NULL,
             )),
             _ => None,
+        }
+    }
+
+    fn select_next_move(&mut self, depth: usize, move_list: &mut MoveList) -> Option<Move> {
+        if self.pv_depth > 0 {
+            debug_assert_eq!(self.pv_depth, depth - 1);
+            self.pv_depth -= 1;
+            // Select the PV move from the previous iteration
+            let prev_pv = self.pv_table.pv(self.search_depth - 1);
+            let pv_move = prev_pv[self.search_depth - depth];
+            let idx = move_list
+                .iter()
+                .position(|&x| x == pv_move)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "\nPV move not found in move list\n\
+                        Search depth: {}\nDepth: {}\nMove list: {}\nPV move: {}\nPV table:\n{}",
+                        self.search_depth, depth, move_list, pv_move, self.pv_table
+                    )
+                });
+            Some(move_list.swap_remove(idx))
+        } else {
+            move_list.pop()
         }
     }
 }
