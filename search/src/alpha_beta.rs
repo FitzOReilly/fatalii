@@ -221,7 +221,7 @@ impl AlphaBeta {
                     self.pv_table.update_move_and_truncate(depth, Move::NULL);
                     Some(node)
                 } else {
-                    while let Some(m) = self.select_next_move(depth, &mut move_list) {
+                    while let Some(m) = self.select_next_move(pos_history, depth, &mut move_list) {
                         self.node_counter.increment_nodes(self.search_depth, depth);
                         pos_history.do_move(m);
                         let opt_neg_res = self.search_recursive(
@@ -381,7 +381,24 @@ impl AlphaBeta {
         }
     }
 
-    fn select_next_move(&mut self, depth: usize, move_list: &mut MoveList) -> Option<Move> {
+    fn select_next_move(
+        &mut self,
+        pos_history: &PositionHistory,
+        depth: usize,
+        move_list: &mut MoveList,
+    ) -> Option<Move> {
+        if let Some(m) = self.select_pv_move(depth, move_list) {
+            return Some(m);
+        }
+
+        if let Some(m) = self.select_hash_move(pos_history, move_list) {
+            return Some(m);
+        }
+
+        move_list.pop()
+    }
+
+    fn select_pv_move(&mut self, depth: usize, move_list: &mut MoveList) -> Option<Move> {
         if self.pv_depth > 0 {
             debug_assert_eq!(self.pv_depth, depth - 1);
             self.pv_depth -= 1;
@@ -398,10 +415,22 @@ impl AlphaBeta {
                         self.search_depth, depth, move_list, pv_move, self.pv_table
                     )
                 });
-            Some(move_list.swap_remove(idx))
-        } else {
-            move_list.pop()
+            return Some(move_list.swap_remove(idx));
         }
+        None
+    }
+
+    fn select_hash_move(
+        &mut self,
+        pos_history: &PositionHistory,
+        move_list: &mut MoveList,
+    ) -> Option<Move> {
+        if let Some(entry) = self.transpos_table.get(&pos_history.current_pos_hash()) {
+            if let Some(idx) = move_list.iter().position(|&x| x == entry.best_move()) {
+                return Some(move_list.swap_remove(idx));
+            }
+        }
+        None
     }
 }
 
