@@ -101,8 +101,10 @@ impl Search for AlphaBeta {
         for d in 1..=depth {
             self.search_depth = d;
 
-            if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
-                break;
+            if self.search_depth > 1 {
+                if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
+                    break;
+                }
             }
 
             match self.search_recursive(
@@ -164,8 +166,10 @@ impl AlphaBeta {
         command_receiver: &mut Receiver<SearchCommand>,
         info_sender: &mut Sender<SearchInfo>,
     ) -> Option<AlphaBetaTableEntry> {
-        if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
-            return None;
+        if self.search_depth > 1 {
+            if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
+                return None;
+            }
         }
 
         let pos = pos_history.current_pos();
