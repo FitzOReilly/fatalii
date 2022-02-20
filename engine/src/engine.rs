@@ -189,7 +189,7 @@ impl Engine {
     }
 
     fn calc_movetime(&self, time: Duration) -> Duration {
-        const MIN_TIME: Duration = Duration::from_millis(5);
+        const MIN_TIME: Duration = Duration::from_millis(0);
         const MAX_TIME: Duration = Duration::from_secs(60);
         const MAX_FRACTION: f64 = 8.0;
         match time.checked_sub(self.move_overhead) {
