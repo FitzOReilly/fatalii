@@ -9,6 +9,9 @@ use uci::uci_out::{best_move, info};
 const TABLE_IDX_BITS: usize = 20;
 
 pub fn run() -> Result<(), Box<dyn Error>> {
+    unsafe {
+        uci::uci_out::id::ENGINE_VERSION = env!("CARGO_PKG_VERSION");
+    }
     let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
     let search_info_callback =
         Box::new(move |m| info::write(&mut io::stdout(), m).expect("Error writing search info"));
