@@ -107,9 +107,9 @@ pub trait Search {
 
     fn search(
         &mut self,
-        pos_history: &mut PositionHistory,
-        depth: usize,
-        command_receiver: &mut Receiver<SearchCommand>,
-        info_sender: &mut Sender<SearchInfo>,
+        pos_history: PositionHistory,
+        max_depth: usize,
+        command_receiver: &Receiver<SearchCommand>,
+        info_sender: &Sender<SearchInfo>,
     );
 }

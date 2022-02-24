@@ -116,12 +116,12 @@ impl Worker {
 
     fn search(
         search: &mut impl Search,
-        mut pos_hist: PositionHistory,
+        pos_hist: PositionHistory,
         depth: usize,
         command_receiver: &mut Receiver<SearchCommand>,
         info_sender: &mut Sender<SearchInfo>,
     ) {
-        search.search(&mut pos_hist, depth, command_receiver, info_sender);
+        search.search(pos_hist, depth, command_receiver, info_sender);
     }
 }
 

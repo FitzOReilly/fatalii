@@ -16,12 +16,6 @@ impl NodeCounter {
         }
     }
 
-    pub fn clear(&mut self) {
-        self.node_counts.clear();
-        self.eval_count.clear();
-        self.max_depth = 0;
-    }
-
     pub fn increment_nodes(&mut self, search_depth: usize, plies_from_end: usize) {
         self.reserve(search_depth);
         self.node_counts[search_depth - 1][plies_from_end].0 += 1;
