@@ -133,7 +133,7 @@ fn alpha_beta_middlegame_position(c: &mut Criterion) {
     let fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
     let pos = Fen::str_to_pos(fen).unwrap();
     let min_depth = 1;
-    let max_depth = 1;
+    let max_depth = 6;
 
     alpha_beta(c, group_name, pos, min_depth, max_depth);
 }

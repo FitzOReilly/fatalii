@@ -15,7 +15,7 @@ use search::searcher::Searcher;
 use std::cmp;
 use std::time::Duration;
 
-const TABLE_IDX_BITS: usize = 16;
+const TABLE_IDX_BITS: usize = 20;
 const TIMEOUT_PER_TEST: Duration = Duration::from_millis(30000);
 
 struct SearchTester {
@@ -245,6 +245,18 @@ fn check_moves_valid(pos_history: &mut PositionHistory, pv: &mut MoveList) -> bo
     }
 }
 
+fn count_searched_nodes(search_algo: impl Search + Send + 'static, pos: Position, depth: usize) {
+    let mut tester = SearchTester::new(search_algo);
+    let pos_history = PositionHistory::new(pos.clone());
+    let res = tester.search(pos_history, depth);
+    print!(
+        "Counting search nodes...\nPosition:\n{}Depth: {}\nSearched nodes (lower is better): {}\n",
+        pos,
+        depth,
+        res.nodes()
+    );
+}
+
 #[test]
 #[ignore]
 fn negamax_search_results_independent_of_transposition_table_size() {
@@ -351,4 +363,14 @@ fn alpha_beta_pv_valid_after_hash_table_hit_depth_1() {
 fn alpha_beta_pv_valid_after_hash_table_hit_depth_greater_than_1() {
     let alpha_beta = AlphaBeta::new(TABLE_IDX_BITS);
     pv_valid_after_hash_table_hit_depth_greater_than_1(alpha_beta);
+}
+
+#[test]
+#[ignore = "benchmark"]
+fn alpha_beta_count_searched_nodes_middlegame_position() {
+    let fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+    let pos = Fen::str_to_pos(fen).unwrap();
+    let depth = 6;
+    let alpha_beta = AlphaBeta::new(TABLE_IDX_BITS);
+    count_searched_nodes(alpha_beta, pos, depth);
 }
