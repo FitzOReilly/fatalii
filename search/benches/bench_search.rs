@@ -1,5 +1,6 @@
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput};
 use crossbeam_channel::{unbounded, Receiver};
+use movegen::fen::Fen;
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 use search::alpha_beta::AlphaBeta;
@@ -54,14 +55,11 @@ impl SearchBencher {
     }
 }
 
-fn negamax_initial_position(c: &mut Criterion) {
-    let min_depth = 1;
-    let max_depth = 3;
+fn negamax(c: &mut Criterion, group_name: &str, pos: Position, min_depth: usize, max_depth: usize) {
     let table_idx_bits = 20;
+    let pos_history = PositionHistory::new(pos);
 
-    let pos_history = PositionHistory::new(Position::initial());
-
-    let mut group = c.benchmark_group("Negamax");
+    let mut group = c.benchmark_group(group_name);
     for depth in min_depth..=max_depth {
         group.throughput(Throughput::Elements(depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), &depth, |b, &depth| {
@@ -75,14 +73,17 @@ fn negamax_initial_position(c: &mut Criterion) {
     group.finish();
 }
 
-fn alpha_beta_initial_position(c: &mut Criterion) {
-    let min_depth = 1;
-    let max_depth = 5;
+fn alpha_beta(
+    c: &mut Criterion,
+    group_name: &str,
+    pos: Position,
+    min_depth: usize,
+    max_depth: usize,
+) {
     let table_idx_bits = 20;
+    let pos_history = PositionHistory::new(pos);
 
-    let pos_history = PositionHistory::new(Position::initial());
-
-    let mut group = c.benchmark_group("Alpha-Beta");
+    let mut group = c.benchmark_group(group_name);
     for depth in min_depth..=max_depth {
         group.throughput(Throughput::Elements(depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), &depth, |b, &depth| {
@@ -96,9 +97,51 @@ fn alpha_beta_initial_position(c: &mut Criterion) {
     group.finish();
 }
 
+fn negamax_initial_position(c: &mut Criterion) {
+    let group_name = "Negamax initial position";
+    let pos = Position::initial();
+    let min_depth = 1;
+    let max_depth = 3;
+
+    negamax(c, group_name, pos, min_depth, max_depth);
+}
+
+#[allow(dead_code)]
+fn negamax_middlegame_position(c: &mut Criterion) {
+    let group_name = "Negamax middlegame position";
+    // Position from https://www.chessprogramming.org/Perft_Results
+    let fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+    let pos = Fen::str_to_pos(fen).unwrap();
+    let min_depth = 1;
+    let max_depth = 4;
+
+    negamax(c, group_name, pos, min_depth, max_depth);
+}
+
+fn alpha_beta_initial_position(c: &mut Criterion) {
+    let group_name = "Alpha-Beta initial position";
+    let pos = Position::initial();
+    let min_depth = 1;
+    let max_depth = 6;
+
+    alpha_beta(c, group_name, pos, min_depth, max_depth);
+}
+
+fn alpha_beta_middlegame_position(c: &mut Criterion) {
+    let group_name = "Alpha-Beta middlegame position";
+    // Position from https://www.chessprogramming.org/Perft_Results
+    let fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+    let pos = Fen::str_to_pos(fen).unwrap();
+    let min_depth = 1;
+    let max_depth = 1;
+
+    alpha_beta(c, group_name, pos, min_depth, max_depth);
+}
+
 criterion_group!(
     benches,
     negamax_initial_position,
-    alpha_beta_initial_position
+    alpha_beta_initial_position,
+    alpha_beta_middlegame_position,
 );
 criterion_main!(benches);
