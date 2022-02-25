@@ -220,22 +220,26 @@ impl AlphaBeta {
 
         let mut move_list = MoveList::new();
         MoveGenerator::generate_captures(&mut move_list, pos);
-        for m in move_list.iter() {
+        while let Some(m) = MoveSelector::select_next_move_quiescence(
+            search_data,
+            &mut self.transpos_table,
+            &mut move_list,
+        ) {
             search_data.increment_nodes(depth);
-            search_data.pos_history_mut().do_move(*m);
+            search_data.pos_history_mut().do_move(m);
             let search_result = -self.search_quiescence(search_data, -beta, -alpha);
             score = search_result.score();
             search_data.pos_history_mut().undo_last_move();
 
             if score >= beta {
-                let node = AlphaBetaEntry::new(depth, beta, ScoreType::LowerBound, *m);
+                let node = AlphaBetaEntry::new(depth, beta, ScoreType::LowerBound, m);
                 self.update_table(pos_hash, node);
                 return node;
             }
             if score > alpha {
                 alpha = score;
                 score_type = ScoreType::Exact;
-                best_move = *m;
+                best_move = m;
             }
         }
         debug_assert!(score_type == ScoreType::Exact || score_type == ScoreType::UpperBound);
