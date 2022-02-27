@@ -30,7 +30,7 @@ impl BestMoveHandler {
                     };
                 }
                 BestMoveCommand::SetOptions(new_options) => match options.lock() {
-                    Ok(mut opt) => *opt = new_options,
+                    Ok(mut opt) => *opt = *new_options,
                     Err(e) => panic!("{}", e),
                 },
                 BestMoveCommand::SetSideToMove(s) => side_to_move = s,
@@ -83,7 +83,7 @@ impl BestMoveHandler {
 #[derive(Clone, Debug)]
 pub enum BestMoveCommand {
     Clear,
-    SetOptions(SearchOptions),
+    SetOptions(Box<SearchOptions>),
     SetSideToMove(Option<Side>),
     DepthFinished(SearchResult),
     Stop(StopReason),

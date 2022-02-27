@@ -1,5 +1,7 @@
 use crate::parser::{split_first_word, ParserMessage, UciError};
-use engine::{Engine, SearchOptions};
+use crate::uci_move::UciMove;
+use engine::{Engine, EngineError, SearchOptions};
+use movegen::r#move::MoveList;
 use std::collections::HashSet;
 use std::error::Error;
 use std::io::Write;
@@ -10,11 +12,11 @@ pub fn run_command(
     args: &str,
     engine: &mut Engine,
 ) -> Result<Option<ParserMessage>, Box<dyn Error>> {
-    let options = parse_options(args)?;
+    let options = parse_options(args, engine)?;
     run(options, engine)
 }
 
-fn parse_options(args: &str) -> Result<SearchOptions, Box<dyn Error>> {
+fn parse_options(args: &str, engine: &Engine) -> Result<SearchOptions, Box<dyn Error>> {
     let mut options = SearchOptions::default();
     let mut seen_options = HashSet::new();
     let mut s = args;
@@ -26,12 +28,20 @@ fn parse_options(args: &str) -> Result<SearchOptions, Box<dyn Error>> {
             ))));
         }
         s = match cmd {
-            "wtime" => parse_leading_duration(tail, &mut options.white_time)?,
-            "btime" => parse_leading_duration(tail, &mut options.black_time)?,
-            "winc" => parse_leading_duration(tail, &mut options.white_inc)?,
-            "binc" => parse_leading_duration(tail, &mut options.black_inc)?,
-            "depth" => parse_leading_usize(tail, &mut options.depth)?,
-            "movetime" => parse_leading_duration(tail, &mut options.movetime)?,
+            "searchmoves" => parse_moves(tail, &mut options.search_moves, engine)?,
+            "ponder" => {
+                options.ponder = true;
+                tail
+            }
+            "wtime" => parse_duration(tail, &mut options.white_time)?,
+            "btime" => parse_duration(tail, &mut options.black_time)?,
+            "winc" => parse_duration(tail, &mut options.white_inc)?,
+            "binc" => parse_duration(tail, &mut options.black_inc)?,
+            "movestogo" => parse_usize(tail, &mut options.moves_to_go)?,
+            "depth" => parse_usize(tail, &mut options.depth)?,
+            "nodes" => parse_usize(tail, &mut options.nodes)?,
+            "mate" => parse_usize(tail, &mut options.mate_in)?,
+            "movetime" => parse_duration(tail, &mut options.movetime)?,
             "infinite" => {
                 options.infinite = true;
                 tail
@@ -47,10 +57,7 @@ fn parse_options(args: &str) -> Result<SearchOptions, Box<dyn Error>> {
     Ok(options)
 }
 
-fn parse_leading_usize<'a>(
-    args: &'a str,
-    number: &mut Option<usize>,
-) -> Result<&'a str, Box<dyn Error>> {
+fn parse_usize<'a>(args: &'a str, number: &mut Option<usize>) -> Result<&'a str, Box<dyn Error>> {
     debug_assert!(number.is_none());
     match split_first_word(args) {
         Some((first_word, tail)) => {
@@ -61,7 +68,7 @@ fn parse_leading_usize<'a>(
     }
 }
 
-fn parse_leading_duration<'a>(
+fn parse_duration<'a>(
     args: &'a str,
     dur: &mut Option<Duration>,
 ) -> Result<&'a str, Box<dyn Error>> {
@@ -73,6 +80,29 @@ fn parse_leading_duration<'a>(
         }
         _ => Err(Box::new(UciError::InvalidArgument(format!("go {}", args)))),
     }
+}
+
+fn parse_moves<'a>(
+    args: &'a str,
+    search_moves: &mut Option<MoveList>,
+    engine: &Engine,
+) -> Result<&'a str, Box<dyn Error>> {
+    debug_assert!(search_moves.is_none());
+    let pos = match engine.position() {
+        Some(p) => p,
+        None => return Err(Box::new(EngineError::SearchWithoutPosition)),
+    };
+    let mut move_list = MoveList::new();
+    let mut s = args;
+    while let Some((move_str, tail)) = split_first_word(s) {
+        match UciMove::str_to_move(pos, move_str) {
+            Some(m) => move_list.push(m),
+            None => break,
+        }
+        s = tail;
+    }
+    *search_moves = Some(move_list);
+    Ok(s)
 }
 
 fn run(
