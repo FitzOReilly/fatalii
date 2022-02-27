@@ -100,21 +100,25 @@ impl Engine {
     }
 
     pub fn search(&mut self, options: SearchOptions) -> Result<(), EngineError> {
+        let opt_dur = options.movetime;
+        let opt_white_time = options.white_time;
+        let opt_black_time = options.black_time;
+        let opt_depth = options.depth;
         self.clear_best_move();
         self.set_search_options(options);
-        let depth = options.depth.unwrap_or(MAX_SEARCH_DEPTH);
+        let depth = opt_depth.unwrap_or(MAX_SEARCH_DEPTH);
         self.search_depth(depth)?;
-        if let Some(dur) = options.movetime {
+        if let Some(dur) = opt_dur {
             self.start_timer(dur);
         } else if let Some(pos) = self.position() {
             match pos.side_to_move() {
                 Side::White => {
-                    if let Some(time) = options.white_time {
+                    if let Some(time) = opt_white_time {
                         self.start_timer(self.calc_movetime(time))
                     }
                 }
                 Side::Black => {
-                    if let Some(time) = options.black_time {
+                    if let Some(time) = opt_black_time {
                         self.start_timer(self.calc_movetime(time))
                     }
                 }
@@ -160,7 +164,7 @@ impl Engine {
 
     fn set_search_options(&self, options: SearchOptions) {
         self.best_move_sender
-            .send(BestMoveCommand::SetOptions(options))
+            .send(BestMoveCommand::SetOptions(Box::new(options)))
             .expect("Error sending BestMoveCommand");
     }
 
