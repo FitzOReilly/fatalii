@@ -16,4 +16,6 @@ pub fn run_command(
     }
 
     Ok(Some(ParserMessage::Quit))
+    // TODO Command
+    // go wtime 121000 btime 121000 winc 1000 binc 1000 movestogo 40
 }
