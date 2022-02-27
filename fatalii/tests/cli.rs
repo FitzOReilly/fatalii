@@ -4,6 +4,12 @@ use std::{thread, time::Duration};
 
 #[test]
 fn test_cli() -> Result<()> {
+    uci_commands()?;
+    quit_while_timer_running()?;
+    Ok(())
+}
+
+fn uci_commands() -> Result<()> {
     let mut p = spawn("cargo run", Some(60000))?;
 
     p.send_line("uci")?;
@@ -31,6 +37,22 @@ fn test_cli() -> Result<()> {
     assert_matches!(p.process.status(), Some(WaitStatus::StillAlive));
     p.send_line("quit")?;
     thread::sleep(Duration::from_millis(100));
+    assert_matches!(p.process.status(), Some(WaitStatus::Exited(_, 0)));
+
+    Ok(())
+}
+
+fn quit_while_timer_running() -> Result<()> {
+    let mut p = spawn("cargo run", Some(60000))?;
+
+    p.send_line("uci")?;
+    p.send_line("isready")?;
+    p.send_line("ucinewgame")?;
+    p.send_line("position startpos")?;
+    p.send_line("go wtime 121000 btime 121000")?;
+    thread::sleep(Duration::from_millis(100));
+    p.send_line("quit")?;
+    thread::sleep(Duration::from_millis(400));
     assert_matches!(p.process.status(), Some(WaitStatus::Exited(_, 0)));
 
     Ok(())

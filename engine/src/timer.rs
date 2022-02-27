@@ -17,13 +17,13 @@ impl Timer {
                 .recv()
                 .expect("Error receiving TimerCommand");
             match message {
-                TimerCommand::Start(dur) => {
-                    if timer_command_receiver.recv_timeout(dur).is_err() {
-                        search_command_sender
-                            .send(SearchCommand::Stop)
-                            .expect("Error sending SearchCommand");
-                    }
-                }
+                TimerCommand::Start(dur) => match timer_command_receiver.recv_timeout(dur) {
+                    Ok(TimerCommand::Start(_) | TimerCommand::Stop) => {}
+                    Ok(TimerCommand::Terminate) => break,
+                    Err(_) => search_command_sender
+                        .send(SearchCommand::Stop)
+                        .expect("Error sending SearchCommand"),
+                },
                 TimerCommand::Stop => {}
                 TimerCommand::Terminate => break,
             }
