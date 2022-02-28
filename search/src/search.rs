@@ -12,17 +12,26 @@ pub struct SearchResult {
     depth: u8,
     score: Score,
     nodes: u64,
+    time_us: u64,
     best_move: Move,
     pv: MoveList,
 }
 
 impl SearchResult {
-    pub fn new(depth: usize, score: Score, nodes: u64, best_move: Move, pv: MoveList) -> Self {
+    pub fn new(
+        depth: usize,
+        score: Score,
+        nodes: u64,
+        time_us: u64,
+        best_move: Move,
+        pv: MoveList,
+    ) -> Self {
         debug_assert!(depth <= MAX_SEARCH_DEPTH);
         Self {
             depth: depth as u8,
             score,
             nodes,
+            time_us,
             best_move,
             pv,
         }
@@ -38,6 +47,21 @@ impl SearchResult {
 
     pub fn nodes(&self) -> u64 {
         self.nodes
+    }
+
+    pub fn time_ms(&self) -> u64 {
+        self.time_us / 1000
+    }
+
+    pub fn time_us(&self) -> u64 {
+        self.time_us
+    }
+
+    pub fn nodes_per_second(&self) -> i32 {
+        match self.time_us() {
+            0 => -1,
+            _ => (1_000_000 * self.nodes() / self.time_us()) as i32,
+        }
     }
 
     pub fn best_move(&self) -> Move {
@@ -58,6 +82,7 @@ impl Neg for SearchResult {
             self.depth(),
             -self.score(),
             self.nodes(),
+            self.time_us(),
             self.best_move(),
             self.principal_variation().clone(),
         )
@@ -68,10 +93,11 @@ impl fmt::Display for SearchResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "depth: {}, score: {}, nodes: {}, best move: {}",
+            "depth: {}, score: {}, nodes: {}, time in us: {}, best move: {}",
             self.depth(),
             self.score(),
             self.nodes(),
+            self.time_us(),
             self.best_move()
         )
     }

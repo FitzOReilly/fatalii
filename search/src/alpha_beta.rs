@@ -13,6 +13,7 @@ use movegen::transposition_table::TranspositionTable;
 use movegen::zobrist::Zobrist;
 use std::mem;
 use std::ops::Neg;
+use std::time::Instant;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -100,6 +101,7 @@ impl Search for AlphaBeta {
         command_receiver: &mut Receiver<SearchCommand>,
         info_sender: &mut Sender<SearchInfo>,
     ) {
+        let start_time = Instant::now();
         self.node_counter.clear();
         for d in 1..=depth {
             self.search_depth = d;
@@ -128,6 +130,7 @@ impl Search for AlphaBeta {
                         d,
                         abs_alpha_beta_res.score(),
                         self.node_counter.sum_nodes(),
+                        start_time.elapsed().as_micros() as u64,
                         abs_alpha_beta_res.best_move(),
                         self.principal_variation(d),
                     );

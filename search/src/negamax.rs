@@ -10,6 +10,7 @@ use movegen::side::Side;
 use movegen::transposition_table::TranspositionTable;
 use movegen::zobrist::Zobrist;
 use std::ops::Neg;
+use std::time::Instant;
 
 #[derive(Clone, Copy, Debug)]
 struct NegamaxTableEntry {
@@ -72,6 +73,7 @@ impl Search for Negamax {
         command_receiver: &mut Receiver<SearchCommand>,
         info_sender: &mut Sender<SearchInfo>,
     ) {
+        let start_time = Instant::now();
         for d in 1..=depth {
             self.search_depth = d;
 
@@ -91,6 +93,7 @@ impl Search for Negamax {
                         d,
                         abs_negamax_res.score(),
                         self.node_counter.sum_nodes(),
+                        start_time.elapsed().as_micros() as u64,
                         abs_negamax_res.best_move(),
                         self.principal_variation(d),
                     );
