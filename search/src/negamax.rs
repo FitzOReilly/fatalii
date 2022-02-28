@@ -9,6 +9,7 @@ use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
 use movegen::transposition_table::TranspositionTable;
 use movegen::zobrist::Zobrist;
+use std::time::Instant;
 
 type NegamaxTable = TranspositionTable<Zobrist, NegamaxEntry>;
 
@@ -31,6 +32,7 @@ impl Search for Negamax {
         command_receiver: &Receiver<SearchCommand>,
         info_sender: &Sender<SearchInfo>,
     ) {
+        let start_time = Instant::now();
         let mut search_data = SearchData::new(command_receiver, info_sender, pos_history);
 
         for d in 1..=max_depth {
@@ -53,6 +55,7 @@ impl Search for Negamax {
                         d,
                         abs_negamax_res.score(),
                         search_data.node_counter().sum_nodes(),
+                        start_time.elapsed().as_micros() as u64,
                         abs_negamax_res.best_move(),
                         search_data.pv_owned(d),
                     );

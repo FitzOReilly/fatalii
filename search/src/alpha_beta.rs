@@ -12,6 +12,7 @@ use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
 use movegen::transposition_table::TranspositionTable;
 use movegen::zobrist::Zobrist;
+use std::time::Instant;
 
 pub type AlphaBetaTable = TranspositionTable<Zobrist, AlphaBetaEntry>;
 
@@ -38,6 +39,7 @@ impl Search for AlphaBeta {
         command_receiver: &Receiver<SearchCommand>,
         info_sender: &Sender<SearchInfo>,
     ) {
+        let start_time = Instant::now();
         let mut search_data = SearchData::new(command_receiver, info_sender, pos_history);
 
         for d in 1..=max_depth {
@@ -61,6 +63,7 @@ impl Search for AlphaBeta {
                         d,
                         abs_alpha_beta_res.score(),
                         search_data.node_counter().sum_nodes(),
+                        start_time.elapsed().as_micros() as u64,
                         abs_alpha_beta_res.best_move(),
                         search_data.pv_owned(d),
                     );
