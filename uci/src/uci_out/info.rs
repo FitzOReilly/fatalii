@@ -16,10 +16,12 @@ pub fn write(writer: &mut impl Write, res: Option<SearchResult>) -> Result<(), B
                 .join(" ");
             Ok(writeln!(
                 writer,
-                "info depth {} score cp {} nodes {} pv {}",
+                "info depth {} score cp {} nodes {} nps {} time {} pv {}",
                 sr.depth(),
                 sr.score(),
                 sr.nodes(),
+                sr.nodes_per_second(),
+                sr.time_ms(),
                 pv_str
             )?)
         }

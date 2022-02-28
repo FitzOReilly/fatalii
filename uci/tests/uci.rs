@@ -261,20 +261,20 @@ fn run_command_go() {
     assert!(output.contains("info"));
     assert!(output.contains("depth"));
     assert!(output.contains("score"));
+    assert!(output.contains("nodes"));
+    assert!(output.contains("nps"));
+    assert!(output.contains("time"));
+    assert!(output.contains("pv"));
     assert!(!output.contains("bestmove"));
     assert!(p.run_command("stop\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(20));
     let output = String::from_utf8(test_writer.split_off(0)).unwrap();
     assert!(output.contains("info"));
-    assert!(output.contains("depth"));
-    assert!(output.contains("score"));
     assert!(output.contains("bestmove"));
     assert!(p.run_command("stop\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(20));
     let output = String::from_utf8(test_writer.split_off(0)).unwrap();
     assert!(!output.contains("info"));
-    assert!(!output.contains("depth"));
-    assert!(!output.contains("score"));
     assert!(!output.contains("bestmove"));
 
     // Option "depth"
