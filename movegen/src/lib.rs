@@ -22,3 +22,4 @@ mod file;
 mod piece_targets;
 mod rank;
 mod ray;
+mod repetition_tracker;

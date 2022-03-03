@@ -1,5 +1,5 @@
 use crate::negamax_entry::NegamaxEntry;
-use crate::search::{Search, SearchCommand, SearchInfo, SearchResult};
+use crate::search::{Search, SearchCommand, SearchInfo, SearchResult, REPETITIONS_TO_DRAW};
 use crate::search_data::SearchData;
 use crossbeam_channel::{Receiver, Sender};
 use eval::eval::{Eval, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF};
@@ -94,6 +94,16 @@ impl Negamax {
             }
         }
 
+        if search_data.pos_history().current_pos_repetitions() >= REPETITIONS_TO_DRAW {
+            let entry = NegamaxEntry::new(depth, EQUAL_POSITION, Move::NULL);
+            if depth > 0 {
+                search_data
+                    .pv_table_mut()
+                    .update_move_and_truncate(depth, entry.best_move());
+            }
+            return Some(entry);
+        }
+
         let pos_hash = search_data.pos_history().current_pos_hash();
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             let e = *entry;
@@ -167,6 +177,7 @@ impl Negamax {
         let depth = 0;
         let pos_hash = search_data.pos_history().current_pos_hash();
 
+        debug_assert!(search_data.pos_history().current_pos_repetitions() < REPETITIONS_TO_DRAW);
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             let e = *entry;
             search_data.increment_cache_hits(depth);

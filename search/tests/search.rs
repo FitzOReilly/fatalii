@@ -259,6 +259,62 @@ fn count_searched_nodes(search_algo: impl Search + Send + 'static, pos: Position
     );
 }
 
+fn play_threefold_repetition_in_losing_position(search_algo: impl Search + Send + 'static) {
+    let depth = 1;
+    // Position that occured during self-play testting. Clearly winning for black.
+    let fen = "8/r2p1k2/1pp1p1p1/4Pp2/5P2/3R4/3P4/4K3 b - - 5 46";
+    let pos = Fen::str_to_pos(fen).unwrap();
+    let mut pos_history = PositionHistory::new(pos);
+
+    let f7e7 = Move::new(Square::F7, Square::E7, MoveType::QUIET);
+    let d3g3 = Move::new(Square::D3, Square::G3, MoveType::QUIET);
+    let e7f7 = Move::new(Square::E7, Square::F7, MoveType::QUIET);
+    let g3d3 = Move::new(Square::G3, Square::D3, MoveType::QUIET);
+
+    pos_history.do_move(f7e7);
+    pos_history.do_move(d3g3);
+    pos_history.do_move(e7f7);
+    pos_history.do_move(g3d3);
+
+    pos_history.do_move(f7e7);
+    pos_history.do_move(d3g3);
+    pos_history.do_move(e7f7);
+
+    let mut tester = SearchTester::new(search_algo);
+    let res = tester.search(pos_history, depth);
+
+    assert_eq!(EQUAL_POSITION, res.score());
+    assert_eq!(g3d3, res.best_move());
+}
+
+fn avoid_threefold_repetition_in_winning_position(search_algo: impl Search + Send + 'static) {
+    let depth = 1;
+    // Position that occured during self-play testting. Clearly winning for black.
+    let fen = "8/2k5/2P1bp1p/1BK3p1/4Pp2/8/2r5/R7 w - - 1 40";
+    let pos = Fen::str_to_pos(fen).unwrap();
+    let mut pos_history = PositionHistory::new(pos);
+
+    let c5d4 = Move::new(Square::C5, Square::D4, MoveType::QUIET);
+    let c2b2 = Move::new(Square::C2, Square::B2, MoveType::QUIET);
+    let d4c5 = Move::new(Square::D4, Square::C5, MoveType::QUIET);
+    let b2c2 = Move::new(Square::B2, Square::C2, MoveType::QUIET);
+
+    pos_history.do_move(c5d4);
+    pos_history.do_move(c2b2);
+    pos_history.do_move(d4c5);
+    pos_history.do_move(b2c2);
+
+    pos_history.do_move(c5d4);
+    pos_history.do_move(c2b2);
+    pos_history.do_move(d4c5);
+
+    let mut tester = SearchTester::new(search_algo);
+    let res = tester.search(pos_history, depth);
+
+    assert_ne!(EQUAL_POSITION, res.score());
+    assert_ne!(b2c2, res.best_move());
+}
+
 #[test]
 #[ignore]
 fn negamax_search_results_independent_of_transposition_table_size() {
@@ -311,6 +367,18 @@ fn negamax_pv_valid_after_hash_table_hit_depth_1() {
 fn negamax_pv_valid_after_hash_table_hit_depth_greater_than_1() {
     let negamax = Negamax::new(TABLE_IDX_BITS);
     pv_valid_after_hash_table_hit_depth_greater_than_1(negamax);
+}
+
+#[test]
+fn negamax_play_threefold_repetition_in_losing_position() {
+    let negamax = Negamax::new(TABLE_IDX_BITS);
+    play_threefold_repetition_in_losing_position(negamax);
+}
+
+#[test]
+fn negamax_avoid_threefold_repetition_in_winning_position() {
+    let negamax = Negamax::new(TABLE_IDX_BITS);
+    avoid_threefold_repetition_in_winning_position(negamax);
 }
 
 #[test]
@@ -375,4 +443,16 @@ fn alpha_beta_count_searched_nodes_middlegame_position() {
     let depth = 6;
     let alpha_beta = AlphaBeta::new(TABLE_IDX_BITS);
     count_searched_nodes(alpha_beta, pos, depth);
+}
+
+#[test]
+fn alpha_beta_play_threefold_repetition_in_losing_position() {
+    let alpha_beta = AlphaBeta::new(TABLE_IDX_BITS);
+    play_threefold_repetition_in_losing_position(alpha_beta);
+}
+
+#[test]
+fn alpha_beta_avoid_threefold_repetition_in_winning_position() {
+    let alpha_beta = AlphaBeta::new(TABLE_IDX_BITS);
+    avoid_threefold_repetition_in_winning_position(alpha_beta);
 }

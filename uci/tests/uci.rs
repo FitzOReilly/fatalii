@@ -6,7 +6,8 @@ use movegen::fen::Fen;
 use movegen::position::Position;
 use regex::Regex;
 use search::alpha_beta::AlphaBeta;
-use search::search::SearchResult;
+use search::negamax::Negamax;
+use search::search::{Search, SearchResult};
 use std::io::{stdout, Write};
 use std::str;
 use std::time::Duration;
@@ -667,4 +668,63 @@ fn mate_in_one_black_to_move() {
     let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
     println!("{}", out_str);
     assert!(out_str.contains("bestmove g7g2"));
+}
+
+#[test]
+fn negamax_threefold_repetition() {
+    let negamax = Negamax::new(TABLE_IDX_BITS);
+    threefold_repetition(negamax);
+}
+
+#[test]
+fn alpha_beta_threefold_repetition() {
+    let alpha_beta = AlphaBeta::new(TABLE_IDX_BITS);
+    threefold_repetition(alpha_beta);
+}
+
+fn threefold_repetition(search_algo: impl Search + Send + 'static) {
+    let test_writer = TestBuffer::new();
+
+    let mut test_writer_info = test_writer.clone();
+    let mut test_writer_best_move = test_writer.clone();
+    let test_writer_parser = test_writer.clone();
+    let search_info_callback =
+        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
+    let best_move_callback =
+        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
+
+    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
+    let mut p = Parser::new(Box::new(test_writer_parser));
+
+    p.register_command(String::from("position"), Box::new(position::run_command));
+    p.register_command(String::from("go"), Box::new(go::run_command));
+
+    // Set up threefold repetition on next move
+    assert!(p
+        .run_command(
+            "position startpos moves e2e3 b8c6 f1b5 g8f6 d1f3 c6b4 b1a3 e7e5 c2c3 e5e4 f3f5 b4c6 \
+            g1e2 d7d5 f5e5 c8e6 e2d4 f8d6 e5g5 f6d7 g5g7 d6e5 g7h6 c6d4 e3d4 d8f6 d2d3 f6h6 c1h6 \
+            c7c6 d4e5 c6b5 a3b5 e8e7 h6g5 f7f6 e5f6 d7f6 e1d2 a8g8 h2h4 e4d3 a1e1 h7h6 b5d4 h6g5 \
+            e1e6 e7f7 h4h5 f6e4 d2e3 d3d2 h5h6 g8e8 e6e8 h8e8 h1g1 d2d1q g1d1 e4c3 e3d2 c3d1 d2d1 \
+            f7g6 d4b5 g6h6 d1d2 e8f8 d2e2 f8f4 a2a3 a7a6 b5c7 f4d4 e2e3 d4d1 e3e2 d1b1 b2b4 b1b2 \
+            e2e1 b2b1 e1e2 b1b2 e2e1 d5d4 c7e6 b2b1 e1d2 b1b2 d2e1 b2b1 e1d2 b1f1 d2e2 f1g1 e6d4 \
+            g1g2 d4e6 g2g1 e6c5 b7b6 c5a6 g1a1 a6c7 a1a2 e2f3 a2a3 f3g4 a3c3 c7d5 c3b3 f2f4 g5f4 \
+            g4f4 h6g6 f4e5 b3b1 e5d4 b1d1 d4c4 b6b5 c4c5 g6g5 d5b6 d1e1 c5b5 e1e5 b5c6 e5e6 c6c5 \
+            e6e5 c5d4 g5f4 b6d5 f4f5 d5e3 f5e6 e3g4 e5b5 d4c3 b5f5 g4e3 f5f4 e3c4 e6d5 c4e3 d5e4 \
+            e3d1 e4d5 d1e3 d5e4 e3d1 f4f1 c3d2 f1f3 d1c3 e4d4 c3b5 d4c4 b5d6 c4b4 d2e2 f3a3 d6f5 \
+            b4c4 f5e3 c4c5 e2d2 a3b3 d2e2 c5d4 e3f5 d4e5 f5e3 e5d4 e3f5 d4e5 f5e3 e5e4 e3d1 e4d4 \
+            d1f2 b3e3 e2d2 e3a3 d2e2 a3e3 e2d2 e3b3 d2e2 b3g3 e2d2 g3e3 f2g4 e3g3 g4f2 g3e3 f2g4 \
+            e3e6 g4f2 e6f6 d2e2 f6a6 e2f3 a6a3 f3f4 d4d5 f2g4 a3a4 f4f5 d5c4 f5e5 c4b3 g4e3 b3a2 \
+            e3f5 a2a1 e5e6 a1b1 e6e7 b1a1 e7f7 a1b1 f5e3 b1a1 f7g7 a1b1 g7f7 b1a1 f7g7 a1b1\n",
+            &mut engine
+        )
+        .is_ok());
+    std::thread::sleep(Duration::from_millis(20));
+    assert!(p
+        .run_command(
+            "go wtime 8955 btime 109427 winc 1000 binc 1000 movestogo 4\n",
+            &mut engine
+        )
+        .is_ok());
+    std::thread::sleep(Duration::from_millis(400));
 }

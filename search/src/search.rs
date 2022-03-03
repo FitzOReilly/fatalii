@@ -6,6 +6,7 @@ use std::fmt;
 use std::ops::Neg;
 
 pub const MAX_SEARCH_DEPTH: usize = u8::MAX as usize;
+pub const REPETITIONS_TO_DRAW: usize = 3;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SearchResult {
@@ -106,7 +107,7 @@ impl fmt::Display for SearchResult {
 #[derive(Debug)]
 pub enum SearchCommand {
     SetHashSize(usize),
-    Search(PositionHistory, usize),
+    Search(Box<(PositionHistory, usize)>),
     Stop,
     Terminate,
 }
