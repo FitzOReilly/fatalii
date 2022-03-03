@@ -19,7 +19,7 @@ const IDX_BLACK_KINGSIDE: usize = 771;
 const IDX_BLACK_QUEENSIDE: usize = 772;
 const IDX_FIRST_EN_PASSANT_FILE: usize = 773;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Zobrist(u64);
 
 impl Zobrist {

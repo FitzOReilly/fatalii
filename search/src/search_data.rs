@@ -87,6 +87,10 @@ impl<'a> SearchData<'a> {
         self.pv_depth -= 1;
     }
 
+    pub fn end_pv(&mut self) {
+        self.pv_depth = 0;
+    }
+
     pub fn increment_nodes(&mut self, plies_from_end: usize) {
         self.node_counter
             .increment_nodes(self.search_depth(), plies_from_end)

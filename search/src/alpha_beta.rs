@@ -1,6 +1,6 @@
 use crate::alpha_beta_entry::{AlphaBetaEntry, ScoreType};
 use crate::move_selector::MoveSelector;
-use crate::search::{Search, SearchCommand, SearchInfo, SearchResult};
+use crate::search::{Search, SearchCommand, SearchInfo, SearchResult, REPETITIONS_TO_DRAW};
 use crate::search_data::SearchData;
 use crossbeam_channel::{Receiver, Sender};
 use eval::eval::{
@@ -102,6 +102,17 @@ impl AlphaBeta {
             }
         }
 
+        if search_data.pos_history().current_pos_repetitions() >= REPETITIONS_TO_DRAW {
+            let entry = AlphaBetaEntry::new(depth, EQUAL_POSITION, ScoreType::Exact, Move::NULL);
+            if depth > 0 {
+                search_data
+                    .pv_table_mut()
+                    .update_move_and_truncate(depth, entry.best_move());
+                search_data.end_pv();
+            }
+            return Some(entry);
+        }
+
         let pos_hash = search_data.pos_history().current_pos_hash();
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             if let Some(bounded) = entry.bound_hard(alpha, beta) {
@@ -198,6 +209,7 @@ impl AlphaBeta {
         let depth = 0;
         let pos_hash = search_data.pos_history().current_pos_hash();
 
+        debug_assert!(search_data.pos_history().current_pos_repetitions() < REPETITIONS_TO_DRAW);
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             if let Some(bounded) = entry.bound_hard(alpha, beta) {
                 search_data.increment_cache_hits(depth);

@@ -3,6 +3,7 @@ use crate::pawn::Pawn;
 use crate::piece;
 use crate::position::{CastlingRights, Position};
 use crate::r#move::{Move, MoveType};
+use crate::repetition_tracker::RepetitionTracker;
 use crate::side::Side;
 use crate::square::Square;
 use crate::zobrist::Zobrist;
@@ -31,21 +32,26 @@ impl IrreversibleProperties {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct PositionHistory {
     pos: Position,
     pos_hash: Zobrist,
-    irreversible_properties: Vec<IrreversibleProperties>,
+    irreversible_props: Vec<IrreversibleProperties>,
     moves: Vec<Move>,
+    rep_tracker: RepetitionTracker<Zobrist>,
 }
 
 impl PositionHistory {
-    pub fn new(pos: Position) -> PositionHistory {
-        PositionHistory {
-            pos_hash: Zobrist::new(&pos),
+    pub fn new(pos: Position) -> Self {
+        let pos_hash = Zobrist::new(&pos);
+        let mut rep_tracker = RepetitionTracker::new();
+        rep_tracker.push(pos_hash, false);
+        Self {
+            pos_hash,
             pos,
-            irreversible_properties: Vec::<IrreversibleProperties>::new(),
+            irreversible_props: Vec::<IrreversibleProperties>::new(),
             moves: Vec::<Move>::new(),
+            rep_tracker,
         }
     }
 
@@ -65,21 +71,35 @@ impl PositionHistory {
         debug_assert_eq!(Zobrist::new(self.current_pos()), self.current_pos_hash());
     }
 
+    pub fn undo_last_move(&mut self) {
+        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
+        if let Some(m) = self.moves.pop() {
+            debug_assert!(!self.irreversible_props.is_empty());
+            let irr = self.irreversible_props.pop().unwrap();
+            self.undo_move(m, &irr);
+        }
+        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
+    }
+
+    pub fn current_pos_repetitions(&self) -> usize {
+        self.rep_tracker.current_pos_repetitions()
+    }
+
     fn do_null_move(&mut self) {
-        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
+        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
         self.moves.push(Move::NULL);
-        self.irreversible_properties
-            .push(IrreversibleProperties::new(
-                self.pos.en_passant_square(),
-                self.pos.castling_rights(),
-                self.pos.plies_since_pawn_move_or_capture(),
-                None,
-            ));
+        self.irreversible_props.push(IrreversibleProperties::new(
+            self.pos.en_passant_square(),
+            self.pos.castling_rights(),
+            self.pos.plies_since_pawn_move_or_capture(),
+            None,
+        ));
 
         let side_to_move = self.pos.side_to_move();
         let plies = self.pos.plies_since_pawn_move_or_capture();
         let move_count = self.pos.move_count();
 
+        let is_reversible = self.pos.en_passant_square() == Bitboard::EMPTY;
         self.pos_hash
             .toggle_en_passant_square(self.pos.en_passant_square());
         self.pos.set_en_passant_square(Bitboard::EMPTY);
@@ -87,12 +107,12 @@ impl PositionHistory {
         self.pos.set_side_to_move(!side_to_move);
         self.pos.set_plies_since_pawn_move_or_capture(plies + 1);
         self.pos.set_move_count(move_count + side_to_move as usize);
-
-        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
+        self.rep_tracker.push(self.pos_hash, is_reversible);
+        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
     }
 
     fn do_regular_move(&mut self, m: Move) {
-        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
+        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
         debug_assert_ne!(Move::NULL, m);
         self.moves.push(m);
         let origin = m.origin();
@@ -107,13 +127,16 @@ impl PositionHistory {
         };
         let captured_piece = self.pos.piece_at(capture_square);
 
-        self.irreversible_properties
-            .push(IrreversibleProperties::new(
-                self.pos.en_passant_square(),
-                self.pos.castling_rights(),
-                self.pos.plies_since_pawn_move_or_capture(),
-                captured_piece,
-            ));
+        let mut is_reversible = m.move_type() == MoveType::QUIET
+            && origin_piece.piece_type() != piece::Type::Pawn
+            && self.pos.en_passant_square() == Bitboard::EMPTY;
+
+        self.irreversible_props.push(IrreversibleProperties::new(
+            self.pos.en_passant_square(),
+            self.pos.castling_rights(),
+            self.pos.plies_since_pawn_move_or_capture(),
+            captured_piece,
+        ));
 
         let target_piece = if m.is_promotion() {
             piece::Piece::new(side_to_move, m.move_type().promo_piece_unchecked())
@@ -205,21 +228,14 @@ impl PositionHistory {
         let new_cr = self.pos.castling_rights();
         self.pos_hash.toggle_castling_rights(old_cr ^ new_cr);
 
+        is_reversible &= old_cr == new_cr;
+
         let move_count = self.pos.move_count();
         self.pos.set_move_count(move_count + side_to_move as usize);
         self.pos.set_side_to_move(!side_to_move);
         self.pos_hash.toggle_side_to_move(Side::Black);
-        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
-    }
-
-    pub fn undo_last_move(&mut self) {
-        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
-        if let Some(m) = self.moves.pop() {
-            debug_assert!(!self.irreversible_properties.is_empty());
-            let irr = self.irreversible_properties.pop().unwrap();
-            self.undo_move(m, &irr);
-        }
-        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
+        self.rep_tracker.push(self.pos_hash, is_reversible);
+        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
     }
 
     fn undo_move(&mut self, m: Move, irr: &IrreversibleProperties) {
@@ -231,8 +247,8 @@ impl PositionHistory {
     }
 
     fn undo_null_move(&mut self, irr: &IrreversibleProperties) {
-        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
-
+        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
+        self.rep_tracker.pop();
         self.pos.set_en_passant_square(irr.en_passant_square);
         self.pos_hash
             .toggle_en_passant_square(irr.en_passant_square);
@@ -242,12 +258,12 @@ impl PositionHistory {
         self.pos.set_side_to_move(!self.pos.side_to_move());
         self.pos
             .set_move_count(self.pos.move_count() - self.pos.side_to_move() as usize);
-
-        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
+        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
     }
 
     fn undo_regular_move(&mut self, m: Move, irr: &IrreversibleProperties) {
-        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
+        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
+        self.rep_tracker.pop();
         let origin = m.origin();
         let target = m.target();
         let target_piece = self.pos.piece_at(target).unwrap();
@@ -332,14 +348,14 @@ impl PositionHistory {
             self.pos_hash
                 .toggle_piece(irr.captured_piece, capture_square);
         }
-        debug_assert_eq!(self.irreversible_properties.len(), self.moves.len());
+        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::side::Side;
+    use crate::{fen::Fen, side::Side};
 
     #[test]
     fn do_and_undo_move_initial_position() {
@@ -1204,5 +1220,134 @@ mod tests {
         assert_eq!(&prev_pos, pos_history.current_pos());
         let prev_pos_hash = exp_pos_hash_history.pop().unwrap();
         assert_eq!(prev_pos_hash, pos_history.current_pos_hash());
+    }
+
+    #[test]
+    fn current_pos_repetitions() {
+        let mut pos_history = PositionHistory::new(Position::initial());
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::G1, Square::F3, MoveType::QUIET));
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::G8, Square::F6, MoveType::QUIET));
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::F3, Square::G1, MoveType::QUIET));
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::F6, Square::G8, MoveType::QUIET));
+        assert_eq!(2, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::NULL);
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::NULL);
+        assert_eq!(3, pos_history.current_pos_repetitions());
+
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(2, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+    }
+
+    #[test]
+    fn repetitions_castling_rights() {
+        // Two position are not considered equal if the castling rights have changed
+        let fen = "r3k3/8/8/8/8/8/8/4K2R w Kq - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+
+        let mut pos_history = PositionHistory::new(pos.clone());
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::NULL);
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::NULL);
+        assert_eq!(2, pos_history.current_pos_repetitions());
+
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+
+        let mut pos_history = PositionHistory::new(pos);
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::H1, Square::G1, MoveType::QUIET));
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::A8, Square::B8, MoveType::QUIET));
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::G1, Square::H1, MoveType::QUIET));
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::B8, Square::A8, MoveType::QUIET));
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::H1, Square::G1, MoveType::QUIET));
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::A8, Square::B8, MoveType::QUIET));
+        assert_eq!(2, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::G1, Square::H1, MoveType::QUIET));
+        assert_eq!(2, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::B8, Square::A8, MoveType::QUIET));
+        assert_eq!(2, pos_history.current_pos_repetitions());
+
+        pos_history.undo_last_move();
+        assert_eq!(2, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(2, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+    }
+
+    #[test]
+    fn repetitions_en_passant() {
+        // Two position are not considered equal if the en passant square has changed
+        let fen = "4k3/8/8/1Pp5/8/8/8/4K3 w - c6 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+
+        let mut pos_history = PositionHistory::new(pos.clone());
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::NULL);
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::NULL);
+        assert_eq!(1, pos_history.current_pos_repetitions());
+
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+
+        let mut pos_history = PositionHistory::new(pos);
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::E1, Square::D1, MoveType::QUIET));
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::E8, Square::D8, MoveType::QUIET));
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::D1, Square::E1, MoveType::QUIET));
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::D8, Square::E8, MoveType::QUIET));
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.do_move(Move::new(Square::E1, Square::D1, MoveType::QUIET));
+        assert_eq!(2, pos_history.current_pos_repetitions());
+
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
+        pos_history.undo_last_move();
+        assert_eq!(1, pos_history.current_pos_repetitions());
     }
 }

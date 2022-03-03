@@ -21,7 +21,7 @@ impl Searcher {
     pub fn search(&self, pos_hist: PositionHistory, depth: usize) {
         self.stop();
         self.command_sender
-            .send(SearchCommand::Search(pos_hist, depth))
+            .send(SearchCommand::Search(Box::new((pos_hist, depth))))
             .expect("Error sending SearchCommand");
     }
 
@@ -92,7 +92,8 @@ impl Worker {
 
             match message {
                 SearchCommand::SetHashSize(bytes) => Self::set_hash_size(&mut search_algo, bytes),
-                SearchCommand::Search(pos_hist, depth) => {
+                SearchCommand::Search(search_options) => {
+                    let (pos_hist, depth) = *search_options;
                     Self::search(
                         &mut search_algo,
                         pos_hist,
