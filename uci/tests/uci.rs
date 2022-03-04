@@ -2,6 +2,8 @@ mod test_buffer;
 
 use crate::test_buffer::TestBuffer;
 use engine::Engine;
+use eval::material_mobility::MaterialMobility;
+use eval::{Eval, Score};
 use movegen::fen::Fen;
 use movegen::position::Position;
 use regex::Regex;
@@ -15,6 +17,7 @@ use uci::parser::{Parser, ParserMessage};
 use uci::uci_in::{go, is_ready, position, quit, set_option, stop, uci as cmd_uci, ucinewgame};
 use uci::uci_out::{best_move, info};
 
+const EVAL_RELATIVE: fn(pos: &Position) -> Score = MaterialMobility::eval_relative;
 const TABLE_IDX_BITS: usize = 16;
 const FEN_STR: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
 
@@ -32,7 +35,7 @@ fn contains(v: Vec<u8>, s: &str) -> bool {
 
 #[test]
 fn register_command() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut engine = Engine::new(
         search_algo,
         Box::new(search_info_callback),
@@ -67,7 +70,7 @@ fn register_command() {
 
 #[test]
 fn run_command_uci() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut engine = Engine::new(
         search_algo,
         Box::new(search_info_callback),
@@ -91,7 +94,7 @@ fn run_command_uci() {
 
 #[test]
 fn run_command_isready() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut engine = Engine::new(
         search_algo,
         Box::new(search_info_callback),
@@ -109,7 +112,7 @@ fn run_command_isready() {
 
 #[test]
 fn run_command_setoption() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut engine = Engine::new(
         search_algo,
         Box::new(search_info_callback),
@@ -146,7 +149,7 @@ fn run_command_setoption() {
 
 #[test]
 fn run_command_position() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut engine = Engine::new(
         search_algo,
         Box::new(search_info_callback),
@@ -191,7 +194,7 @@ fn run_command_position() {
 
 #[test]
 fn run_command_ucinewgame() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut engine = Engine::new(
         search_algo,
         Box::new(search_info_callback),
@@ -222,7 +225,7 @@ fn run_command_ucinewgame() {
 
 #[test]
 fn run_command_go() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
 
     let mut test_writer_info = test_writer.clone();
@@ -346,7 +349,7 @@ fn run_command_go() {
 
 #[test]
 fn run_command_go_time() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
 
     let mut test_writer_info = test_writer.clone();
@@ -390,7 +393,7 @@ fn run_command_go_time() {
 fn run_command_go_time_limit_exceeded() {
     // Even if the time limit is exceeded, the engine should still send
     // a bestmove response to a go command
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
 
     let mut test_writer_info = test_writer.clone();
@@ -429,7 +432,7 @@ fn run_command_go_time_limit_exceeded() {
 
 #[test]
 fn run_command_go_twice() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
 
     let mut test_writer_info = test_writer.clone();
@@ -461,7 +464,7 @@ fn run_command_go_twice() {
 
 #[test]
 fn run_command_isready_during_go() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
 
     let mut test_writer_info = test_writer.clone();
@@ -496,7 +499,7 @@ fn run_command_isready_during_go() {
 
 #[test]
 fn run_command_quit() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
 
     let mut test_writer_info = test_writer.clone();
@@ -529,7 +532,7 @@ fn run_command_quit() {
 
 #[test]
 fn info_score_equal_from_both_sides() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
 
     let mut test_writer_info = test_writer.clone();
@@ -602,7 +605,7 @@ fn info_score_equal_from_both_sides() {
 
 #[test]
 fn mate_in_one_white_to_move() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
 
     let mut test_writer_info = test_writer.clone();
@@ -637,7 +640,7 @@ fn mate_in_one_white_to_move() {
 
 #[test]
 fn mate_in_one_black_to_move() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
 
     let mut test_writer_info = test_writer.clone();
@@ -672,13 +675,13 @@ fn mate_in_one_black_to_move() {
 
 #[test]
 fn negamax_threefold_repetition() {
-    let negamax = Negamax::new(TABLE_IDX_BITS);
+    let negamax = Negamax::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     threefold_repetition(negamax);
 }
 
 #[test]
 fn alpha_beta_threefold_repetition() {
-    let alpha_beta = AlphaBeta::new(TABLE_IDX_BITS);
+    let alpha_beta = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     threefold_repetition(alpha_beta);
 }
 

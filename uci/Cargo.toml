@@ -9,3 +9,6 @@ regex = "1"
 engine = { path = "../engine" }
 movegen = { path = "../movegen" }
 search = { path = "../search" }
+
+[dev-dependencies]
+eval = { path = "../eval" }

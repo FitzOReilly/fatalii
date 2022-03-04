@@ -1,4 +1,6 @@
 use engine::Engine;
+use eval::material_mobility::MaterialMobility;
+use eval::Eval;
 use search::alpha_beta::AlphaBeta;
 use std::error::Error;
 use std::io;
@@ -6,13 +8,13 @@ use uci::parser::{Parser, ParserMessage};
 use uci::uci_in::{go, is_ready, position, quit, set_option, stop, uci as cmd_uci, ucinewgame};
 use uci::uci_out::{best_move, info};
 
-const TABLE_IDX_BITS: usize = 20;
-
 pub fn run() -> Result<(), Box<dyn Error>> {
     unsafe {
         uci::uci_out::id::ENGINE_VERSION = env!("CARGO_PKG_VERSION");
     }
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let eval_relative = MaterialMobility::eval_relative;
+    let table_idx_bits = 20;
+    let search_algo = AlphaBeta::new(eval_relative, table_idx_bits);
     let search_info_callback =
         Box::new(move |m| info::write(&mut io::stdout(), m).expect("Error writing search info"));
     let best_move_callback =

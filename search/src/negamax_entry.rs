@@ -1,5 +1,5 @@
 use crate::search::MAX_SEARCH_DEPTH;
-use eval::eval::Score;
+use eval::Score;
 use movegen::r#move::Move;
 use std::ops::Neg;
 

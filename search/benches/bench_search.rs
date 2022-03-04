@@ -1,5 +1,8 @@
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput};
 use crossbeam_channel::{unbounded, Receiver};
+use eval::material_mobility::MaterialMobility;
+use eval::Eval;
+use eval::Score;
 use movegen::fen::Fen;
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
@@ -9,6 +12,7 @@ use search::search::{Search, SearchInfo, SearchResult};
 use search::searcher::Searcher;
 use std::time::Duration;
 
+const EVAL_RELATIVE: fn(pos: &Position) -> Score = MaterialMobility::eval_relative;
 const TIMEOUT_PER_BENCH: Duration = Duration::from_millis(10000);
 
 struct SearchBencher {
@@ -64,7 +68,7 @@ fn negamax(c: &mut Criterion, group_name: &str, pos: Position, min_depth: usize,
         group.throughput(Throughput::Elements(depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), &depth, |b, &depth| {
             b.iter_batched(
-                || SearchBencher::new(Negamax::new(table_idx_bits)),
+                || SearchBencher::new(Negamax::new(EVAL_RELATIVE, table_idx_bits)),
                 |mut searcher| searcher.search(pos_history.clone(), depth),
                 BatchSize::SmallInput,
             );
@@ -88,7 +92,7 @@ fn alpha_beta(
         group.throughput(Throughput::Elements(depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), &depth, |b, &depth| {
             b.iter_batched(
-                || SearchBencher::new(AlphaBeta::new(table_idx_bits)),
+                || SearchBencher::new(AlphaBeta::new(EVAL_RELATIVE, table_idx_bits)),
                 |mut searcher| searcher.search(pos_history.clone(), depth),
                 BatchSize::SmallInput,
             );

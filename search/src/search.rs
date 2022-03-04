@@ -1,5 +1,5 @@
 use crossbeam_channel::{Receiver, Sender};
-use eval::eval::Score;
+use eval::Score;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
 use std::fmt;

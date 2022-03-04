@@ -3,10 +3,9 @@ use crate::move_selector::MoveSelector;
 use crate::search::{Search, SearchCommand, SearchInfo, SearchResult, REPETITIONS_TO_DRAW};
 use crate::search_data::SearchData;
 use crossbeam_channel::{Receiver, Sender};
-use eval::eval::{
-    Eval, Score, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF, POSITIVE_INF,
-};
+use eval::{Score, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF, POSITIVE_INF};
 use movegen::move_generator::MoveGenerator;
+use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
@@ -18,6 +17,7 @@ pub type AlphaBetaTable = TranspositionTable<Zobrist, AlphaBetaEntry>;
 
 // Alpha-beta search with fail-hard cutoffs
 pub struct AlphaBeta {
+    eval_relative: fn(&Position) -> Score,
     transpos_table: AlphaBetaTable,
 }
 
@@ -82,9 +82,10 @@ impl Search for AlphaBeta {
 }
 
 impl AlphaBeta {
-    pub fn new(table_idx_bits: usize) -> Self {
+    pub fn new(eval_relative: fn(&Position) -> Score, table_idx_bits: usize) -> Self {
         assert!(table_idx_bits > 0);
         Self {
+            eval_relative,
             transpos_table: AlphaBetaTable::new(table_idx_bits),
         }
     }
@@ -219,7 +220,7 @@ impl AlphaBeta {
 
         search_data.increment_eval_calls();
         let pos = search_data.pos_history().current_pos();
-        let mut score = Eval::eval_relative(pos);
+        let mut score = (self.eval_relative)(pos);
         let mut score_type = ScoreType::UpperBound;
         let mut best_move = Move::NULL;
 
@@ -278,10 +279,14 @@ impl AlphaBeta {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use eval::material_mobility::MaterialMobility;
+    use eval::Eval;
+
+    const EVAL_RELATIVE: fn(pos: &Position) -> Score = MaterialMobility::eval_relative;
 
     #[test]
     fn set_hash_size() {
-        let mut searcher = AlphaBeta::new(1);
+        let mut searcher = AlphaBeta::new(EVAL_RELATIVE, 1);
         let entry_size = AlphaBetaEntry::ENTRY_SIZE;
 
         searcher.set_hash_size(2 * entry_size);

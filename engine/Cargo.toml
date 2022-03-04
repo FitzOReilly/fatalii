@@ -11,3 +11,4 @@ search = { path = "../search" }
 
 [dev-dependencies]
 more-asserts = "0.2"
+eval = { path = "../eval" }
