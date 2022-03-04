@@ -5,6 +5,7 @@ edition = "2018"
 
 [dependencies]
 engine = { path = "../engine" }
+eval = { path = "../eval" }
 search = { path = "../search" }
 uci = { path = "../uci" }
 

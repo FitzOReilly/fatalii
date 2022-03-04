@@ -1,5 +1,8 @@
 use crossbeam_channel::unbounded;
 use engine::{Engine, SearchOptions};
+use eval::material_mobility::MaterialMobility;
+use eval::Eval;
+use eval::Score;
 use more_asserts::assert_le;
 use movegen::piece::Piece;
 use movegen::position::Position;
@@ -10,11 +13,12 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
+const EVAL_RELATIVE: fn(pos: &Position) -> Score = MaterialMobility::eval_relative;
 const TABLE_IDX_BITS: usize = 16;
 
 #[test]
 fn search_timeout() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let (sender, receiver) = unbounded();
     let mut engine = Engine::new(
         search_algo,
@@ -47,7 +51,7 @@ fn search_timeout() {
 
 #[test]
 fn search_timeout_aborted() {
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let (sender, receiver) = unbounded();
     let mut engine = Engine::new(
         search_algo,
@@ -85,7 +89,7 @@ fn search_timeout_aborted() {
 fn search_timeout_finished_early() {
     // Test for positions in which the search finishes earlier than the given timeout
     // (e.g. checkmate)
-    let search_algo = AlphaBeta::new(TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let (sender, receiver) = unbounded();
     let mut engine = Engine::new(
         search_algo,
