@@ -264,6 +264,7 @@ fn run_command_go() {
     assert!(output.contains("nodes"));
     assert!(output.contains("nps"));
     assert!(output.contains("time"));
+    assert!(output.contains("hashfull"));
     assert!(output.contains("pv"));
     assert!(!output.contains("bestmove"));
     assert!(p.run_command("stop\n", &mut engine).is_ok());
