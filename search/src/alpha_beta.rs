@@ -64,6 +64,7 @@ impl Search for AlphaBeta {
                         abs_alpha_beta_res.score(),
                         search_data.node_counter().sum_nodes(),
                         start_time.elapsed().as_micros() as u64,
+                        self.transpos_table.load_factor_permille(),
                         abs_alpha_beta_res.best_move(),
                         search_data.pv_owned(d),
                     );

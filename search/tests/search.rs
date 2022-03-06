@@ -20,6 +20,8 @@ const EVAL_ABSOLUTE: fn(pos: &Position) -> Score = MaterialMobility::eval;
 const EVAL_RELATIVE: fn(pos: &Position) -> Score = MaterialMobility::eval_relative;
 const TABLE_IDX_BITS: usize = 20;
 const TIMEOUT_PER_TEST: Duration = Duration::from_millis(30000);
+const HASH_LOAD_FACTOR_MIN: u16 = 0;
+const HASH_LOAD_FACTOR_MAX: u16 = 1000;
 
 struct SearchTester {
     searcher: Searcher,
@@ -112,6 +114,7 @@ fn checkmate_white(search_algo: impl Search + Send + 'static) {
         CHECKMATE_WHITE,
         0,
         0,
+        0,
         Move::new(Square::D8, Square::H4, MoveType::QUIET),
         MoveList::new(),
     );
@@ -120,6 +123,8 @@ fn checkmate_white(search_algo: impl Search + Send + 'static) {
     let actual = tester.search(pos_history, depth);
     assert_eq!(expected.depth(), actual.depth());
     assert_eq!(expected.score(), actual.score());
+    assert!(actual.hash_load_factor_permille() >= HASH_LOAD_FACTOR_MIN);
+    assert!(actual.hash_load_factor_permille() <= HASH_LOAD_FACTOR_MAX);
     assert_eq!(expected.best_move(), actual.best_move());
 }
 
@@ -139,6 +144,7 @@ fn checkmate_black(search_algo: impl Search + Send + 'static) {
         CHECKMATE_BLACK,
         0,
         0,
+        0,
         Move::new(Square::A1, Square::A8, MoveType::QUIET),
         MoveList::new(),
     );
@@ -147,6 +153,8 @@ fn checkmate_black(search_algo: impl Search + Send + 'static) {
     let actual = tester.search(pos_history, depth);
     assert_eq!(expected.depth(), actual.depth());
     assert_eq!(expected.score(), actual.score());
+    assert!(actual.hash_load_factor_permille() >= HASH_LOAD_FACTOR_MIN);
+    assert!(actual.hash_load_factor_permille() <= HASH_LOAD_FACTOR_MAX);
     assert_eq!(expected.best_move(), actual.best_move());
 }
 
@@ -159,13 +167,15 @@ fn stalemate(search_algo: impl Search + Send + 'static) {
     let pos_history = PositionHistory::new(pos);
 
     let depth = 1;
-    let expected = SearchResult::new(depth, EQUAL_POSITION, 0, 0, Move::NULL, MoveList::new());
+    let expected = SearchResult::new(depth, EQUAL_POSITION, 0, 0, 0, Move::NULL, MoveList::new());
 
     let mut tester = SearchTester::new(search_algo);
     let actual = tester.search(pos_history, depth);
     assert_eq!(expected.depth(), actual.depth());
     assert_eq!(expected.score(), actual.score());
     assert_eq!(expected.nodes(), actual.nodes());
+    assert!(actual.hash_load_factor_permille() >= HASH_LOAD_FACTOR_MIN);
+    assert!(actual.hash_load_factor_permille() <= HASH_LOAD_FACTOR_MAX);
     assert_eq!(expected.best_move(), actual.best_move());
 }
 

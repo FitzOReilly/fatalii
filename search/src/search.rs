@@ -14,6 +14,7 @@ pub struct SearchResult {
     score: Score,
     nodes: u64,
     time_us: u64,
+    hash_load_factor_permille: u16,
     best_move: Move,
     pv: MoveList,
 }
@@ -24,6 +25,7 @@ impl SearchResult {
         score: Score,
         nodes: u64,
         time_us: u64,
+        hash_load_factor_permille: u16,
         best_move: Move,
         pv: MoveList,
     ) -> Self {
@@ -33,6 +35,7 @@ impl SearchResult {
             score,
             nodes,
             time_us,
+            hash_load_factor_permille,
             best_move,
             pv,
         }
@@ -65,6 +68,10 @@ impl SearchResult {
         }
     }
 
+    pub fn hash_load_factor_permille(&self) -> u16 {
+        self.hash_load_factor_permille
+    }
+
     pub fn best_move(&self) -> Move {
         self.best_move
     }
@@ -84,6 +91,7 @@ impl Neg for SearchResult {
             -self.score(),
             self.nodes(),
             self.time_us(),
+            self.hash_load_factor_permille(),
             self.best_move(),
             self.principal_variation().clone(),
         )
@@ -94,11 +102,12 @@ impl fmt::Display for SearchResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "depth: {}, score: {}, nodes: {}, time in us: {}, best move: {}",
+            "depth: {}, score: {}, nodes: {}, time in us: {}, hash load factor permille: {}, best move: {}",
             self.depth(),
             self.score(),
             self.nodes(),
             self.time_us(),
+            self.hash_load_factor_permille(),
             self.best_move()
         )
     }
