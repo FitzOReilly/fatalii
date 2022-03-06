@@ -4,6 +4,7 @@ use std::mem;
 pub struct TranspositionTable<K, V> {
     index_bits: usize,
     entries: Box<[Option<(K, V)>]>,
+    len: usize,
 }
 
 impl<K, V> TranspositionTable<K, V>
@@ -17,19 +18,30 @@ where
         TranspositionTable {
             index_bits,
             entries: vec![None; 2_usize.pow(index_bits as u32)].into_boxed_slice(),
+            len: 0,
         }
     }
 
     pub fn len(&self) -> usize {
-        self.entries.iter().filter(|x| x.is_some()).count()
+        debug_assert_eq!(
+            self.len,
+            self.entries.iter().filter(|x| x.is_some()).count()
+        );
+        self.len
     }
 
     pub fn is_empty(&self) -> bool {
-        self.entries.iter().all(|x| x.is_none())
+        debug_assert_eq!(self.len == 0, self.entries.iter().all(|x| x.is_none()));
+        self.len == 0
     }
 
     pub fn capacity(&self) -> usize {
         self.entries.len()
+    }
+
+    pub fn load_factor_permille(&self) -> u16 {
+        debug_assert!(self.len() <= self.capacity());
+        (1000 * self.len() / self.capacity()) as u16
     }
 
     pub fn contains_key(&self, k: &K) -> bool {
@@ -49,12 +61,13 @@ where
     }
 
     // std::collections::HashMap::insert returns Option<V>
-    // This method returns (K, V), because the returned key can be different from k. Only the
-    // indexes must be equal.
+    // This method returns Option<(K, V)>, because the returned key can be
+    // different from k. Only the indexes must be equal.
     pub fn insert(&mut self, k: K, value: V) -> Option<(K, V)> {
         let index = self.key_to_index(&k);
         let old_entry = self.entries[index];
         self.entries[index] = Some((k, value));
+        self.len += old_entry.is_none() as usize;
         old_entry
     }
 

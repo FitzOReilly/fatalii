@@ -3,15 +3,19 @@ use rexpect::{errors::Result, process::wait::WaitStatus, spawn};
 use std::{thread, time::Duration};
 
 #[test]
+#[ignore]
 fn test_cli() -> Result<()> {
+    let _ = spawn("cargo build --release", Some(120000))?;
+
     uci_commands()?;
     quit_while_timer_running()?;
     go_all_options()?;
+
     Ok(())
 }
 
 fn uci_commands() -> Result<()> {
-    let mut p = spawn("cargo run", Some(60000))?;
+    let mut p = spawn("cargo run --release", Some(10000))?;
 
     p.send_line("uci")?;
     p.exp_string("id name")?;
@@ -44,7 +48,7 @@ fn uci_commands() -> Result<()> {
 }
 
 fn quit_while_timer_running() -> Result<()> {
-    let mut p = spawn("cargo run", Some(60000))?;
+    let mut p = spawn("cargo run --release", Some(10000))?;
 
     p.send_line("uci")?;
     p.send_line("isready")?;
@@ -60,7 +64,7 @@ fn quit_while_timer_running() -> Result<()> {
 }
 
 fn go_all_options() -> Result<()> {
-    let mut p = spawn("cargo run", Some(60000))?;
+    let mut p = spawn("cargo run --release", Some(10000))?;
 
     p.send_line("uci")?;
     p.send_line("isready")?;
