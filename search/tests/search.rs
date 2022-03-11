@@ -328,6 +328,29 @@ fn avoid_threefold_repetition_in_winning_position(search_algo: impl Search + Sen
     assert_ne!(b2c2, res.best_move());
 }
 
+fn fifty_move_rule(search_algo: impl Search + Send + 'static) {
+    let depth = 2;
+    let mut tester = SearchTester::new(search_algo);
+    let fen_draw = "8/8/8/8/8/4k1r1/8/5K2 w - - 99 1";
+    let fen_stalemate_and_50_moves = "8/8/8/8/8/4k3/4p3/4K3 w - - 100 1";
+    let fen_black_win = "8/8/8/8/8/4k1r1/8/5K2 w - - 98 1";
+
+    let pos = Fen::str_to_pos(fen_draw).unwrap();
+    let pos_history = PositionHistory::new(pos);
+    let res = tester.search(pos_history, depth);
+    assert_eq!(EQUAL_POSITION, res.score());
+
+    let pos = Fen::str_to_pos(fen_stalemate_and_50_moves).unwrap();
+    let pos_history = PositionHistory::new(pos);
+    let res = tester.search(pos_history, depth);
+    assert_eq!(EQUAL_POSITION, res.score());
+
+    let pos = Fen::str_to_pos(fen_black_win).unwrap();
+    let pos_history = PositionHistory::new(pos);
+    let res = tester.search(pos_history, depth);
+    assert_eq!(CHECKMATE_WHITE, res.score());
+}
+
 #[test]
 #[ignore]
 fn negamax_search_results_independent_of_transposition_table_size() {
@@ -395,6 +418,12 @@ fn negamax_play_threefold_repetition_in_losing_position() {
 fn negamax_avoid_threefold_repetition_in_winning_position() {
     let negamax = Negamax::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     avoid_threefold_repetition_in_winning_position(negamax);
+}
+
+#[test]
+fn negamax_fifty_move_rule() {
+    let negamax = Negamax::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    fifty_move_rule(negamax);
 }
 
 #[test]
@@ -474,4 +503,10 @@ fn alpha_beta_play_threefold_repetition_in_losing_position() {
 fn alpha_beta_avoid_threefold_repetition_in_winning_position() {
     let alpha_beta = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     avoid_threefold_repetition_in_winning_position(alpha_beta);
+}
+
+#[test]
+fn alpha_beta_fifty_move_rule() {
+    let alpha_beta = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    fifty_move_rule(alpha_beta);
 }
