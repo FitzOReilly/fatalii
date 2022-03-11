@@ -1,6 +1,9 @@
 use crate::alpha_beta_entry::{AlphaBetaEntry, ScoreType};
 use crate::move_selector::MoveSelector;
-use crate::search::{Search, SearchCommand, SearchInfo, SearchResult, REPETITIONS_TO_DRAW};
+use crate::search::{
+    Search, SearchCommand, SearchInfo, SearchResult, PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW,
+    REPETITIONS_TO_DRAW,
+};
 use crate::search_data::SearchData;
 use crossbeam_channel::{Receiver, Sender};
 use eval::{Score, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF, POSITIVE_INF};
@@ -115,6 +118,26 @@ impl AlphaBeta {
             return Some(entry);
         }
 
+        let pos = search_data.pos_history().current_pos();
+        if pos.plies_since_pawn_move_or_capture() >= PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW {
+            let mut score = EQUAL_POSITION;
+            if pos.is_in_check(pos.side_to_move()) {
+                let mut move_list = MoveList::new();
+                MoveGenerator::generate_moves(&mut move_list, pos);
+                if move_list.is_empty() {
+                    score = CHECKMATE_WHITE;
+                }
+            }
+            let entry = AlphaBetaEntry::new(depth, score, ScoreType::Exact, Move::NULL);
+            if depth > 0 {
+                search_data
+                    .pv_table_mut()
+                    .update_move_and_truncate(depth, entry.best_move());
+                search_data.end_pv();
+            }
+            return Some(entry);
+        }
+
         let pos_hash = search_data.pos_history().current_pos_hash();
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             if let Some(bounded) = entry.bound_hard(alpha, beta) {
@@ -212,6 +235,14 @@ impl AlphaBeta {
         let pos_hash = search_data.pos_history().current_pos_hash();
 
         debug_assert!(search_data.pos_history().current_pos_repetitions() < REPETITIONS_TO_DRAW);
+        debug_assert!(
+            search_data
+                .pos_history()
+                .current_pos()
+                .plies_since_pawn_move_or_capture()
+                < PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW
+        );
+
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             if let Some(bounded) = entry.bound_hard(alpha, beta) {
                 search_data.increment_cache_hits(depth);
