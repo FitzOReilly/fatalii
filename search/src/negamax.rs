@@ -30,6 +30,10 @@ impl Search for Negamax {
         );
     }
 
+    fn clear_hash_table(&mut self) {
+        self.transpos_table.clear();
+    }
+
     fn search(
         &mut self,
         pos_history: PositionHistory,

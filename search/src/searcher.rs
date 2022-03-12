@@ -18,6 +18,12 @@ impl Searcher {
             .expect("Error sending SearchCommand");
     }
 
+    pub fn clear_hash_table(&self) {
+        self.command_sender
+            .send(SearchCommand::ClearHashTable)
+            .expect("Error sending SearchCommand");
+    }
+
     pub fn search(&self, pos_hist: PositionHistory, depth: usize) {
         self.stop();
         self.command_sender
@@ -92,6 +98,7 @@ impl Worker {
 
             match message {
                 SearchCommand::SetHashSize(bytes) => Self::set_hash_size(&mut search_algo, bytes),
+                SearchCommand::ClearHashTable => Self::clear_hash_table(&mut search_algo),
                 SearchCommand::Search(search_options) => {
                     let (pos_hist, depth) = *search_options;
                     Self::search(
@@ -113,6 +120,10 @@ impl Worker {
 
     fn set_hash_size(search: &mut impl Search, bytes: usize) {
         search.set_hash_size(bytes);
+    }
+
+    fn clear_hash_table(search: &mut impl Search) {
+        search.clear_hash_table();
     }
 
     fn search(

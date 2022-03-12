@@ -99,6 +99,11 @@ impl Engine {
         self.pos_hist = pos_hist;
     }
 
+    pub fn clear_position_history(&mut self) {
+        self.pos_hist = None;
+        self.searcher.clear_hash_table();
+    }
+
     pub fn search(&mut self, options: SearchOptions) -> Result<(), EngineError> {
         let opt_dur = options.movetime;
         let opt_white_time = options.white_time;

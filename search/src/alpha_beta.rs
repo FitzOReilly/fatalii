@@ -35,6 +35,10 @@ impl Search for AlphaBeta {
         self.transpos_table = AlphaBetaTable::new(index_bits as usize);
     }
 
+    fn clear_hash_table(&mut self) {
+        self.transpos_table.clear();
+    }
+
     fn search(
         &mut self,
         pos_history: PositionHistory,

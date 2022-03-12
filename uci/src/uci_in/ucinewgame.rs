@@ -15,6 +15,6 @@ pub fn run_command(
         )));
     }
 
-    engine.set_position_history(None);
+    engine.clear_position_history();
     Ok(None)
 }

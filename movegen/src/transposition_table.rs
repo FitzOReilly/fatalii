@@ -39,6 +39,11 @@ where
         self.entries.len()
     }
 
+    pub fn clear(&mut self) {
+        self.entries.fill(None);
+        self.len = 0;
+    }
+
     pub fn load_factor_permille(&self) -> u16 {
         debug_assert!(self.len() <= self.capacity());
         (1000 * self.len() / self.capacity()) as u16
@@ -90,7 +95,7 @@ mod tests {
     use crate::zobrist::Zobrist;
 
     #[test]
-    fn insert_and_replace() {
+    fn insert_and_replace_and_clear() {
         let mut tt = TranspositionTable::<u64, u64>::new(8);
 
         assert_eq!(false, tt.contains_key(&0));
@@ -121,6 +126,12 @@ mod tests {
         assert_eq!(None, tt.get(&0));
         assert_eq!(true, tt.contains_key(&1));
         assert_eq!(Some(&2), tt.get(&1));
+
+        tt.clear();
+        assert_eq!(false, tt.contains_key(&0));
+        assert_eq!(None, tt.get(&0));
+        assert_eq!(false, tt.contains_key(&1));
+        assert_eq!(None, tt.get(&1));
     }
 
     #[test]
@@ -169,20 +180,39 @@ mod tests {
         assert_eq!(0, tt.len());
         assert_eq!(true, tt.is_empty());
         assert_eq!(capacity, tt.capacity());
+        assert_eq!(0, tt.load_factor_permille());
 
         let _ = tt.insert(0, 0);
         assert_eq!(1, tt.len());
         assert_eq!(false, tt.is_empty());
         assert_eq!(capacity, tt.capacity());
+        assert_eq!(
+            (1000 * tt.len() / tt.capacity()) as u16,
+            tt.load_factor_permille()
+        );
 
         let _ = tt.insert(0, 1);
         assert_eq!(1, tt.len());
         assert_eq!(false, tt.is_empty());
         assert_eq!(capacity, tt.capacity());
+        assert_eq!(
+            (1000 * tt.len() / tt.capacity()) as u16,
+            tt.load_factor_permille()
+        );
 
         let _ = tt.insert(0xff00_0000_0000_0000, 2);
         assert_eq!(2, tt.len());
         assert_eq!(false, tt.is_empty());
         assert_eq!(capacity, tt.capacity());
+        assert_eq!(
+            (1000 * tt.len() / tt.capacity()) as u16,
+            tt.load_factor_permille()
+        );
+
+        tt.clear();
+        assert_eq!(0, tt.len());
+        assert_eq!(true, tt.is_empty());
+        assert_eq!(capacity, tt.capacity());
+        assert_eq!(0, tt.load_factor_permille());
     }
 }
