@@ -9,76 +9,29 @@ use movegen::position::Position;
 use regex::Regex;
 use search::alpha_beta::AlphaBeta;
 use search::negamax::Negamax;
-use search::search::{Search, SearchResult};
-use std::io::{stdout, Write};
+use search::search::Search;
 use std::str;
 use std::time::Duration;
-use uci::parser::{Parser, ParserMessage};
 use uci::uci_in::{go, is_ready, position, quit, set_option, stop, uci as cmd_uci, ucinewgame};
-use uci::uci_out::{best_move, info};
+use uci::UciOut;
+use uci::{Parser, ParserMessage};
 
 const EVAL_RELATIVE: fn(pos: &Position) -> Score = MaterialMobility::eval_relative;
 const TABLE_IDX_BITS: usize = 16;
 const FEN_STR: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
-
-fn search_info_callback(res: Option<SearchResult>) {
-    info::write(&mut stdout(), res).unwrap();
-}
-
-fn best_move_callback(res: Option<SearchResult>) {
-    best_move::write(&mut stdout(), res).unwrap();
-}
 
 fn contains(v: Vec<u8>, s: &str) -> bool {
     String::from_utf8(v).unwrap().contains(s)
 }
 
 #[test]
-fn register_command() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
-    let mut engine = Engine::new(
-        search_algo,
-        Box::new(search_info_callback),
-        Box::new(best_move_callback),
-    );
-    let test_writer = TestBuffer::new();
-    {
-        let mut p = Parser::new(Box::new(test_writer.clone()));
-
-        assert!(p.run_command("unknown\n", &mut engine).is_err());
-        assert!(p.run_command("cmd\n", &mut engine).is_err());
-        assert!(p.run_command("cmd args\n", &mut engine).is_err());
-        assert!(p.run_command(" \r \t  cmd  args \n", &mut engine).is_err());
-
-        let cmd_handler = |writer: &mut dyn Write, args: &str, _engine: &mut Engine| {
-            writeln!(writer, "{}", args.trim_end_matches('\n'))?;
-            Ok(None)
-        };
-        p.register_command(String::from("cmd"), Box::new(cmd_handler));
-
-        assert!(p.run_command("unknown\n", &mut engine).is_err());
-        assert!(p.run_command("cmd\n", &mut engine).is_ok());
-        assert!(p.run_command("cmd args\n", &mut engine).is_ok());
-        assert!(p.run_command(" \r \t  cmd  args \n", &mut engine).is_ok());
-    }
-    let out_str = test_writer.into_string();
-    let mut outputs = out_str.split('\n');
-    assert_eq!("", outputs.next().unwrap());
-    assert_eq!("args", outputs.next().unwrap());
-    assert_eq!(" args ", outputs.next().unwrap());
-}
-
-#[test]
 fn run_command_uci() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
-    let mut engine = Engine::new(
-        search_algo,
-        Box::new(search_info_callback),
-        Box::new(best_move_callback),
-    );
     let test_writer = TestBuffer::new();
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
     {
-        let mut p = Parser::new(Box::new(test_writer.clone()));
+        let mut engine = Engine::new(search_algo, uci_out.clone());
+        let mut p = Parser::new(uci_out);
         p.register_command(String::from("uci"), Box::new(cmd_uci::run_command));
         assert!(p.run_command("uci invalid\n", &mut engine).is_err());
         assert!(p.run_command("uci\n", &mut engine).is_ok());
@@ -95,15 +48,17 @@ fn run_command_uci() {
 #[test]
 fn run_command_isready() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
-    let mut engine = Engine::new(
-        search_algo,
-        Box::new(search_info_callback),
-        Box::new(best_move_callback),
-    );
     let test_writer = TestBuffer::new();
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
     {
-        let mut p = Parser::new(Box::new(test_writer.clone()));
+        let mut engine = Engine::new(search_algo, uci_out.clone());
+        let mut p = Parser::new(uci_out);
+
+        assert!(p.run_command("unknown\n", &mut engine).is_err());
+        assert!(p.run_command("isready\n", &mut engine).is_err());
+
         p.register_command(String::from("isready"), Box::new(is_ready::run_command));
+        assert!(p.run_command("unknown\n", &mut engine).is_err());
         assert!(p.run_command("isready invalid\n", &mut engine).is_err());
         assert!(p.run_command("isready\n", &mut engine).is_ok());
     }
@@ -113,13 +68,11 @@ fn run_command_isready() {
 #[test]
 fn run_command_setoption() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
-    let mut engine = Engine::new(
-        search_algo,
-        Box::new(search_info_callback),
-        Box::new(best_move_callback),
-    );
     let test_writer = TestBuffer::new();
-    let mut p = Parser::new(Box::new(test_writer));
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let mut p = Parser::new(uci_out);
+
     p.register_command(String::from("setoption"), Box::new(set_option::run_command));
 
     let invalid_commands = [
@@ -150,13 +103,10 @@ fn run_command_setoption() {
 #[test]
 fn run_command_position() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
-    let mut engine = Engine::new(
-        search_algo,
-        Box::new(search_info_callback),
-        Box::new(best_move_callback),
-    );
-    let test_writer = Vec::new();
-    let mut p = Parser::new(Box::new(test_writer));
+    let test_writer = TestBuffer::new();
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
 
@@ -195,13 +145,10 @@ fn run_command_position() {
 #[test]
 fn run_command_ucinewgame() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
-    let mut engine = Engine::new(
-        search_algo,
-        Box::new(search_info_callback),
-        Box::new(best_move_callback),
-    );
-    let test_writer = Vec::new();
-    let mut p = Parser::new(Box::new(test_writer));
+    let test_writer = TestBuffer::new();
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
     p.register_command(
@@ -227,17 +174,9 @@ fn run_command_ucinewgame() {
 fn run_command_go() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-
-    let mut test_writer_info = test_writer.clone();
-    let mut test_writer_best_move = test_writer.clone();
-    let test_writer_parser = test_writer.clone();
-    let search_info_callback =
-        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
-    let best_move_callback =
-        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
-
-    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
-    let mut p = Parser::new(Box::new(test_writer_parser));
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
     p.register_command(String::from("go"), Box::new(go::run_command));
@@ -352,17 +291,9 @@ fn run_command_go() {
 fn run_command_go_time() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-
-    let mut test_writer_info = test_writer.clone();
-    let mut test_writer_best_move = test_writer.clone();
-    let test_writer_parser = test_writer.clone();
-    let search_info_callback =
-        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
-    let best_move_callback =
-        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
-
-    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
-    let mut p = Parser::new(Box::new(test_writer_parser));
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
     p.register_command(String::from("go"), Box::new(go::run_command));
@@ -396,17 +327,9 @@ fn run_command_go_time_limit_exceeded() {
     // a bestmove response to a go command
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-
-    let mut test_writer_info = test_writer.clone();
-    let mut test_writer_best_move = test_writer.clone();
-    let test_writer_parser = test_writer.clone();
-    let search_info_callback =
-        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
-    let best_move_callback =
-        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
-
-    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
-    let mut p = Parser::new(Box::new(test_writer_parser));
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("setoption"), Box::new(set_option::run_command));
     p.register_command(String::from("position"), Box::new(position::run_command));
@@ -435,17 +358,9 @@ fn run_command_go_time_limit_exceeded() {
 fn run_command_go_twice() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-
-    let mut test_writer_info = test_writer.clone();
-    let mut test_writer_best_move = test_writer.clone();
-    let test_writer_parser = test_writer.clone();
-    let search_info_callback =
-        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
-    let best_move_callback =
-        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
-
-    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
-    let mut p = Parser::new(Box::new(test_writer_parser));
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
     p.register_command(String::from("go"), Box::new(go::run_command));
@@ -467,17 +382,9 @@ fn run_command_go_twice() {
 fn run_command_isready_during_go() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-
-    let mut test_writer_info = test_writer.clone();
-    let mut test_writer_best_move = test_writer.clone();
-    let test_writer_parser = test_writer.clone();
-    let search_info_callback =
-        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
-    let best_move_callback =
-        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
-
-    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
-    let mut p = Parser::new(Box::new(test_writer_parser));
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("isready"), Box::new(is_ready::run_command));
     p.register_command(String::from("position"), Box::new(position::run_command));
@@ -502,17 +409,9 @@ fn run_command_isready_during_go() {
 fn run_command_quit() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-
-    let mut test_writer_info = test_writer.clone();
-    let mut test_writer_best_move = test_writer.clone();
-    let test_writer_parser = test_writer.clone();
-    let search_info_callback =
-        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
-    let best_move_callback =
-        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
-
-    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
-    let mut p = Parser::new(Box::new(test_writer_parser));
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("quit"), Box::new(quit::run_command));
 
@@ -535,17 +434,9 @@ fn run_command_quit() {
 fn info_score_equal_from_both_sides() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-
-    let mut test_writer_info = test_writer.clone();
-    let mut test_writer_best_move = test_writer.clone();
-    let test_writer_parser = test_writer.clone();
-    let search_info_callback =
-        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
-    let best_move_callback =
-        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
-
-    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
-    let mut p = Parser::new(Box::new(test_writer_parser));
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
     p.register_command(String::from("go"), Box::new(go::run_command));
@@ -608,17 +499,9 @@ fn info_score_equal_from_both_sides() {
 fn mate_in_one_white_to_move() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-
-    let mut test_writer_info = test_writer.clone();
-    let mut test_writer_best_move = test_writer.clone();
-    let test_writer_parser = test_writer.clone();
-    let search_info_callback =
-        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
-    let best_move_callback =
-        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
-
-    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
-    let mut p = Parser::new(Box::new(test_writer_parser));
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
     p.register_command(String::from("go"), Box::new(go::run_command));
@@ -643,17 +526,9 @@ fn mate_in_one_white_to_move() {
 fn mate_in_one_black_to_move() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-
-    let mut test_writer_info = test_writer.clone();
-    let mut test_writer_best_move = test_writer.clone();
-    let test_writer_parser = test_writer.clone();
-    let search_info_callback =
-        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
-    let best_move_callback =
-        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
-
-    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
-    let mut p = Parser::new(Box::new(test_writer_parser));
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
     p.register_command(String::from("go"), Box::new(go::run_command));
@@ -687,18 +562,11 @@ fn alpha_beta_threefold_repetition() {
 }
 
 fn threefold_repetition(search_algo: impl Search + Send + 'static) {
+    // let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
-
-    let mut test_writer_info = test_writer.clone();
-    let mut test_writer_best_move = test_writer.clone();
-    let test_writer_parser = test_writer.clone();
-    let search_info_callback =
-        Box::new(move |res| info::write(&mut test_writer_info, res).unwrap());
-    let best_move_callback =
-        Box::new(move |res| best_move::write(&mut test_writer_best_move, res).unwrap());
-
-    let mut engine = Engine::new(search_algo, search_info_callback, best_move_callback);
-    let mut p = Parser::new(Box::new(test_writer_parser));
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
     p.register_command(String::from("go"), Box::new(go::run_command));

@@ -1,6 +1,7 @@
 use engine::Engine;
 use std::time::Duration;
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum OptionType {
     Button,
