@@ -1,8 +1,11 @@
+mod mock_engine_out;
+
 use crossbeam_channel::unbounded;
 use engine::{Engine, SearchOptions};
 use eval::material_mobility::MaterialMobility;
 use eval::Eval;
 use eval::Score;
+use mock_engine_out::MockEngineOut;
 use more_asserts::assert_le;
 use movegen::piece::Piece;
 use movegen::position::Position;
@@ -22,10 +25,12 @@ fn search_timeout() {
     let (sender, receiver) = unbounded();
     let mut engine = Engine::new(
         search_algo,
-        Box::new(move |_res| {}),
-        Box::new(move |_res| {
-            sender.send(true).unwrap();
-        }),
+        MockEngineOut::new(
+            Box::new(|_res| {}),
+            Box::new(move |_res| {
+                sender.send(true).unwrap();
+            }),
+        ),
     );
     engine.set_position_history(Some(PositionHistory::new(Position::initial())));
 
@@ -55,10 +60,12 @@ fn search_timeout_aborted() {
     let (sender, receiver) = unbounded();
     let mut engine = Engine::new(
         search_algo,
-        Box::new(move |_res| {}),
-        Box::new(move |_res| {
-            sender.send(true).unwrap();
-        }),
+        MockEngineOut::new(
+            Box::new(move |_res| {}),
+            Box::new(move |_res| {
+                sender.send(true).unwrap();
+            }),
+        ),
     );
     engine.set_position_history(Some(PositionHistory::new(Position::initial())));
 
@@ -93,14 +100,16 @@ fn search_timeout_finished_early() {
     let (sender, receiver) = unbounded();
     let mut engine = Engine::new(
         search_algo,
-        Box::new(move |_res| {}),
-        Box::new(move |res| {
-            sender.send(true).unwrap();
-            match res {
-                Some(r) => println!("Best move: {}", r),
-                None => println!("Best move: None"),
-            }
-        }),
+        MockEngineOut::new(
+            Box::new(move |_res| {}),
+            Box::new(move |res| {
+                sender.send(true).unwrap();
+                match res {
+                    Some(r) => println!("Best move: {}", r),
+                    None => println!("Best move: None"),
+                }
+            }),
+        ),
     );
     let mut pos = Position::empty();
     pos.set_piece_at(Square::H1, Some(Piece::WHITE_KING));

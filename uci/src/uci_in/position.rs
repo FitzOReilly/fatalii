@@ -1,14 +1,14 @@
 use crate::parser::{split_first_word, ParserMessage, UciError};
 use crate::uci_move::UciMove;
+use crate::UciOut;
 use engine::Engine;
 use movegen::fen::Fen;
 use movegen::position::Position as Pos;
 use movegen::position_history::PositionHistory;
 use std::error::Error;
-use std::io::Write;
 
 pub fn run_command(
-    _writer: &mut dyn Write,
+    _uci_out: &mut UciOut,
     args: &str,
     engine: &mut Engine,
 ) -> Result<Option<ParserMessage>, Box<dyn Error>> {

@@ -1,11 +1,11 @@
+use crate::UciOut;
 use engine::Engine;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
-use std::io::Write;
 
 type UciInputHandler =
-    dyn Fn(&mut dyn Write, &str, &mut Engine) -> Result<Option<ParserMessage>, Box<dyn Error>>;
+    dyn Fn(&mut UciOut, &str, &mut Engine) -> Result<Option<ParserMessage>, Box<dyn Error>>;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ParserMessage {
@@ -14,7 +14,7 @@ pub enum ParserMessage {
 
 pub struct Parser {
     commands: HashMap<String, Box<UciInputHandler>>,
-    writer: Box<dyn Write>,
+    uci_out: UciOut,
 }
 
 #[derive(Debug)]
@@ -36,10 +36,10 @@ impl fmt::Display for UciError {
 }
 
 impl Parser {
-    pub fn new(writer: Box<dyn Write>) -> Self {
+    pub fn new(uci_out: UciOut) -> Self {
         Self {
             commands: HashMap::new(),
-            writer,
+            uci_out,
         }
     }
 
@@ -55,7 +55,7 @@ impl Parser {
         let mut tail = s;
         while let Some((cmd, args)) = split_first_word(tail) {
             if let Some(handler) = self.commands.get(cmd) {
-                return handler(&mut self.writer, args, engine);
+                return handler(&mut self.uci_out, args, engine);
             }
             tail = args;
         }

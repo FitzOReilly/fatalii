@@ -1,11 +1,12 @@
 use crate::best_move_handler::{BestMoveCommand, BestMoveHandler, StopReason};
+use crate::engine_out::EngineOut;
 use crate::search_options::SearchOptions;
 use crate::timer::{Timer, TimerCommand};
 use crossbeam_channel::{unbounded, Sender};
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 use movegen::side::Side;
-use search::search::{Search, SearchInfo, SearchResult, MAX_SEARCH_DEPTH};
+use search::search::{Search, SearchInfo, MAX_SEARCH_DEPTH};
 use search::searcher::Searcher;
 use std::cmp;
 use std::error::Error;
@@ -42,17 +43,12 @@ pub struct Engine {
 impl Engine {
     pub fn new(
         search_algo: impl Search + Send + 'static,
-        search_info_callback: Box<dyn FnMut(Option<SearchResult>) + Send>,
-        best_move_callback: Box<dyn FnMut(Option<SearchResult>) + Send>,
+        engine_out: impl EngineOut + Send + 'static,
     ) -> Self {
         let search_result = Arc::new(Mutex::new(None));
         let (best_move_sender, best_move_receiver) = unbounded();
-        let best_move_handler = BestMoveHandler::new(
-            Arc::clone(&search_result),
-            best_move_receiver,
-            search_info_callback,
-            best_move_callback,
-        );
+        let best_move_handler =
+            BestMoveHandler::new(Arc::clone(&search_result), best_move_receiver, engine_out);
         let best_move_sender_clone = best_move_sender.clone();
 
         let (timer_sender, timer_command_receiver) = unbounded();

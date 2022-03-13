@@ -1,3 +1,4 @@
+use crate::engine_out::EngineOut;
 use crate::search_options::SearchOptions;
 use crossbeam_channel::Receiver;
 use movegen::side::Side;
@@ -13,8 +14,7 @@ impl BestMoveHandler {
     pub fn new(
         search_result: Arc<Mutex<Option<SearchResult>>>,
         receiver: Receiver<BestMoveCommand>,
-        mut search_info_callback: Box<dyn FnMut(Option<SearchResult>) + Send>,
-        mut best_move_callback: Box<dyn FnMut(Option<SearchResult>) + Send>,
+        engine_out: impl EngineOut + Send + 'static,
     ) -> Self {
         let options = Arc::new(Mutex::new(SearchOptions::default()));
         let mut side_to_move = None;
@@ -34,24 +34,25 @@ impl BestMoveHandler {
                     Err(e) => panic!("{}", e),
                 },
                 BestMoveCommand::SetSideToMove(s) => side_to_move = s,
-                BestMoveCommand::DepthFinished(res) => {
-                    search_info_callback(Self::search_result_to_relative(Some(res), side_to_move));
-                }
+                BestMoveCommand::DepthFinished(res) => engine_out
+                    .info(Self::search_result_to_relative(Some(res), side_to_move))
+                    .expect("Error writing search info"),
                 BestMoveCommand::Stop(StopReason::Command) => match search_result.lock() {
-                    Ok(mut res) => best_move_callback(Self::search_result_to_relative(
-                        res.take(),
-                        side_to_move,
-                    )),
+                    Ok(mut res) => engine_out
+                        .best_move(Self::search_result_to_relative(res.take(), side_to_move))
+                        .expect("Error writing best move"),
                     Err(e) => panic!("{}", e),
                 },
                 BestMoveCommand::Stop(StopReason::Finished) => match options.lock() {
                     Ok(opt) => {
                         if !opt.infinite {
                             match search_result.lock() {
-                                Ok(mut res) => best_move_callback(Self::search_result_to_relative(
-                                    res.take(),
-                                    side_to_move,
-                                )),
+                                Ok(mut res) => engine_out
+                                    .best_move(Self::search_result_to_relative(
+                                        res.take(),
+                                        side_to_move,
+                                    ))
+                                    .expect("Error writing best move"),
                                 Err(e) => panic!("{}", e),
                             }
                         }

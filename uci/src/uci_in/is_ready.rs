@@ -1,11 +1,10 @@
 use crate::parser::{ParserMessage, UciError};
-use crate::uci_out::ready_ok::ReadyOk;
+use crate::UciOut;
 use engine::Engine;
 use std::error::Error;
-use std::io::Write;
 
 pub fn run_command(
-    writer: &mut dyn Write,
+    uci_out: &mut UciOut,
     args: &str,
     _engine: &mut Engine,
 ) -> Result<Option<ParserMessage>, Box<dyn Error>> {
@@ -16,6 +15,6 @@ pub fn run_command(
         )));
     }
 
-    ReadyOk::write(writer)?;
+    uci_out.ready_ok()?;
     Ok(None)
 }
