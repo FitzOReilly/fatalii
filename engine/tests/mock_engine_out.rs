@@ -11,8 +11,15 @@ unsafe impl Send for MockEngineOut {}
 unsafe impl Sync for MockEngineOut {}
 
 impl EngineOut for MockEngineOut {
-    fn info(&self, search_result: Option<SearchResult>) -> Result<(), Box<dyn Error>> {
+    fn info_depth_finished(
+        &self,
+        search_result: Option<SearchResult>,
+    ) -> Result<(), Box<dyn Error>> {
         (self.search_info_callback)(search_result);
+        Ok(())
+    }
+
+    fn info_string(&self, _s: &str) -> Result<(), Box<dyn Error>> {
         Ok(())
     }
 

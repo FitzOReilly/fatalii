@@ -26,6 +26,9 @@ fn uci_commands() -> Result<()> {
     p.send_line("isready")?;
     p.exp_string("readyok")?;
 
+    p.send_line("debug on")?;
+    p.exp_string("info string")?;
+
     p.send_line("ucinewgame")?;
 
     p.send_line("position startpos")?;

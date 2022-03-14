@@ -12,7 +12,9 @@ use search::negamax::Negamax;
 use search::search::Search;
 use std::str;
 use std::time::Duration;
-use uci::uci_in::{go, is_ready, position, quit, set_option, stop, uci as cmd_uci, ucinewgame};
+use uci::uci_in::{
+    debug, go, is_ready, position, quit, set_option, stop, uci as cmd_uci, ucinewgame,
+};
 use uci::UciOut;
 use uci::{Parser, ParserMessage};
 
@@ -63,6 +65,25 @@ fn run_command_isready() {
         assert!(p.run_command("isready\n", &mut engine).is_ok());
     }
     assert_eq!("readyok\n", test_writer.into_string());
+}
+
+#[test]
+fn run_command_debug() {
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let test_writer = TestBuffer::new();
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    {
+        let mut engine = Engine::new(search_algo, uci_out.clone());
+        let mut p = Parser::new(uci_out);
+
+        p.register_command(String::from("debug"), Box::new(debug::run_command));
+        assert!(p.run_command("debug\n", &mut engine).is_err());
+        assert!(p.run_command("debug invalid\n", &mut engine).is_err());
+        assert!(p.run_command("debug on\n", &mut engine).is_ok());
+        assert!(p.run_command("debug off\n", &mut engine).is_ok());
+    }
+    let out = test_writer.into_string();
+    assert!(out.contains("info string"));
 }
 
 #[test]

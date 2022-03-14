@@ -35,7 +35,7 @@ impl BestMoveHandler {
                 },
                 BestMoveCommand::SetSideToMove(s) => side_to_move = s,
                 BestMoveCommand::DepthFinished(res) => engine_out
-                    .info(Self::search_result_to_relative(Some(res), side_to_move))
+                    .info_depth_finished(Self::search_result_to_relative(Some(res), side_to_move))
                     .expect("Error writing search info"),
                 BestMoveCommand::Stop(StopReason::Command) => match search_result.lock() {
                     Ok(mut res) => engine_out
