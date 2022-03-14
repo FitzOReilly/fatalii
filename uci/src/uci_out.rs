@@ -44,7 +44,10 @@ impl EngineOut for UciOut {
                         res.hash_load_factor_permille(),
                         pv_str
                     )?),
-                    Err(e) => panic!("{}", e),
+                    Err(e) => {
+                        self.info_string(format!("{}", e).as_str())?;
+                        panic!("{}", e)
+                    }
                 }
             }
             None => Ok(()),
@@ -53,7 +56,10 @@ impl EngineOut for UciOut {
 
     fn info_string(&self, s: &str) -> Result<(), Box<dyn Error>> {
         match self.inner.lock() {
-            Ok(mut inner) => Ok(writeln!(inner.writer, "info string {}", s)?),
+            Ok(mut inner) => match inner.debug {
+                true => Ok(writeln!(inner.writer, "info string {}", s)?),
+                false => Ok(()),
+            },
             Err(e) => panic!("{}", e),
         }
     }
@@ -67,7 +73,10 @@ impl EngineOut for UciOut {
                     "bestmove {}",
                     UciMove::move_to_str(res.best_move())
                 )?),
-                Err(e) => panic!("{}", e),
+                Err(e) => {
+                    self.info_string(format!("{}", e).as_str())?;
+                    panic!("{}", e);
+                }
             },
 
             None => Ok(()),
@@ -103,7 +112,10 @@ impl UciOut {
                     version,
                 )?)
             }
-            Err(e) => panic!("{}", e),
+            Err(e) => {
+                self.info_string(format!("{}", e).as_str())?;
+                panic!("{}", e)
+            }
         }
     }
 
@@ -117,14 +129,20 @@ impl UciOut {
     pub fn uci_ok(&mut self) -> Result<(), Box<dyn Error>> {
         match self.inner.lock() {
             Ok(mut inner) => Ok(writeln!(inner.writer, "uciok")?),
-            Err(e) => panic!("{}", e),
+            Err(e) => {
+                self.info_string(format!("{}", e).as_str())?;
+                panic!("{}", e)
+            }
         }
     }
 
     pub fn ready_ok(&mut self) -> Result<(), Box<dyn Error>> {
         match self.inner.lock() {
             Ok(mut inner) => Ok(writeln!(inner.writer, "readyok")?),
-            Err(e) => panic!("{}", e),
+            Err(e) => {
+                self.info_string(format!("{}", e).as_str())?;
+                panic!("{}", e)
+            }
         }
     }
 
@@ -136,7 +154,10 @@ impl UciOut {
                     "option name {} type spin default {} min {} max {}",
                     opt.name, opt.default, opt.min, opt.max
                 )?,
-                Err(e) => panic!("{}", e),
+                Err(e) => {
+                    self.info_string(format!("{}", e).as_str())?;
+                    panic!("{}", e)
+                }
             },
             OptionType::Button | OptionType::Check | OptionType::Combo | OptionType::String => {
                 unimplemented!();

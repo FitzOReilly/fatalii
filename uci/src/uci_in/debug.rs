@@ -14,8 +14,8 @@ pub fn run_command(
             uci_out.info_string("debug on")?;
         }
         "off" => {
-            uci_out.set_debug(false);
             uci_out.info_string("debug off")?;
+            uci_out.set_debug(false);
         }
         _ => {
             return Err(Box::new(UciError::InvalidArgument(format!(
