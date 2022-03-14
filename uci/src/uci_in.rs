@@ -1,3 +1,4 @@
+pub mod debug;
 pub mod go;
 pub mod is_ready;
 pub mod position;

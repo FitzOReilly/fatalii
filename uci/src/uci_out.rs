@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex};
 struct UciOutInner {
     writer: Box<dyn Write + Send>,
     engine_version: String,
+    debug: bool,
 }
 
 #[derive(Clone)]
@@ -18,7 +19,10 @@ pub struct UciOut {
 }
 
 impl EngineOut for UciOut {
-    fn info(&self, search_result: Option<SearchResult>) -> Result<(), Box<dyn Error>> {
+    fn info_depth_finished(
+        &self,
+        search_result: Option<SearchResult>,
+    ) -> Result<(), Box<dyn Error>> {
         match search_result {
             Some(res) => {
                 let pv_str = res
@@ -47,8 +51,15 @@ impl EngineOut for UciOut {
         }
     }
 
+    fn info_string(&self, s: &str) -> Result<(), Box<dyn Error>> {
+        match self.inner.lock() {
+            Ok(mut inner) => Ok(writeln!(inner.writer, "info string {}", s)?),
+            Err(e) => panic!("{}", e),
+        }
+    }
+
     fn best_move(&self, search_result: Option<SearchResult>) -> Result<(), Box<dyn Error>> {
-        self.info(search_result.clone())?;
+        self.info_depth_finished(search_result.clone())?;
         match search_result {
             Some(res) => match self.inner.lock() {
                 Ok(mut inner) => Ok(writeln!(
@@ -70,7 +81,15 @@ impl UciOut {
             inner: Arc::new(Mutex::new(UciOutInner {
                 writer,
                 engine_version: String::from(engine_version),
+                debug: false,
             })),
+        }
+    }
+
+    pub fn set_debug(&self, tf: bool) {
+        match self.inner.lock() {
+            Ok(mut inner) => inner.debug = tf,
+            Err(e) => panic!("{}", e),
         }
     }
 
