@@ -28,6 +28,8 @@ fn uci_commands() -> Result<()> {
 
     p.send_line("debug on")?;
     p.exp_string("info string")?;
+    p.send_line("debug off")?;
+    p.exp_string("info string")?;
 
     p.send_line("ucinewgame")?;
 
