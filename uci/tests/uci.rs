@@ -621,3 +621,49 @@ fn threefold_repetition(search_algo: impl Search + Send + 'static) {
         .is_ok());
     std::thread::sleep(Duration::from_millis(400));
 }
+
+#[test]
+#[ignore]
+fn stress() {
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let test_writer = TestBuffer::new();
+    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    {
+        let mut engine = Engine::new(search_algo, uci_out.clone());
+        let mut p = Parser::new(uci_out);
+
+        p.register_command(String::from("debug"), Box::new(debug::run_command));
+        p.register_command(String::from("isready"), Box::new(is_ready::run_command));
+        p.register_command(String::from("go"), Box::new(go::run_command));
+        p.register_command(String::from("position"), Box::new(position::run_command));
+        p.register_command(String::from("setoption"), Box::new(set_option::run_command));
+        p.register_command(String::from("uci"), Box::new(cmd_uci::run_command));
+        p.register_command(
+            String::from("ucinewgame"),
+            Box::new(ucinewgame::run_command),
+        );
+
+        assert!(p.run_command("uci\n", &mut engine).is_ok());
+        assert!(p.run_command("debug on\n", &mut engine).is_ok());
+
+        for hash_size in [1, 8, 64] {
+            assert!(p
+                .run_command(
+                    format!("setoption name Hash value {}\n", hash_size).as_str(),
+                    &mut engine
+                )
+                .is_ok());
+            assert!(p.run_command("isready\n", &mut engine).is_ok());
+
+            for i in 0..10_000 {
+                println!("Hash size: {}, iteration: {}", hash_size, i);
+                assert!(p.run_command("ucinewgame\n", &mut engine).is_ok());
+                assert!(p.run_command("isready\n", &mut engine).is_ok());
+                assert!(p.run_command("position startpos\n", &mut engine).is_ok());
+                assert!(p.run_command("isready\n", &mut engine).is_ok());
+                assert!(p.run_command("go wtime 0\n", &mut engine).is_ok());
+                assert!(p.run_command("isready\n", &mut engine).is_ok());
+            }
+        }
+    }
+}

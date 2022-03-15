@@ -10,6 +10,7 @@ fn test_cli() -> Result<()> {
     uci_commands()?;
     quit_while_timer_running()?;
     go_all_options()?;
+    stress()?;
 
     Ok(())
 }
@@ -100,5 +101,28 @@ fn go_all_options() -> Result<()> {
     thread::sleep(Duration::from_millis(400));
     assert_matches!(p.process.status(), Some(WaitStatus::Exited(_, 0)));
 
+    Ok(())
+}
+
+fn stress() -> Result<()> {
+    let mut p = spawn("cargo run --release", Some(10000))?;
+
+    p.send_line("uci")?;
+    p.send_line("debug on")?;
+
+    for hash_size in [1, 8, 64] {
+        p.send_line(format!("setoption name Hash value {}", hash_size).as_str())?;
+        p.send_line("isready")?;
+
+        for i in 0..10_000 {
+            println!("Hash size: {}, iteration: {}", hash_size, i);
+            p.send_line("ucinewgame")?;
+            p.send_line("isready")?;
+            p.send_line("position startpos")?;
+            p.send_line("isready")?;
+            p.send_line("go wtime 0")?;
+            p.send_line("isready")?;
+        }
+    }
     Ok(())
 }
