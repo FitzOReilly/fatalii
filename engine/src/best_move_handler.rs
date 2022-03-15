@@ -22,13 +22,6 @@ impl BestMoveHandler {
         let thread = thread::spawn(move || loop {
             let message = receiver.recv().expect("Error receiving BestMoveCommand");
             match message {
-                BestMoveCommand::Clear => {
-                    side_to_move = None;
-                    match search_result.lock() {
-                        Ok(mut res) => *res = None,
-                        Err(e) => panic!("{}", e),
-                    };
-                }
                 BestMoveCommand::SetOptions(new_options) => match options.lock() {
                     Ok(mut opt) => *opt = *new_options,
                     Err(e) => panic!("{}", e),
@@ -83,7 +76,6 @@ impl BestMoveHandler {
 
 #[derive(Clone, Debug)]
 pub enum BestMoveCommand {
-    Clear,
     SetOptions(Box<SearchOptions>),
     SetSideToMove(Option<Side>),
     DepthFinished(SearchResult),

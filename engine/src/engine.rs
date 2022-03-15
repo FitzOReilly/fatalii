@@ -152,15 +152,8 @@ impl Engine {
     }
 
     fn clear_best_move(&self) {
-        self.clear_best_move_handler();
         self.stop_timer();
         self.searcher.stop();
-    }
-
-    fn clear_best_move_handler(&self) {
-        self.best_move_sender
-            .send(BestMoveCommand::Clear)
-            .expect("Error sending BestMoveCommand");
     }
 
     fn set_search_options(&self, options: SearchOptions) {
