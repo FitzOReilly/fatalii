@@ -15,4 +15,5 @@ pub struct SearchOptions {
     pub mate_in: Option<usize>,
     pub movetime: Option<Duration>,
     pub infinite: bool,
+    pub move_overhead: Duration,
 }

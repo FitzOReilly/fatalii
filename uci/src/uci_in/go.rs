@@ -1,8 +1,9 @@
 use crate::parser::{split_first_word, ParserMessage, UciError};
 use crate::uci_move::UciMove;
 use crate::UciOut;
-use engine::{Engine, EngineError, SearchOptions};
+use engine::{Engine, EngineError};
 use movegen::r#move::MoveList;
+use search::SearchOptions;
 use std::collections::HashSet;
 use std::error::Error;
 use std::time::Duration;

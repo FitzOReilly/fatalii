@@ -1,3 +1,5 @@
+pub use search_options::SearchOptions;
+
 pub mod alpha_beta;
 pub mod negamax;
 pub mod search;
@@ -9,3 +11,5 @@ mod negamax_entry;
 mod node_counter;
 mod pv_table;
 mod search_data;
+mod search_options;
+mod time_manager;

@@ -1,8 +1,8 @@
 use crate::engine_out::EngineOut;
-use crate::search_options::SearchOptions;
 use crossbeam_channel::Receiver;
 use movegen::side::Side;
 use search::search::SearchResult;
+use search::SearchOptions;
 use std::sync::{Arc, Mutex};
 use std::thread;
 

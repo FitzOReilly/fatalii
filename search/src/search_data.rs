@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use crate::node_counter::NodeCounter;
 use crate::pv_table::PvTable;
 use crate::search::{SearchCommand, SearchInfo};
@@ -9,6 +11,8 @@ pub struct SearchData<'a> {
     command_receiver: &'a Receiver<SearchCommand>,
     info_sender: &'a Sender<SearchInfo>,
     pos_history: PositionHistory,
+    start_time: Instant,
+    hard_time_limit: Option<Duration>,
     search_depth: usize,
     pv_depth: usize,
     pv_table: PvTable,
@@ -20,11 +24,15 @@ impl<'a> SearchData<'a> {
         command_receiver: &'a Receiver<SearchCommand>,
         info_sender: &'a Sender<SearchInfo>,
         pos_history: PositionHistory,
+        start_time: Instant,
+        hard_time_limit: Option<Duration>,
     ) -> Self {
         Self {
             command_receiver,
             info_sender,
             pos_history,
+            start_time,
+            hard_time_limit,
             search_depth: 0,
             pv_depth: 0,
             pv_table: PvTable::new(),
@@ -48,6 +56,14 @@ impl<'a> SearchData<'a> {
 
     pub fn pos_history_mut(&mut self) -> &mut PositionHistory {
         &mut self.pos_history
+    }
+
+    pub fn start_time(&self) -> Instant {
+        self.start_time
+    }
+
+    pub fn hard_time_limit(&self) -> Option<Duration> {
+        self.hard_time_limit
     }
 
     pub fn search_depth(&self) -> usize {
