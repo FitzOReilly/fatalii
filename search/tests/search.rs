@@ -13,6 +13,7 @@ use search::alpha_beta::AlphaBeta;
 use search::negamax::Negamax;
 use search::search::{Search, SearchInfo, SearchResult};
 use search::searcher::Searcher;
+use search::SearchOptions;
 use std::cmp;
 use std::time::Duration;
 
@@ -42,7 +43,11 @@ impl SearchTester {
     }
 
     fn search(&mut self, pos_hist: PositionHistory, depth: usize) -> SearchResult {
-        self.searcher.search(pos_hist, depth);
+        let search_options = SearchOptions {
+            depth: Some(depth),
+            ..Default::default()
+        };
+        self.searcher.search(pos_hist, search_options);
         loop {
             let received = self.result_receiver.recv_timeout(TIMEOUT_PER_TEST);
             println!("{:?}", received);

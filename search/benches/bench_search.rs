@@ -10,6 +10,7 @@ use search::alpha_beta::AlphaBeta;
 use search::negamax::Negamax;
 use search::search::{Search, SearchInfo, SearchResult};
 use search::searcher::Searcher;
+use search::SearchOptions;
 use std::time::Duration;
 
 const EVAL_RELATIVE: fn(pos: &Position) -> Score = MaterialMobility::eval_relative;
@@ -34,7 +35,11 @@ impl SearchBencher {
     }
 
     fn search(&mut self, pos_hist: PositionHistory, depth: usize) -> SearchResult {
-        self.searcher.search(pos_hist, depth);
+        let search_options = SearchOptions {
+            depth: Some(depth),
+            ..Default::default()
+        };
+        self.searcher.search(pos_hist, search_options);
         loop {
             let search_result = match self.result_receiver.recv_timeout(TIMEOUT_PER_BENCH) {
                 Ok(SearchInfo::DepthFinished(res)) => res,

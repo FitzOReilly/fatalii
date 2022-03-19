@@ -1,7 +1,7 @@
 mod mock_engine_out;
 
 use crossbeam_channel::unbounded;
-use engine::{Engine, SearchOptions};
+use engine::Engine;
 use eval::material_mobility::MaterialMobility;
 use eval::Eval;
 use eval::Score;
@@ -12,6 +12,7 @@ use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 use movegen::square::Square;
 use search::alpha_beta::AlphaBeta;
+use search::SearchOptions;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;

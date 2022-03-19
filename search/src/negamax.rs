@@ -1,9 +1,11 @@
 use crate::negamax_entry::NegamaxEntry;
 use crate::search::{
-    Search, SearchCommand, SearchInfo, SearchResult, PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW,
-    REPETITIONS_TO_DRAW,
+    Search, SearchCommand, SearchInfo, SearchResult, MAX_SEARCH_DEPTH,
+    PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW, REPETITIONS_TO_DRAW,
 };
 use crate::search_data::SearchData;
+use crate::time_manager::TimeManager;
+use crate::SearchOptions;
 use crossbeam_channel::{Receiver, Sender};
 use eval::{Score, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF};
 use movegen::move_generator::MoveGenerator;
@@ -13,6 +15,7 @@ use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
 use movegen::transposition_table::TranspositionTable;
 use movegen::zobrist::Zobrist;
+use std::cmp;
 use std::time::Instant;
 
 type NegamaxTable = TranspositionTable<Zobrist, NegamaxEntry>;
@@ -37,19 +40,41 @@ impl Search for Negamax {
     fn search(
         &mut self,
         pos_history: PositionHistory,
-        max_depth: usize,
+        search_options: SearchOptions,
         command_receiver: &Receiver<SearchCommand>,
         info_sender: &Sender<SearchInfo>,
     ) {
         let start_time = Instant::now();
-        let mut search_data = SearchData::new(command_receiver, info_sender, pos_history);
+        let hard_time_limit = TimeManager::calc_movetime_hard_limit(
+            pos_history.current_pos().side_to_move(),
+            &search_options,
+        );
+        let soft_time_limit = cmp::min(
+            hard_time_limit,
+            TimeManager::calc_movetime_soft_limit(
+                pos_history.current_pos().side_to_move(),
+                &search_options,
+            ),
+        );
+        let mut search_data = SearchData::new(
+            command_receiver,
+            info_sender,
+            pos_history,
+            start_time,
+            hard_time_limit,
+        );
 
-        for d in 1..=max_depth {
+        for d in 1..=search_options.depth.unwrap_or(MAX_SEARCH_DEPTH) {
             search_data.increase_search_depth();
 
             if search_data.search_depth() > 1 {
                 if let Ok(SearchCommand::Stop) = command_receiver.try_recv() {
                     break;
+                }
+                if let Some(limit) = soft_time_limit {
+                    if search_data.start_time().elapsed() > limit {
+                        break;
+                    }
                 }
             }
 
@@ -102,6 +127,11 @@ impl Negamax {
         if search_data.search_depth() > 1 {
             if let Ok(SearchCommand::Stop) = search_data.try_recv_cmd() {
                 return None;
+            }
+            if let Some(limit) = search_data.hard_time_limit() {
+                if search_data.start_time().elapsed() > limit {
+                    return None;
+                }
             }
         }
 

@@ -1,3 +1,4 @@
+use crate::SearchOptions;
 use crossbeam_channel::{Receiver, Sender};
 use eval::Score;
 use movegen::position_history::PositionHistory;
@@ -118,7 +119,7 @@ impl fmt::Display for SearchResult {
 pub enum SearchCommand {
     SetHashSize(usize, Sender<()>),
     ClearHashTable(Sender<()>),
-    Search(Box<(PositionHistory, usize)>),
+    Search(Box<(PositionHistory, SearchOptions)>),
     Stop,
     Terminate,
 }
@@ -148,7 +149,7 @@ pub trait Search {
     fn search(
         &mut self,
         pos_history: PositionHistory,
-        max_depth: usize,
+        search_options: SearchOptions,
         command_receiver: &Receiver<SearchCommand>,
         info_sender: &Sender<SearchInfo>,
     );

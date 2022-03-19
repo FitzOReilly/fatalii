@@ -1,4 +1,7 @@
-use crate::search::{Search, SearchCommand, SearchInfo};
+use crate::{
+    search::{Search, SearchCommand, SearchInfo},
+    SearchOptions,
+};
 use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
 use movegen::position_history::PositionHistory;
 
@@ -32,10 +35,10 @@ impl Searcher {
             .expect_err("Expected sender to disconnect after ClearHashTable");
     }
 
-    pub fn search(&self, pos_hist: PositionHistory, depth: usize) {
+    pub fn search(&self, pos_hist: PositionHistory, search_options: SearchOptions) {
         self.stop();
         self.command_sender
-            .send(SearchCommand::Search(Box::new((pos_hist, depth))))
+            .send(SearchCommand::Search(Box::new((pos_hist, search_options))))
             .expect("Error sending SearchCommand");
     }
 
@@ -111,12 +114,12 @@ impl Worker {
                 SearchCommand::ClearHashTable(_sender) => {
                     Self::clear_hash_table(&mut search_algo);
                 }
-                SearchCommand::Search(search_options) => {
-                    let (pos_hist, depth) = *search_options;
+                SearchCommand::Search(inner) => {
+                    let (pos_hist, search_options) = *inner;
                     Self::search(
                         &mut search_algo,
                         pos_hist,
-                        depth,
+                        search_options,
                         &mut command_receiver,
                         &mut info_sender,
                     );
@@ -141,11 +144,11 @@ impl Worker {
     fn search(
         search: &mut impl Search,
         pos_hist: PositionHistory,
-        depth: usize,
+        search_options: SearchOptions,
         command_receiver: &mut Receiver<SearchCommand>,
         info_sender: &mut Sender<SearchInfo>,
     ) {
-        search.search(pos_hist, depth, command_receiver, info_sender);
+        search.search(pos_hist, search_options, command_receiver, info_sender);
     }
 }
 
