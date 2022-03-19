@@ -1,5 +1,5 @@
 use crate::search::{Search, SearchCommand, SearchInfo};
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
 use movegen::position_history::PositionHistory;
 
 use std::thread;
@@ -13,15 +13,23 @@ pub struct Searcher {
 
 impl Searcher {
     pub fn set_hash_size(&self, bytes: usize) {
+        let (sender, receiver) = bounded(1);
         self.command_sender
-            .send(SearchCommand::SetHashSize(bytes))
+            .send(SearchCommand::SetHashSize(bytes, sender))
             .expect("Error sending SearchCommand");
+        receiver
+            .recv()
+            .expect_err("Expected sender to disconnect after SetHashSize");
     }
 
     pub fn clear_hash_table(&self) {
+        let (sender, receiver) = bounded(1);
         self.command_sender
-            .send(SearchCommand::ClearHashTable)
+            .send(SearchCommand::ClearHashTable(sender))
             .expect("Error sending SearchCommand");
+        receiver
+            .recv()
+            .expect_err("Expected sender to disconnect after ClearHashTable");
     }
 
     pub fn search(&self, pos_hist: PositionHistory, depth: usize) {
@@ -97,8 +105,12 @@ impl Worker {
                 .expect("Error receiving SearchCommand");
 
             match message {
-                SearchCommand::SetHashSize(bytes) => Self::set_hash_size(&mut search_algo, bytes),
-                SearchCommand::ClearHashTable => Self::clear_hash_table(&mut search_algo),
+                SearchCommand::SetHashSize(bytes, _sender) => {
+                    Self::set_hash_size(&mut search_algo, bytes);
+                }
+                SearchCommand::ClearHashTable(_sender) => {
+                    Self::clear_hash_table(&mut search_algo);
+                }
                 SearchCommand::Search(search_options) => {
                     let (pos_hist, depth) = *search_options;
                     Self::search(

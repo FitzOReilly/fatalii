@@ -116,8 +116,8 @@ impl fmt::Display for SearchResult {
 
 #[derive(Debug)]
 pub enum SearchCommand {
-    SetHashSize(usize),
-    ClearHashTable,
+    SetHashSize(usize, Sender<()>),
+    ClearHashTable(Sender<()>),
     Search(Box<(PositionHistory, usize)>),
     Stop,
     Terminate,
