@@ -74,12 +74,12 @@ impl Square {
     pub const H7: Self = Square(62);
     pub const H8: Self = Square(63);
 
-    pub fn from_idx(idx: usize) -> Square {
+    pub const fn from_idx(idx: usize) -> Square {
         debug_assert!(idx < Self::NUM_SQUARES);
         Square(idx as u8)
     }
 
-    pub fn from_file_and_rank(file: File, rank: Rank) -> Square {
+    pub const fn from_file_and_rank(file: File, rank: Rank) -> Square {
         debug_assert!(file.idx() < File::NUM_FILES);
         debug_assert!(rank.idx() < Rank::NUM_RANKS);
         Square::from_idx(file.idx() * Rank::NUM_RANKS + rank.idx())
@@ -156,6 +156,10 @@ impl Square {
         debug_assert!(self.rank().idx() > 0);
         debug_assert!(self.file().idx() > 0);
         Self(self.0 - 9)
+    }
+
+    pub fn flip_vertical(self) -> Square {
+        Self(self.0 ^ 0x7)
     }
 }
 
@@ -295,6 +299,18 @@ mod tests {
     #[test]
     fn south_west_one() {
         assert_eq!(Square::C3, Square::south_west_one(Square::D4));
+    }
+
+    #[test]
+    fn flip_vertical() {
+        assert_eq!(Square::A8, Square::flip_vertical(Square::A1));
+        assert_eq!(Square::A2, Square::flip_vertical(Square::A7));
+        assert_eq!(Square::B1, Square::flip_vertical(Square::B8));
+        assert_eq!(Square::D4, Square::flip_vertical(Square::D5));
+        assert_eq!(Square::E5, Square::flip_vertical(Square::E4));
+        assert_eq!(Square::G8, Square::flip_vertical(Square::G1));
+        assert_eq!(Square::H7, Square::flip_vertical(Square::H2));
+        assert_eq!(Square::H1, Square::flip_vertical(Square::H8));
     }
 
     #[test]

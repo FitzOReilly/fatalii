@@ -4,3 +4,4 @@ pub use crate::eval::{
 
 pub mod eval;
 pub mod material_mobility;
+pub mod piece_square_tables;
