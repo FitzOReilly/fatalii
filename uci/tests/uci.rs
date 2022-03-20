@@ -253,6 +253,18 @@ fn run_command_go() {
     std::thread::sleep(Duration::from_millis(20));
     assert!(!contains(test_writer.split_off(0), "bestmove"));
 
+    // Option "nodes" should not stop the search before depth 1 is finished
+    assert!(p.run_command("position startpos\n", &mut engine).is_ok());
+    assert!(p.run_command("go nodes 1\n", &mut engine).is_ok());
+    std::thread::sleep(Duration::from_millis(400));
+    let output = String::from_utf8(test_writer.split_off(0)).unwrap();
+    assert!(output.contains("info"));
+    assert!(output.contains("bestmove"));
+    assert!(!output.contains("0000"));
+    assert!(p.run_command("stop\n", &mut engine).is_ok());
+    std::thread::sleep(Duration::from_millis(20));
+    assert!(!contains(test_writer.split_off(0), "bestmove"));
+
     // Option "movetime"
     assert!(p.run_command("position startpos\n", &mut engine).is_ok());
     assert!(p.run_command("go movetime 100\n", &mut engine).is_ok());

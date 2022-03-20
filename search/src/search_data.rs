@@ -13,6 +13,7 @@ pub struct SearchData<'a> {
     pos_history: PositionHistory,
     start_time: Instant,
     hard_time_limit: Option<Duration>,
+    max_nodes: Option<usize>,
     search_depth: usize,
     pv_depth: usize,
     pv_table: PvTable,
@@ -26,6 +27,7 @@ impl<'a> SearchData<'a> {
         pos_history: PositionHistory,
         start_time: Instant,
         hard_time_limit: Option<Duration>,
+        max_nodes: Option<usize>,
     ) -> Self {
         Self {
             command_receiver,
@@ -33,6 +35,7 @@ impl<'a> SearchData<'a> {
             pos_history,
             start_time,
             hard_time_limit,
+            max_nodes,
             search_depth: 0,
             pv_depth: 0,
             pv_table: PvTable::new(),
@@ -64,6 +67,14 @@ impl<'a> SearchData<'a> {
 
     pub fn hard_time_limit(&self) -> Option<Duration> {
         self.hard_time_limit
+    }
+
+    pub fn max_nodes(&self) -> Option<usize> {
+        self.max_nodes
+    }
+
+    pub fn searched_nodes(&self) -> usize {
+        self.node_counter.sum_nodes() as usize
     }
 
     pub fn search_depth(&self) -> usize {
