@@ -15,7 +15,7 @@ impl File {
     pub const G: Self = File(6);
     pub const H: Self = File(7);
 
-    pub fn from_idx(idx: usize) -> File {
+    pub const fn from_idx(idx: usize) -> File {
         debug_assert!(idx < Self::NUM_FILES);
         File(idx as u8)
     }

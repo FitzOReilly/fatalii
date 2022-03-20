@@ -15,7 +15,7 @@ impl Rank {
     pub const R7: Self = Rank(6);
     pub const R8: Self = Rank(7);
 
-    pub fn from_idx(idx: usize) -> Rank {
+    pub const fn from_idx(idx: usize) -> Rank {
         debug_assert!(idx < Self::NUM_RANKS);
         Rank(idx as u8)
     }
