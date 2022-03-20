@@ -67,6 +67,7 @@ impl Search for AlphaBeta {
             pos_history,
             start_time,
             hard_time_limit,
+            search_options.nodes,
         );
 
         for d in 1..=search_options.depth.unwrap_or(MAX_SEARCH_DEPTH) {
@@ -136,6 +137,11 @@ impl AlphaBeta {
             }
             if let Some(limit) = search_data.hard_time_limit() {
                 if search_data.start_time().elapsed() > limit {
+                    return None;
+                }
+            }
+            if let Some(max_nodes) = search_data.max_nodes() {
+                if search_data.searched_nodes() >= max_nodes {
                     return None;
                 }
             }
