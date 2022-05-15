@@ -6,32 +6,46 @@ UCI compatible chess engine
 Challenge me on Lichess: https://lichess.org/@/FataliiBot
 
 ## Building from source
-To compile the engine, you need to have [Rust](https://www.rust-lang.org/) installed. Then clone the repo and build the engine:
+To compile the engine, you need to have [Rust](https://www.rust-lang.org/) installed. Then clone the repo
 ```
 git clone git@github.com:FitzOReilly/fatalii.git
-cd fatalii
-cargo build --release
+# or, if you prefer https:
+# git clone https://github.com/FitzOReilly/fatalii.git
 ```
-The binary will be in `target/release/fatalii`.
+and build the engine:
+```
+cd fatalii
+cargo build --profile release-lto
+```
+The binary will be in `target/release-lto/fatalii`.
 
 ## Supported features
-- [x] Bitboards
-- [x] Alpha-Beta pruning
-- [x] Quiescence search
-- [x] Iterative deepening
-- [x] Transposition table with Zobrist hashing
+- Bitboards using file rank mapping
+- Evaluation currently solely based on piece square tables
+- Alpha-Beta search
+  - Quiescence search
+  - Iterative deepening
+  - Move ordering
+    - Principal variation move
+    - Hash move
+    - Most valuable victim - least valueable attacker (MVV-LVA)
+- Transposition table with Zobrist hashing
+- Detect draws by 3-fold repetition
+- Detect draws by 50 move rule
 
-### Coming soon
-- [ ] Better move ordering (to prune more nodes during the Alpha-Beta search)
-- [ ] Better evaluation
-- [ ] Multithreaded search
+## Thanks to
+- The [Chess Programming Wiki](https://www.chessprogramming.org). It has been
+  extremely helpful during development. A lot of ideas have been taken from it
+  and I've also learned a lot from it.
+- Other open source chess engines.
+- [Lichess](https://lichess.org/) for being an awesome chess site and for
+  letting bots play there. And https://github.com/ShailChoksi/lichess-bot for
+  making it easy to create such a bot.
+- The folks at [CCRL](http://ccrl.chessdom.com/ccrl/404/) for rating the engine.
+- [Cute Chess](https://cutechess.com/). The CLI was extensively used for
+  self-play testing.
 
-### Coming one day
-- [ ] Better time management
-- [ ] Magic bitboards (to speed up the move generator)
-
-## Helpful resources
-- The [Chess Programming Wiki](https://www.chessprogramming.org)
-- Open source chess engines, especially Stockfish and FabChess
-- https://github.com/ShailChoksi/lichess-bot
+### More helpful resources
+- The UCI specification: https://www.shredderchess.com/download/div/uci.zip
+- http://talkchess.com/forum3/index.php
 - https://andrewra.dev/2019/08/05/testing-in-rust-writing-to-stdout/
