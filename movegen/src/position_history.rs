@@ -64,10 +64,21 @@ impl PositionHistory {
     }
 
     pub fn do_move(&mut self, m: Move) {
+        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
         match m {
             Move::NULL => self.do_null_move(),
-            _ => self.do_regular_move(m),
+            _ => match m.move_type() {
+                MoveType::QUIET => self.do_quiet_move(m),
+                MoveType::DOUBLE_PAWN_PUSH => self.do_double_pawn_push(m),
+                MoveType::CASTLE_KINGSIDE => self.do_castle(m),
+                MoveType::CASTLE_QUEENSIDE => self.do_castle(m),
+                MoveType::CAPTURE => self.do_capture(m),
+                MoveType::EN_PASSANT_CAPTURE => self.do_capture(m),
+                _ if m.is_capture() => self.do_promotion_capture(m),
+                _ => self.do_promotion(m),
+            },
         }
+        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
         debug_assert_eq!(Zobrist::new(self.current_pos()), self.current_pos_hash());
     }
 
@@ -86,7 +97,6 @@ impl PositionHistory {
     }
 
     fn do_null_move(&mut self) {
-        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
         self.moves.push(Move::NULL);
         self.irreversible_props.push(IrreversibleProperties::new(
             self.pos.en_passant_square(),
@@ -108,114 +118,35 @@ impl PositionHistory {
         self.pos.set_plies_since_pawn_move_or_capture(plies + 1);
         self.pos.set_move_count(move_count + side_to_move as usize);
         self.rep_tracker.push(self.pos_hash, is_reversible);
-        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
     }
 
-    fn do_regular_move(&mut self, m: Move) {
-        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
-        debug_assert_ne!(Move::NULL, m);
+    fn do_quiet_move(&mut self, m: Move) {
         self.moves.push(m);
         let origin = m.origin();
         let target = m.target();
         let origin_piece = self.pos.piece_at(origin).unwrap();
+        let target_piece = origin_piece;
         let side_to_move = self.pos.side_to_move();
 
-        let capture_square = if m.is_en_passant() {
-            Pawn::push_origin(target, side_to_move)
-        } else {
-            target
-        };
-        let captured_piece = self.pos.piece_at(capture_square);
-
-        let mut is_reversible = m.move_type() == MoveType::QUIET
-            && origin_piece.piece_type() != piece::Type::Pawn
+        let mut is_reversible = origin_piece.piece_type() != piece::Type::Pawn
             && self.pos.en_passant_square() == Bitboard::EMPTY;
 
+        const CAPTURED_PIECE: Option<piece::Piece> = None;
         self.irreversible_props.push(IrreversibleProperties::new(
             self.pos.en_passant_square(),
             self.pos.castling_rights(),
             self.pos.plies_since_pawn_move_or_capture(),
-            captured_piece,
+            CAPTURED_PIECE,
         ));
 
-        let target_piece = if m.is_promotion() {
-            piece::Piece::new(side_to_move, m.move_type().promo_piece_unchecked())
-        } else {
-            origin_piece
-        };
+        self.remove_piece(origin, origin_piece);
+        self.set_piece(target, target_piece);
 
-        self.pos.set_piece_at(target, Some(target_piece));
-        self.pos_hash.toggle_piece(Some(target_piece), target);
-        self.pos.set_piece_at(origin, None);
-        self.pos_hash.toggle_piece(Some(origin_piece), origin);
-        match m.move_type() {
-            MoveType::CASTLE_KINGSIDE => match side_to_move {
-                Side::White => {
-                    self.pos
-                        .set_piece_at(Square::F1, Some(piece::Piece::WHITE_ROOK));
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::F1);
-                    self.pos.set_piece_at(Square::H1, None);
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::H1);
-                }
-                Side::Black => {
-                    self.pos
-                        .set_piece_at(Square::F8, Some(piece::Piece::BLACK_ROOK));
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::F8);
-                    self.pos.set_piece_at(Square::H8, None);
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::H8);
-                }
-            },
-            MoveType::CASTLE_QUEENSIDE => match side_to_move {
-                Side::White => {
-                    self.pos
-                        .set_piece_at(Square::D1, Some(piece::Piece::WHITE_ROOK));
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::D1);
-                    self.pos.set_piece_at(Square::A1, None);
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::A1);
-                }
-                Side::Black => {
-                    self.pos
-                        .set_piece_at(Square::D8, Some(piece::Piece::BLACK_ROOK));
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::D8);
-                    self.pos.set_piece_at(Square::A8, None);
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::A8);
-                }
-            },
-            _ => {}
-        }
-
-        let en_passant_square = match m.move_type() {
-            MoveType::DOUBLE_PAWN_PUSH => {
-                let en_passant_square = Pawn::push_origin(target, side_to_move);
-                Bitboard::from_square(en_passant_square)
-            }
-            _ => Bitboard::EMPTY,
-        };
         self.pos_hash
             .toggle_en_passant_square(self.pos.en_passant_square());
-        self.pos.set_en_passant_square(en_passant_square);
-        self.pos_hash.toggle_en_passant_square(en_passant_square);
+        self.pos.set_en_passant_square(Bitboard::EMPTY);
 
-        if m.is_capture() {
-            if m.is_en_passant() {
-                self.pos.set_piece_at(capture_square, None);
-            }
-            self.pos_hash.toggle_piece(captured_piece, capture_square);
-            let old_cr = self.pos.castling_rights();
-            self.pos.remove_castling_rights(target);
-            let new_cr = self.pos.castling_rights();
-            self.pos_hash.toggle_castling_rights(old_cr ^ new_cr);
-        }
-
-        if m.is_capture() || origin_piece.piece_type() == piece::Type::Pawn {
+        if origin_piece.piece_type() == piece::Type::Pawn {
             self.pos.set_plies_since_pawn_move_or_capture(0);
         } else {
             self.pos.set_plies_since_pawn_move_or_capture(
@@ -235,19 +166,233 @@ impl PositionHistory {
         self.pos.set_side_to_move(!side_to_move);
         self.pos_hash.toggle_side_to_move(Side::Black);
         self.rep_tracker.push(self.pos_hash, is_reversible);
-        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
+    }
+
+    fn do_double_pawn_push(&mut self, m: Move) {
+        self.moves.push(m);
+        let origin = m.origin();
+        let target = m.target();
+        let origin_piece = self.pos.piece_at(origin).unwrap();
+        let target_piece = origin_piece;
+        let side_to_move = self.pos.side_to_move();
+
+        const CAPTURED_PIECE: Option<piece::Piece> = None;
+        self.irreversible_props.push(IrreversibleProperties::new(
+            self.pos.en_passant_square(),
+            self.pos.castling_rights(),
+            self.pos.plies_since_pawn_move_or_capture(),
+            CAPTURED_PIECE,
+        ));
+
+        self.remove_piece(origin, origin_piece);
+        self.set_piece(target, target_piece);
+
+        let en_passant_square = Bitboard::from_square(Pawn::push_origin(target, side_to_move));
+
+        self.pos_hash
+            .toggle_en_passant_square(self.pos.en_passant_square());
+        self.pos.set_en_passant_square(en_passant_square);
+        self.pos_hash.toggle_en_passant_square(en_passant_square);
+
+        const IS_REVERSIBLE: bool = false;
+        self.pos.set_plies_since_pawn_move_or_capture(0);
+        let move_count = self.pos.move_count();
+        self.pos.set_move_count(move_count + side_to_move as usize);
+        self.pos.set_side_to_move(!side_to_move);
+        self.pos_hash.toggle_side_to_move(Side::Black);
+        self.rep_tracker.push(self.pos_hash, IS_REVERSIBLE);
+    }
+
+    fn do_castle(&mut self, m: Move) {
+        self.moves.push(m);
+        let origin = m.origin();
+        let target = m.target();
+        let origin_piece = self.pos.piece_at(origin).unwrap();
+        let target_piece = origin_piece;
+        let side_to_move = self.pos.side_to_move();
+
+        const CAPTURED_PIECE: Option<piece::Piece> = None;
+        self.irreversible_props.push(IrreversibleProperties::new(
+            self.pos.en_passant_square(),
+            self.pos.castling_rights(),
+            self.pos.plies_since_pawn_move_or_capture(),
+            CAPTURED_PIECE,
+        ));
+
+        self.remove_piece(origin, origin_piece);
+        match (self.pos.side_to_move(), m.move_type()) {
+            (Side::White, MoveType::CASTLE_KINGSIDE) => {
+                self.remove_piece(Square::H1, piece::Piece::WHITE_ROOK);
+                self.set_piece(Square::F1, piece::Piece::WHITE_ROOK);
+            }
+            (Side::White, MoveType::CASTLE_QUEENSIDE) => {
+                self.remove_piece(Square::A1, piece::Piece::WHITE_ROOK);
+                self.set_piece(Square::D1, piece::Piece::WHITE_ROOK);
+            }
+            (Side::Black, MoveType::CASTLE_KINGSIDE) => {
+                self.remove_piece(Square::H8, piece::Piece::BLACK_ROOK);
+                self.set_piece(Square::F8, piece::Piece::BLACK_ROOK);
+            }
+            (Side::Black, MoveType::CASTLE_QUEENSIDE) => {
+                self.remove_piece(Square::A8, piece::Piece::BLACK_ROOK);
+                self.set_piece(Square::D8, piece::Piece::BLACK_ROOK);
+            }
+            _ => debug_assert!(m.is_castle()),
+        }
+        self.set_piece(target, target_piece);
+
+        self.pos_hash
+            .toggle_en_passant_square(self.pos.en_passant_square());
+        self.pos.set_en_passant_square(Bitboard::EMPTY);
+
+        let old_cr = self.pos.castling_rights();
+        self.pos.remove_castling_rights(origin);
+        let new_cr = self.pos.castling_rights();
+        self.pos_hash.toggle_castling_rights(old_cr ^ new_cr);
+
+        const IS_REVERSIBLE: bool = false;
+        self.pos
+            .set_plies_since_pawn_move_or_capture(self.pos.plies_since_pawn_move_or_capture() + 1);
+        let move_count = self.pos.move_count();
+        self.pos.set_move_count(move_count + side_to_move as usize);
+        self.pos.set_side_to_move(!side_to_move);
+        self.pos_hash.toggle_side_to_move(Side::Black);
+        self.rep_tracker.push(self.pos_hash, IS_REVERSIBLE);
+    }
+
+    fn do_capture(&mut self, m: Move) {
+        self.moves.push(m);
+        let origin = m.origin();
+        let target = m.target();
+        let side_to_move = self.pos.side_to_move();
+        let origin_piece = self.pos.piece_at(origin).unwrap();
+        let target_piece = origin_piece;
+
+        let capture_square = if m.is_en_passant() {
+            Pawn::push_origin(target, side_to_move)
+        } else {
+            target
+        };
+        let captured_piece = self.pos.piece_at(capture_square);
+
+        self.irreversible_props.push(IrreversibleProperties::new(
+            self.pos.en_passant_square(),
+            self.pos.castling_rights(),
+            self.pos.plies_since_pawn_move_or_capture(),
+            captured_piece,
+        ));
+
+        debug_assert!(captured_piece.is_some());
+        self.remove_piece(origin, origin_piece);
+        self.remove_piece(capture_square, captured_piece.unwrap());
+        self.set_piece(target, target_piece);
+
+        const EN_PASSANT_SQUARE: Bitboard = Bitboard::EMPTY;
+        self.pos_hash
+            .toggle_en_passant_square(self.pos.en_passant_square());
+        self.pos.set_en_passant_square(EN_PASSANT_SQUARE);
+
+        let old_cr = self.pos.castling_rights();
+        self.pos.remove_castling_rights(origin);
+        self.pos.remove_castling_rights(target);
+        let new_cr = self.pos.castling_rights();
+        self.pos_hash.toggle_castling_rights(old_cr ^ new_cr);
+
+        const IS_REVERSIBLE: bool = false;
+        self.pos.set_plies_since_pawn_move_or_capture(0);
+        let move_count = self.pos.move_count();
+        self.pos.set_move_count(move_count + side_to_move as usize);
+        self.pos.set_side_to_move(!side_to_move);
+        self.pos_hash.toggle_side_to_move(Side::Black);
+        self.rep_tracker.push(self.pos_hash, IS_REVERSIBLE);
+    }
+
+    fn do_promotion(&mut self, m: Move) {
+        self.moves.push(m);
+        let origin = m.origin();
+        let target = m.target();
+        let side_to_move = self.pos.side_to_move();
+        let origin_piece = self.pos.piece_at(origin).unwrap();
+        let target_piece = piece::Piece::new(side_to_move, m.move_type().promo_piece_unchecked());
+
+        const CAPTURED_PIECE: Option<piece::Piece> = None;
+        self.irreversible_props.push(IrreversibleProperties::new(
+            self.pos.en_passant_square(),
+            self.pos.castling_rights(),
+            self.pos.plies_since_pawn_move_or_capture(),
+            CAPTURED_PIECE,
+        ));
+
+        self.remove_piece(origin, origin_piece);
+        self.set_piece(target, target_piece);
+
+        const EN_PASSANT_SQUARE: Bitboard = Bitboard::EMPTY;
+        self.pos_hash
+            .toggle_en_passant_square(self.pos.en_passant_square());
+        self.pos.set_en_passant_square(EN_PASSANT_SQUARE);
+
+        const IS_REVERSIBLE: bool = false;
+        self.pos.set_plies_since_pawn_move_or_capture(0);
+        let move_count = self.pos.move_count();
+        self.pos.set_move_count(move_count + side_to_move as usize);
+        self.pos.set_side_to_move(!side_to_move);
+        self.pos_hash.toggle_side_to_move(Side::Black);
+        self.rep_tracker.push(self.pos_hash, IS_REVERSIBLE);
+    }
+
+    fn do_promotion_capture(&mut self, m: Move) {
+        self.moves.push(m);
+        let origin = m.origin();
+        let target = m.target();
+        let side_to_move = self.pos.side_to_move();
+        let origin_piece = self.pos.piece_at(origin).unwrap();
+        let target_piece = piece::Piece::new(side_to_move, m.move_type().promo_piece_unchecked());
+
+        let capture_square = target;
+        let captured_piece = self.pos.piece_at(capture_square);
+
+        self.irreversible_props.push(IrreversibleProperties::new(
+            self.pos.en_passant_square(),
+            self.pos.castling_rights(),
+            self.pos.plies_since_pawn_move_or_capture(),
+            captured_piece,
+        ));
+
+        debug_assert!(captured_piece.is_some());
+        self.remove_piece(origin, origin_piece);
+        self.remove_piece(capture_square, captured_piece.unwrap());
+        self.set_piece(target, target_piece);
+
+        const EN_PASSANT_SQUARE: Bitboard = Bitboard::EMPTY;
+        self.pos_hash
+            .toggle_en_passant_square(self.pos.en_passant_square());
+        self.pos.set_en_passant_square(EN_PASSANT_SQUARE);
+        self.pos_hash.toggle_en_passant_square(EN_PASSANT_SQUARE);
+
+        let old_cr = self.pos.castling_rights();
+        self.pos.remove_castling_rights(target);
+        let new_cr = self.pos.castling_rights();
+        self.pos_hash.toggle_castling_rights(old_cr ^ new_cr);
+
+        const IS_REVERSIBLE: bool = false;
+        self.pos.set_plies_since_pawn_move_or_capture(0);
+        let move_count = self.pos.move_count();
+        self.pos.set_move_count(move_count + side_to_move as usize);
+        self.pos.set_side_to_move(!side_to_move);
+        self.pos_hash.toggle_side_to_move(Side::Black);
+        self.rep_tracker.push(self.pos_hash, IS_REVERSIBLE);
     }
 
     fn undo_move(&mut self, m: Move, irr: &IrreversibleProperties) {
         match m {
             Move::NULL => self.undo_null_move(irr),
-            _ => self.undo_regular_move(m, irr),
+            _ if m.is_castle() => self.undo_castle(m, irr),
+            _ => self.undo_other_move(m, irr),
         }
         debug_assert_eq!(Zobrist::new(self.current_pos()), self.current_pos_hash());
     }
 
     fn undo_null_move(&mut self, irr: &IrreversibleProperties) {
-        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
         self.rep_tracker.pop();
         self.pos.set_en_passant_square(irr.en_passant_square);
         self.pos_hash
@@ -258,11 +403,53 @@ impl PositionHistory {
         self.pos.set_side_to_move(!self.pos.side_to_move());
         self.pos
             .set_move_count(self.pos.move_count() - self.pos.side_to_move() as usize);
-        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
     }
 
-    fn undo_regular_move(&mut self, m: Move, irr: &IrreversibleProperties) {
-        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
+    fn undo_castle(&mut self, m: Move, irr: &IrreversibleProperties) {
+        self.rep_tracker.pop();
+        let origin = m.origin();
+        let target = m.target();
+        let target_piece = self.pos.piece_at(target).unwrap();
+        let origin_piece = target_piece;
+
+        self.pos.set_side_to_move(!self.pos.side_to_move());
+        self.pos_hash.toggle_side_to_move(Side::Black);
+        self.pos
+            .set_move_count(self.pos.move_count() - self.pos.side_to_move() as usize);
+
+        self.remove_piece(target, target_piece);
+        match (self.pos.side_to_move(), m.move_type()) {
+            (Side::White, MoveType::CASTLE_KINGSIDE) => {
+                self.remove_piece(Square::F1, piece::Piece::WHITE_ROOK);
+                self.set_piece(Square::H1, piece::Piece::WHITE_ROOK);
+            }
+            (Side::White, MoveType::CASTLE_QUEENSIDE) => {
+                self.remove_piece(Square::D1, piece::Piece::WHITE_ROOK);
+                self.set_piece(Square::A1, piece::Piece::WHITE_ROOK);
+            }
+            (Side::Black, MoveType::CASTLE_KINGSIDE) => {
+                self.remove_piece(Square::F8, piece::Piece::BLACK_ROOK);
+                self.set_piece(Square::H8, piece::Piece::BLACK_ROOK);
+            }
+            (Side::Black, MoveType::CASTLE_QUEENSIDE) => {
+                self.remove_piece(Square::D8, piece::Piece::BLACK_ROOK);
+                self.set_piece(Square::A8, piece::Piece::BLACK_ROOK);
+            }
+            _ => debug_assert!(m.is_castle()),
+        }
+        self.set_piece(origin, origin_piece);
+
+        self.pos.set_en_passant_square(irr.en_passant_square);
+        self.pos_hash
+            .toggle_en_passant_square(irr.en_passant_square);
+        self.pos_hash
+            .toggle_castling_rights(self.pos.castling_rights() ^ irr.castling_rights);
+        self.pos.set_castling_rights(irr.castling_rights);
+        self.pos
+            .set_plies_since_pawn_move_or_capture(irr.plies_since_pawn_move_or_capture);
+    }
+
+    fn undo_other_move(&mut self, m: Move, irr: &IrreversibleProperties) {
         self.rep_tracker.pop();
         let origin = m.origin();
         let target = m.target();
@@ -279,53 +466,8 @@ impl PositionHistory {
         self.pos
             .set_move_count(self.pos.move_count() - self.pos.side_to_move() as usize);
 
-        self.pos.set_piece_at(origin, Some(origin_piece));
-        self.pos_hash.toggle_piece(Some(origin_piece), origin);
-        self.pos.set_piece_at(target, None);
-        self.pos_hash.toggle_piece(Some(target_piece), target);
-        match m.move_type() {
-            MoveType::CASTLE_KINGSIDE => match self.pos.side_to_move() {
-                Side::White => {
-                    self.pos
-                        .set_piece_at(Square::H1, Some(piece::Piece::WHITE_ROOK));
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::H1);
-                    self.pos.set_piece_at(Square::F1, None);
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::F1);
-                }
-                Side::Black => {
-                    self.pos
-                        .set_piece_at(Square::H8, Some(piece::Piece::BLACK_ROOK));
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::H8);
-                    self.pos.set_piece_at(Square::F8, None);
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::F8);
-                }
-            },
-            MoveType::CASTLE_QUEENSIDE => match self.pos.side_to_move() {
-                Side::White => {
-                    self.pos
-                        .set_piece_at(Square::A1, Some(piece::Piece::WHITE_ROOK));
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::A1);
-                    self.pos.set_piece_at(Square::D1, None);
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::WHITE_ROOK), Square::D1);
-                }
-                Side::Black => {
-                    self.pos
-                        .set_piece_at(Square::A8, Some(piece::Piece::BLACK_ROOK));
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::A8);
-                    self.pos.set_piece_at(Square::D8, None);
-                    self.pos_hash
-                        .toggle_piece(Some(piece::Piece::BLACK_ROOK), Square::D8);
-                }
-            },
-            _ => {}
-        }
+        self.remove_piece(target, target_piece);
+        self.set_piece(origin, origin_piece);
 
         self.pos_hash
             .toggle_en_passant_square(self.pos.en_passant_square());
@@ -344,11 +486,21 @@ impl PositionHistory {
             } else {
                 target
             };
-            self.pos.set_piece_at(capture_square, irr.captured_piece);
-            self.pos_hash
-                .toggle_piece(irr.captured_piece, capture_square);
+            debug_assert!(irr.captured_piece.is_some());
+            self.set_piece(capture_square, irr.captured_piece.unwrap());
         }
-        debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
+    }
+
+    fn set_piece(&mut self, square: Square, piece: piece::Piece) {
+        debug_assert_eq!(None, self.pos.piece_at(square));
+        self.pos.set_piece_at(square, Some(piece));
+        self.pos_hash.toggle_piece(Some(piece), square);
+    }
+
+    fn remove_piece(&mut self, square: Square, piece: piece::Piece) {
+        debug_assert_eq!(Some(piece), self.pos.piece_at(square));
+        self.pos.set_piece_at(square, None);
+        self.pos_hash.toggle_piece(Some(piece), square);
     }
 }
 
