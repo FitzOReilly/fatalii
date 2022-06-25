@@ -1,7 +1,8 @@
 mod test_buffer;
 
 use crate::test_buffer::TestBuffer;
-use engine::Engine;
+use assert_matches::assert_matches;
+use engine::{Engine, EngineOptions, Variant};
 use eval::material_mobility::MaterialMobility;
 use eval::{Eval, Score};
 use movegen::fen::Fen;
@@ -11,6 +12,7 @@ use search::alpha_beta::AlphaBeta;
 use search::negamax::Negamax;
 use search::search::Search;
 use std::str;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use uci::uci_in::{
     debug, go, is_ready, position, quit, set_option, stop, uci as cmd_uci, ucinewgame,
@@ -21,6 +23,7 @@ use uci::{Parser, ParserMessage};
 const EVAL_RELATIVE: fn(pos: &Position) -> Score = MaterialMobility::eval_relative;
 const TABLE_IDX_BITS: usize = 16;
 const FEN_STR: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
+const FEN_STR_CHESS_960: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w HA - 1 8";
 
 fn contains(v: Vec<u8>, s: &str) -> bool {
     String::from_utf8(v).unwrap().contains(s)
@@ -30,9 +33,14 @@ fn contains(v: Vec<u8>, s: &str) -> bool {
 fn run_command_uci() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
     {
-        let mut engine = Engine::new(search_algo, uci_out.clone());
+        let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
         let mut p = Parser::new(uci_out);
         p.register_command(String::from("uci"), Box::new(cmd_uci::run_command));
         assert!(p.run_command("uci invalid\n", &mut engine).is_err());
@@ -51,9 +59,14 @@ fn run_command_uci() {
 fn run_command_isready() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
     {
-        let mut engine = Engine::new(search_algo, uci_out.clone());
+        let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
         let mut p = Parser::new(uci_out);
 
         assert!(p.run_command("unknown\n", &mut engine).is_err());
@@ -71,9 +84,14 @@ fn run_command_isready() {
 fn run_command_debug() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
     {
-        let mut engine = Engine::new(search_algo, uci_out.clone());
+        let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
         let mut p = Parser::new(uci_out);
 
         p.register_command(String::from("debug"), Box::new(debug::run_command));
@@ -90,8 +108,13 @@ fn run_command_debug() {
 fn run_command_setoption() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
-    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
     let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("setoption"), Box::new(set_option::run_command));
@@ -125,8 +148,13 @@ fn run_command_setoption() {
 fn run_command_position() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
-    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
     let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
@@ -164,11 +192,72 @@ fn run_command_position() {
 }
 
 #[test]
+fn run_command_position_chess_960() {
+    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let test_writer = TestBuffer::new();
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
+    let mut p = Parser::new(uci_out);
+
+    p.register_command(String::from("position"), Box::new(position::run_command));
+    p.register_command(String::from("setoption"), Box::new(set_option::run_command));
+
+    assert!(p
+        .run_command("setoption name UCI_Chess960 value true\n", &mut engine)
+        .is_ok());
+
+    assert_matches!(engine.variant(), Variant::Chess960(_, _));
+    assert_eq!(None, engine.position());
+
+    let invalid_commands = [
+        &format!("position fen {}\n", FEN_STR),
+        &format!("position fen {} moves e1g1\n", FEN_STR),
+    ];
+    for inv_cmd in invalid_commands {
+        assert!(p.run_command(inv_cmd, &mut engine).is_err());
+    }
+    assert_eq!(None, engine.position());
+
+    assert!(p.run_command("position startpos\n", &mut engine).is_ok());
+    assert_eq!(Some(&Position::initial()), engine.position());
+
+    assert!(p
+        .run_command(
+            format!("position fen {}\n", FEN_STR_CHESS_960).as_str(),
+            &mut engine
+        )
+        .is_ok());
+    assert_eq!(Fen::str_to_pos(FEN_STR).ok().as_ref(), engine.position());
+
+    assert!(p
+        .run_command(
+            &format!("position fen {} moves e1h1\n", FEN_STR_CHESS_960),
+            &mut engine
+        )
+        .is_ok());
+    let fen = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQ1RK1 b - - 2 8";
+    assert_eq!(
+        Fen::str_to_pos_chess_960(fen).ok().as_ref(),
+        engine.position()
+    );
+}
+
+#[test]
 fn run_command_ucinewgame() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
-    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
     let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
@@ -195,8 +284,13 @@ fn run_command_ucinewgame() {
 fn run_command_go() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
-    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
     let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
@@ -324,8 +418,13 @@ fn run_command_go() {
 fn run_command_go_time() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
-    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
     let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
@@ -360,8 +459,13 @@ fn run_command_go_time_limit_exceeded() {
     // a bestmove response to a go command
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
-    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
     let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("setoption"), Box::new(set_option::run_command));
@@ -391,8 +495,13 @@ fn run_command_go_time_limit_exceeded() {
 fn run_command_go_twice() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
-    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
     let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
@@ -415,8 +524,13 @@ fn run_command_go_twice() {
 fn run_command_isready_during_go() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
-    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
     let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("isready"), Box::new(is_ready::run_command));
@@ -442,8 +556,13 @@ fn run_command_isready_during_go() {
 fn run_command_quit() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
-    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
     let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("quit"), Box::new(quit::run_command));
@@ -467,8 +586,13 @@ fn run_command_quit() {
 fn info_score_equal_from_both_sides() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
-    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
     let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
@@ -532,8 +656,13 @@ fn info_score_equal_from_both_sides() {
 fn mate_in_one_white_to_move() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
-    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
     let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
@@ -559,8 +688,13 @@ fn mate_in_one_white_to_move() {
 fn mate_in_one_black_to_move() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
-    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
     let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
@@ -597,8 +731,13 @@ fn alpha_beta_threefold_repetition() {
 fn threefold_repetition(search_algo: impl Search + Send + 'static) {
     // let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
-    let mut engine = Engine::new(search_algo, uci_out.clone());
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
     let mut p = Parser::new(uci_out);
 
     p.register_command(String::from("position"), Box::new(position::run_command));
@@ -639,9 +778,14 @@ fn threefold_repetition(search_algo: impl Search + Send + 'static) {
 fn stress() {
     let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
-    let uci_out = UciOut::new(Box::new(test_writer.clone()), "0.1.2");
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
     {
-        let mut engine = Engine::new(search_algo, uci_out.clone());
+        let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
         let mut p = Parser::new(uci_out);
 
         p.register_command(String::from("debug"), Box::new(debug::run_command));

@@ -6,7 +6,7 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, Not, Shl, Shr};
 use std::str;
 
 // Bitboard using little endian file rank mapping (LEFR)
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Bitboard(pub u64);
 
 impl Bitboard {

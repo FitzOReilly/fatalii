@@ -10,6 +10,7 @@ fn test_cli() -> Result<()> {
     uci_commands()?;
     quit_while_timer_running()?;
     go_all_options()?;
+    chess_960()?;
     stress()?;
 
     Ok(())
@@ -22,6 +23,7 @@ fn uci_commands() -> Result<()> {
     p.exp_string("id name")?;
     p.exp_string("id author")?;
     p.exp_string("option name")?;
+    p.exp_string("option name UCI_Chess960 type check default false")?;
     p.exp_string("uciok")?;
 
     p.send_line("isready")?;
@@ -99,6 +101,26 @@ fn go_all_options() -> Result<()> {
 
     p.send_line("quit")?;
     thread::sleep(Duration::from_millis(400));
+    assert_matches!(p.process.status(), Some(WaitStatus::Exited(_, 0)));
+
+    Ok(())
+}
+
+fn chess_960() -> Result<()> {
+    let mut p = spawn("cargo run --release", Some(30000))?;
+
+    p.send_line("setoption name UCI_Chess960 value true")?;
+    p.send_line("position fen rnkbnqbr/pppppppp/8/8/8/8/PPPPPPPP/RNKBNQBR w HAha - 0 1")?;
+    p.send_line("go depth 7")?;
+    p.exp_string("bestmove")?;
+
+    p.send_line("position fen rkbnqbrn/pppppppp/8/8/8/8/PPPPPPPP/RKBNQBRN w GAga - 0 1 moves e2e4 e7e5 h1g3 h8g6 f1c4 f8c5 d1c3 d8c6 d2d3 d7d6 c1e3")?;
+    p.send_line("go depth 7")?;
+    p.exp_string("bestmove")?;
+
+    assert_matches!(p.process.status(), Some(WaitStatus::StillAlive));
+    p.send_line("quit")?;
+    thread::sleep(Duration::from_millis(100));
     assert_matches!(p.process.status(), Some(WaitStatus::Exited(_, 0)));
 
     Ok(())

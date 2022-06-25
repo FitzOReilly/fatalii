@@ -1,8 +1,10 @@
 use crate::bitboard::Bitboard;
+use crate::fen::Fen;
 use crate::pawn::Pawn;
 use crate::piece;
 use crate::position::{CastlingRights, Position};
 use crate::r#move::{Move, MoveType};
+use crate::rank::Rank;
 use crate::repetition_tracker::RepetitionTracker;
 use crate::side::Side;
 use crate::square::Square;
@@ -222,19 +224,27 @@ impl PositionHistory {
         self.remove_piece(origin, origin_piece);
         match (self.pos.side_to_move(), m.move_type()) {
             (Side::White, MoveType::CASTLE_KINGSIDE) => {
-                self.remove_piece(Square::H1, piece::Piece::WHITE_ROOK);
+                let rook_origin =
+                    Square::from_file_and_rank(self.pos.kingside_castling_file(), Rank::R1);
+                self.remove_piece(rook_origin, piece::Piece::WHITE_ROOK);
                 self.set_piece(Square::F1, piece::Piece::WHITE_ROOK);
             }
             (Side::White, MoveType::CASTLE_QUEENSIDE) => {
-                self.remove_piece(Square::A1, piece::Piece::WHITE_ROOK);
+                let rook_origin =
+                    Square::from_file_and_rank(self.pos.queenside_castling_file(), Rank::R1);
+                self.remove_piece(rook_origin, piece::Piece::WHITE_ROOK);
                 self.set_piece(Square::D1, piece::Piece::WHITE_ROOK);
             }
             (Side::Black, MoveType::CASTLE_KINGSIDE) => {
-                self.remove_piece(Square::H8, piece::Piece::BLACK_ROOK);
+                let rook_origin =
+                    Square::from_file_and_rank(self.pos.kingside_castling_file(), Rank::R8);
+                self.remove_piece(rook_origin, piece::Piece::BLACK_ROOK);
                 self.set_piece(Square::F8, piece::Piece::BLACK_ROOK);
             }
             (Side::Black, MoveType::CASTLE_QUEENSIDE) => {
-                self.remove_piece(Square::A8, piece::Piece::BLACK_ROOK);
+                let rook_origin =
+                    Square::from_file_and_rank(self.pos.queenside_castling_file(), Rank::R8);
+                self.remove_piece(rook_origin, piece::Piece::BLACK_ROOK);
                 self.set_piece(Square::D8, piece::Piece::BLACK_ROOK);
             }
             _ => debug_assert!(m.is_castle()),
@@ -420,20 +430,28 @@ impl PositionHistory {
         self.remove_piece(target, target_piece);
         match (self.pos.side_to_move(), m.move_type()) {
             (Side::White, MoveType::CASTLE_KINGSIDE) => {
+                let rook_origin =
+                    Square::from_file_and_rank(self.pos.kingside_castling_file(), Rank::R1);
                 self.remove_piece(Square::F1, piece::Piece::WHITE_ROOK);
-                self.set_piece(Square::H1, piece::Piece::WHITE_ROOK);
+                self.set_piece(rook_origin, piece::Piece::WHITE_ROOK);
             }
             (Side::White, MoveType::CASTLE_QUEENSIDE) => {
+                let rook_origin =
+                    Square::from_file_and_rank(self.pos.queenside_castling_file(), Rank::R1);
                 self.remove_piece(Square::D1, piece::Piece::WHITE_ROOK);
-                self.set_piece(Square::A1, piece::Piece::WHITE_ROOK);
+                self.set_piece(rook_origin, piece::Piece::WHITE_ROOK);
             }
             (Side::Black, MoveType::CASTLE_KINGSIDE) => {
+                let rook_origin =
+                    Square::from_file_and_rank(self.pos.kingside_castling_file(), Rank::R8);
                 self.remove_piece(Square::F8, piece::Piece::BLACK_ROOK);
-                self.set_piece(Square::H8, piece::Piece::BLACK_ROOK);
+                self.set_piece(rook_origin, piece::Piece::BLACK_ROOK);
             }
             (Side::Black, MoveType::CASTLE_QUEENSIDE) => {
+                let rook_origin =
+                    Square::from_file_and_rank(self.pos.queenside_castling_file(), Rank::R8);
                 self.remove_piece(Square::D8, piece::Piece::BLACK_ROOK);
-                self.set_piece(Square::A8, piece::Piece::BLACK_ROOK);
+                self.set_piece(rook_origin, piece::Piece::BLACK_ROOK);
             }
             _ => debug_assert!(m.is_castle()),
         }
@@ -453,7 +471,15 @@ impl PositionHistory {
         self.rep_tracker.pop();
         let origin = m.origin();
         let target = m.target();
-        let target_piece = self.pos.piece_at(target).unwrap();
+        let target_piece = self.pos.piece_at(target).unwrap_or_else(|| {
+            panic!(
+                "Expected a piece on {}\nPosition: {}\n{}Move: {}",
+                target,
+                Fen::pos_to_str_chess_960(&self.pos),
+                self.pos,
+                m,
+            )
+        });
 
         let origin_piece = if m.is_promotion() {
             piece::Piece::new(target_piece.piece_side(), piece::Type::Pawn)
@@ -1501,5 +1527,102 @@ mod tests {
         assert_eq!(1, pos_history.current_pos_repetitions());
         pos_history.undo_last_move();
         assert_eq!(1, pos_history.current_pos_repetitions());
+    }
+
+    #[test]
+    fn castles_chess_960() {
+        let fen = "4k3/8/8/8/8/8/8/1R3KR1 w GB - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut pos_hist = PositionHistory::new(pos.clone());
+
+        let white_kingside_castle = Move::new(Square::F1, Square::G1, MoveType::CASTLE_KINGSIDE);
+        let white_queenside_castle = Move::new(Square::F1, Square::C1, MoveType::CASTLE_QUEENSIDE);
+
+        pos_hist.do_move(white_kingside_castle);
+        assert_eq!(
+            Some(piece::Piece::WHITE_KING),
+            pos_hist.current_pos().piece_at(Square::G1)
+        );
+        assert_eq!(
+            Some(piece::Piece::WHITE_ROOK),
+            pos_hist.current_pos().piece_at(Square::F1)
+        );
+
+        pos_hist.undo_last_move();
+        pos_hist.do_move(white_queenside_castle);
+        assert_eq!(
+            Some(piece::Piece::WHITE_KING),
+            pos_hist.current_pos().piece_at(Square::C1)
+        );
+        assert_eq!(
+            Some(piece::Piece::WHITE_ROOK),
+            pos_hist.current_pos().piece_at(Square::D1)
+        );
+        assert_eq!(None, pos_hist.current_pos().piece_at(Square::B1));
+
+        let fen = "1r3kr1/8/8/8/8/8/8/4K3 b gb - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut pos_hist = PositionHistory::new(pos.clone());
+
+        let black_kingside_castle = Move::new(Square::F8, Square::G8, MoveType::CASTLE_KINGSIDE);
+        let black_queenside_castle = Move::new(Square::F8, Square::C8, MoveType::CASTLE_QUEENSIDE);
+
+        pos_hist.do_move(black_kingside_castle);
+        assert_eq!(
+            Some(piece::Piece::BLACK_KING),
+            pos_hist.current_pos().piece_at(Square::G8)
+        );
+        assert_eq!(
+            Some(piece::Piece::BLACK_ROOK),
+            pos_hist.current_pos().piece_at(Square::F8)
+        );
+
+        pos_hist.undo_last_move();
+        pos_hist.do_move(black_queenside_castle);
+        assert_eq!(
+            Some(piece::Piece::BLACK_KING),
+            pos_hist.current_pos().piece_at(Square::C8)
+        );
+        assert_eq!(
+            Some(piece::Piece::BLACK_ROOK),
+            pos_hist.current_pos().piece_at(Square::D8)
+        );
+        assert_eq!(None, pos_hist.current_pos().piece_at(Square::B8));
+
+        let fen = "r1k4r/8/8/8/8/8/8/R1K4R w HAha - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut pos_hist = PositionHistory::new(pos.clone());
+
+        println!("Position\n{}", pos_hist.current_pos());
+        pos_hist.do_move(Move::new(
+            Square::C1,
+            Square::C1,
+            MoveType::CASTLE_QUEENSIDE,
+        ));
+        println!("Position\n{}", pos_hist.current_pos());
+        pos_hist.undo_last_move();
+        println!("Position\n{}", pos_hist.current_pos());
+
+        let fen = "rk5r/8/8/8/8/8/8/RK5R w HAha - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut pos_hist = PositionHistory::new(pos.clone());
+
+        println!("Position\n{}", pos_hist.current_pos());
+        pos_hist.do_move(Move::new(
+            Square::B1,
+            Square::C1,
+            MoveType::CASTLE_QUEENSIDE,
+        ));
+        println!("Position\n{}", pos_hist.current_pos());
+        pos_hist.do_move(Move::new(
+            Square::B8,
+            Square::C8,
+            MoveType::CASTLE_QUEENSIDE,
+        ));
+        println!("Position\n{}", pos_hist.current_pos());
+        pos_hist.undo_last_move();
+        println!("Position\n{}", pos_hist.current_pos());
+        pos_hist.undo_last_move();
+        println!("Position\n{}", pos_hist.current_pos());
     }
 }

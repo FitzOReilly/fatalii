@@ -11,4 +11,5 @@ movegen = { path = "../movegen" }
 search = { path = "../search" }
 
 [dev-dependencies]
+assert_matches = "1.5.0"
 eval = { path = "../eval" }
