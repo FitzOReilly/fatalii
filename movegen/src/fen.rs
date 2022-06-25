@@ -1,11 +1,13 @@
 use crate::bitboard::Bitboard;
 use crate::file::File;
+use crate::piece;
 use crate::piece::Piece;
 use crate::position::CastlingRights;
 use crate::position::Position;
 use crate::rank::Rank;
 use crate::side::Side;
 use crate::square::Square;
+use std::cmp::Ordering;
 use std::error::Error;
 use std::fmt;
 use std::str;
@@ -29,6 +31,7 @@ pub enum FenError {
     InvalidEnPassantSquare,
     InvalidPliesSincePawnMoveOrCapture,
     InvalidMoveCount,
+    MissingKing,
 }
 
 impl Error for FenError {}
@@ -53,6 +56,7 @@ impl fmt::Display for FenError {
                 "Invalid plies since last pawn move or capture".to_string()
             }
             FenError::InvalidMoveCount => "Invalid move count".to_string(),
+            FenError::MissingKing => "Missing king".to_string(),
         };
         write!(f, "{}", msg)
     }
@@ -66,6 +70,20 @@ impl Fen {
         Self::pos_to_str_side_to_move(&mut fen, pos);
         fen.push(' ');
         Self::pos_to_str_castling_rights(&mut fen, pos);
+        fen.push(' ');
+        Self::pos_to_str_en_passant_square(&mut fen, pos);
+        fen.push(' ');
+        Self::pos_to_str_move_count(&mut fen, pos);
+        fen
+    }
+
+    pub fn pos_to_str_chess_960(pos: &Position) -> String {
+        let mut fen = String::new();
+        Self::pos_to_str_pieces(&mut fen, pos);
+        fen.push(' ');
+        Self::pos_to_str_side_to_move(&mut fen, pos);
+        fen.push(' ');
+        Self::pos_to_str_castling_rights_chess_960(&mut fen, pos);
         fen.push(' ');
         Self::pos_to_str_en_passant_square(&mut fen, pos);
         fen.push(' ');
@@ -127,6 +145,26 @@ impl Fen {
         }
     }
 
+    fn pos_to_str_castling_rights_chess_960(fen: &mut String, pos: &Position) {
+        let castling_rights = pos.castling_rights();
+        if castling_rights.is_empty() {
+            fen.push('-');
+        } else {
+            if castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
+                fen.push((pos.kingside_castling_file().to_ascii() as char).to_ascii_uppercase());
+            }
+            if castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
+                fen.push((pos.queenside_castling_file().to_ascii() as char).to_ascii_uppercase());
+            }
+            if castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
+                fen.push(pos.kingside_castling_file().to_ascii() as char);
+            }
+            if castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
+                fen.push(pos.queenside_castling_file().to_ascii() as char);
+            }
+        }
+    }
+
     fn pos_to_str_en_passant_square(fen: &mut String, pos: &Position) {
         let en_passant_board = pos.en_passant_square();
         if en_passant_board == Bitboard::EMPTY {
@@ -158,6 +196,40 @@ impl Fen {
             }))
             .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
                 Self::str_to_pos_castling_rights(&mut pos, fen)
+            }))
+            .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_en_passant_square(&mut pos, fen)
+            }))
+            .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_plies_since_pawn_move_or_capture(&mut pos, fen)
+            }))
+            .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_move_count(&mut pos, fen)
+            }))
+            .and(
+                iter_fen
+                    .next()
+                    .map_or(Ok(()), |_| Err(FenError::TooManyParts)),
+            )
+            .map_or_else(
+                |e| Err(FenError::InvalidFenString(fen.to_string(), Box::new(e))),
+                |_| Ok(pos),
+            )
+    }
+
+    pub fn str_to_pos_chess_960(fen: &str) -> Result<Position, FenError> {
+        let mut pos = Position::empty();
+        let mut iter_fen = fen.split_whitespace();
+        iter_fen
+            .next()
+            .map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_pieces(&mut pos, fen)
+            })
+            .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_side_to_move(&mut pos, fen)
+            }))
+            .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_castling_rights_chess_960(&mut pos, fen)
             }))
             .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
                 Self::str_to_pos_en_passant_square(&mut pos, fen)
@@ -250,6 +322,94 @@ impl Fen {
             }
         }
         pos.set_castling_rights(castling_rights);
+        Ok(())
+    }
+
+    fn str_to_pos_castling_rights_chess_960(pos: &mut Position, fen: &str) -> Result<(), FenError> {
+        let mut castling_rights = CastlingRights::empty();
+        let mut king_start_file = None;
+        let mut kingside = None;
+        let mut queenside = None;
+        if fen != "-" {
+            let mut prev_upper = true;
+            let mut cur_upper;
+
+            let mut prev = 0xffu8;
+            for cur in fen.bytes() {
+                cur_upper = cur.is_ascii_uppercase();
+                if cur_upper && !prev_upper {
+                    return Err(FenError::WrongCastlingRightOrder);
+                }
+                if cur_upper == prev_upper && cur > prev {
+                    return Err(FenError::WrongCastlingRightOrder);
+                }
+                if cur == prev {
+                    return Err(FenError::DuplicateCastlingRights);
+                }
+
+                let castling_file = match File::from_ascii(cur.to_ascii_lowercase()) {
+                    Ok(f) => f,
+                    Err(_) => return Err(FenError::InvalidCastlingRights),
+                };
+
+                let king = pos.piece_occupancy(
+                    if cur_upper { Side::White } else { Side::Black },
+                    piece::Type::King,
+                );
+                if king.pop_count() != 1 {
+                    return Err(FenError::InvalidCastlingRights);
+                }
+                let king_file = king.to_square().file();
+
+                match king_start_file {
+                    Some(f) if f != king_file => return Err(FenError::InvalidCastlingRights),
+                    _ => king_start_file = Some(king_file),
+                }
+
+                match king_file.idx().cmp(&castling_file.idx()) {
+                    Ordering::Less => match kingside {
+                        Some(f) if f != castling_file => {
+                            return Err(FenError::InvalidCastlingRights)
+                        }
+                        _ => {
+                            kingside = Some(castling_file);
+                            castling_rights |= if cur_upper {
+                                CastlingRights::WHITE_KINGSIDE
+                            } else {
+                                CastlingRights::BLACK_KINGSIDE
+                            };
+                        }
+                    },
+                    Ordering::Equal => return Err(FenError::InvalidCastlingRights),
+                    Ordering::Greater => match queenside {
+                        Some(f) if f != castling_file => {
+                            return Err(FenError::InvalidCastlingRights)
+                        }
+                        _ => {
+                            queenside = Some(castling_file);
+                            castling_rights |= if cur_upper {
+                                CastlingRights::WHITE_QUEENSIDE
+                            } else {
+                                CastlingRights::BLACK_QUEENSIDE
+                            };
+                        }
+                    },
+                }
+                prev = cur;
+                prev_upper = cur_upper;
+            }
+            match king_start_file {
+                Some(file) => pos.set_king_start_file(file),
+                None => return Err(FenError::MissingKing),
+            }
+            pos.set_castling_rights(castling_rights);
+            if let Some(k) = kingside {
+                pos.set_kingside_castling_file(k);
+            }
+            if let Some(q) = queenside {
+                pos.set_queenside_castling_file(q);
+            }
+        }
         Ok(())
     }
 
@@ -480,5 +640,52 @@ mod tests {
             fen,
             Fen::pos_to_str(&Fen::str_to_pos(&fen).unwrap())
         );
+    }
+
+    #[test]
+    fn invalid_fen_chess_960() {
+        for fen in ["rkqbbnnr/pppppppp/8/8/8/8/PPPPPPPP/RKQBBNNR w AHah - 0 1"] {
+            let res = Fen::str_to_pos_chess_960(fen);
+            assert!(
+                res.is_err(),
+                "Expected error in FEN: {}\nGot position:\n{}",
+                fen,
+                res.unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn conversion_between_str_and_pos_chess_960() {
+        let pos = Position::initial();
+        let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w HAha - 0 1";
+        assert_eq!(fen, Fen::pos_to_str_chess_960(&pos));
+        assert_eq!(
+            pos,
+            Fen::str_to_pos_chess_960(&fen).unwrap(),
+            "\nExpected Position as FEN: {}\nActual Position as FEN:   {}\n",
+            fen,
+            Fen::pos_to_str_chess_960(&Fen::str_to_pos_chess_960(&fen).unwrap())
+        );
+        let fen_no_castling_rights = "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b - - 1 2";
+        assert!(Fen::str_to_pos_chess_960(fen_no_castling_rights).is_ok());
+        let fen_with_en_passant = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b HAha e3 0 1";
+        assert!(Fen::str_to_pos_chess_960(fen_with_en_passant).is_ok());
+
+        for fen in [
+            "rkqbbnnr/pppppppp/8/8/8/8/PPPPPPPP/RKQBBNNR w HAha - 0 1",
+            "rqbbnnkr/pppppppp/8/8/8/8/PPPPPPPP/RQBBNNKR w HAha - 0 1",
+            "rkrqbbnn/pppppppp/8/8/8/8/PPPPPPPP/RKRQBBNN w CAca - 0 1",
+            "qrkrbbnn/pppppppp/8/8/8/8/PPPPPPPP/QRKRBBNN w DBdb - 0 1",
+            "qnrkrbbn/pppppppp/8/8/8/8/PPPPPPPP/QNRKRBBN w ECec - 0 1",
+            "qbbrkrnn/pppppppp/8/8/8/8/PPPPPPPP/QBBRKRNN w FDfd - 0 1",
+            "qbbnrkrn/pppppppp/8/8/8/8/PPPPPPPP/QBBNRKRN w GEge - 0 1",
+            "qbbnnrkr/pppppppp/8/8/8/8/PPPPPPPP/QBBNNRKR w HFhf - 0 1",
+        ] {
+            assert_eq!(
+                fen,
+                Fen::pos_to_str_chess_960(&Fen::str_to_pos_chess_960(fen).unwrap())
+            );
+        }
     }
 }

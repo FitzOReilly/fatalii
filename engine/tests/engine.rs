@@ -1,7 +1,7 @@
 mod mock_engine_out;
 
 use crossbeam_channel::unbounded;
-use engine::Engine;
+use engine::{Engine, EngineOptions};
 use eval::material_mobility::MaterialMobility;
 use eval::Eval;
 use eval::Score;
@@ -13,6 +13,7 @@ use movegen::position_history::PositionHistory;
 use movegen::square::Square;
 use search::alpha_beta::AlphaBeta;
 use search::SearchOptions;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
@@ -32,6 +33,7 @@ fn search_timeout() {
                 sender.send(true).unwrap();
             }),
         ),
+        Arc::new(Mutex::new(EngineOptions::default())),
     );
     engine.set_position_history(Some(PositionHistory::new(Position::initial())));
 
@@ -67,6 +69,7 @@ fn search_timeout_aborted() {
                 sender.send(true).unwrap();
             }),
         ),
+        Arc::new(Mutex::new(EngineOptions::default())),
     );
     engine.set_position_history(Some(PositionHistory::new(Position::initial())));
 
@@ -111,6 +114,7 @@ fn search_timeout_finished_early() {
                 }
             }),
         ),
+        Arc::new(Mutex::new(EngineOptions::default())),
     );
     let mut pos = Position::empty();
     pos.set_piece_at(Square::H1, Some(Piece::WHITE_KING));

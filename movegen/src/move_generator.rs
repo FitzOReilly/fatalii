@@ -1061,4 +1061,158 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn castles_chess_960_castling_rights() {
+        // White queenside
+        let fen = "7k/8/8/8/8/8/8/1RK3R1 w B - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+
+        let white_kingside_castle = Move::new(Square::C1, Square::G1, MoveType::CASTLE_KINGSIDE);
+        let white_queenside_castle = Move::new(Square::C1, Square::C1, MoveType::CASTLE_QUEENSIDE);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&white_kingside_castle));
+        assert!(move_list.contains(&white_queenside_castle));
+
+        // White kingside
+        let fen = "7k/8/8/8/8/8/8/1RK3R1 w G - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(move_list.contains(&white_kingside_castle));
+        assert!(!move_list.contains(&white_queenside_castle));
+
+        // Black queenside
+        let fen = "1rk3r1/8/8/8/8/8/8/7K b b - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+
+        let black_kingside_castle = Move::new(Square::C8, Square::G8, MoveType::CASTLE_KINGSIDE);
+        let black_queenside_castle = Move::new(Square::C8, Square::C8, MoveType::CASTLE_QUEENSIDE);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&black_kingside_castle));
+        assert!(move_list.contains(&black_queenside_castle));
+
+        // Black kingside
+        let fen = "1rk3r1/8/8/8/8/8/8/7K b g - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(move_list.contains(&black_kingside_castle));
+        assert!(!move_list.contains(&black_queenside_castle));
+    }
+
+    #[test]
+    fn castles_chess_960_king_moves_away_from_rook() {
+        // White
+        let fen = "7k/8/8/8/8/8/8/RK6 w A - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+
+        let white_queenside_castle = Move::new(Square::B1, Square::C1, MoveType::CASTLE_QUEENSIDE);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(move_list.contains(&white_queenside_castle));
+
+        // Black
+        let fen = "rk6/8/8/8/8/8/8/7K b a - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+
+        let black_queenside_castle = Move::new(Square::B8, Square::C8, MoveType::CASTLE_QUEENSIDE);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(move_list.contains(&black_queenside_castle));
+    }
+
+    #[test]
+    fn castles_chess_960_square_attacked() {
+        // White kingside
+        let fen = "2rk4/8/8/8/8/8/8/RK5R w H - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+
+        let white_kingside_castle = Move::new(Square::B1, Square::G1, MoveType::CASTLE_KINGSIDE);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&white_kingside_castle));
+
+        // White queenside
+        let fen = "5rk1/8/8/8/8/8/8/R5KR w A - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+
+        let white_queenside_castle = Move::new(Square::G1, Square::C1, MoveType::CASTLE_QUEENSIDE);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&white_queenside_castle));
+
+        // Black kingside
+        let fen = "rk5r/8/8/8/8/8/8/2RK4 b h - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+
+        let black_kingside_castle = Move::new(Square::B8, Square::G8, MoveType::CASTLE_KINGSIDE);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&black_kingside_castle));
+
+        // Black queenside
+        let fen = "r5kr/8/8/8/8/8/8/5RK1 b a - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+
+        let black_queenside_castle = Move::new(Square::G8, Square::C8, MoveType::CASTLE_QUEENSIDE);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&black_queenside_castle));
+    }
+
+    #[test]
+    fn castles_chess_960_path_blocked() {
+        // White kingside
+        let fen = "4k3/8/8/8/8/8/8/RKN4R w H - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+
+        let white_kingside_castle = Move::new(Square::B1, Square::G1, MoveType::CASTLE_KINGSIDE);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&white_kingside_castle));
+
+        // White queenside
+        let fen = "4k3/8/8/8/8/8/8/RN4KR w A - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+
+        let white_queenside_castle = Move::new(Square::G1, Square::C1, MoveType::CASTLE_QUEENSIDE);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&white_queenside_castle));
+
+        // Black kingside
+        let fen = "rkn4r/8/8/8/8/8/8/4K3 b h - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+
+        let black_kingside_castle = Move::new(Square::B8, Square::G8, MoveType::CASTLE_KINGSIDE);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&black_kingside_castle));
+
+        // Black queenside
+        let fen = "rn4kr/8/8/8/8/8/8/4K3 b a - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+
+        let black_queenside_castle = Move::new(Square::G8, Square::C8, MoveType::CASTLE_QUEENSIDE);
+
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&black_queenside_castle));
+    }
 }

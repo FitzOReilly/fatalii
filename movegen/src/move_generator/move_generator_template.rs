@@ -9,6 +9,7 @@ use crate::piece_targets::PieceTargets;
 use crate::position::CastlingRights;
 use crate::queen::Queen;
 use crate::r#move::{Move, MoveList, MoveType};
+use crate::rank::Rank;
 use crate::rook::Rook;
 use crate::side::Side;
 use crate::square::Square;
@@ -279,28 +280,38 @@ pub trait MoveGeneratorTemplate {
         let castling_rights = pos.castling_rights();
 
         if castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
-            debug_assert_eq!(Some(piece::Piece::WHITE_KING), pos.piece_at(Square::E1));
-            debug_assert_eq!(Some(piece::Piece::WHITE_ROOK), pos.piece_at(Square::H1));
-            let squares_passable =
-                pos.occupancy() & (Bitboard::F1 | Bitboard::G1) == Bitboard::EMPTY;
+            let king_square = Square::from_file_and_rank(pos.king_start_file(), Rank::R1);
+            let rook_square = Square::from_file_and_rank(pos.kingside_castling_file(), Rank::R1);
+            debug_assert_eq!(Some(piece::Piece::WHITE_KING), pos.piece_at(king_square));
+            debug_assert_eq!(Some(piece::Piece::WHITE_ROOK), pos.piece_at(rook_square));
+            let squares_passable = pos.occupancy()
+                & pos.castling_squares().white_kingside().non_blocked
+                == Bitboard::EMPTY;
             let squares_attacked = attacks_to_king.all_attack_targets
-                & (Bitboard::E1 | Bitboard::F1 | Bitboard::G1)
-                != Bitboard::EMPTY;
-            if squares_passable && !squares_attacked {
-                move_list.push(Move::new(Square::E1, Square::G1, MoveType::CASTLE_KINGSIDE));
-            }
-        }
-        if castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
-            debug_assert_eq!(Some(piece::Piece::WHITE_KING), pos.piece_at(Square::E1));
-            debug_assert_eq!(Some(piece::Piece::WHITE_ROOK), pos.piece_at(Square::A1));
-            let squares_passable =
-                pos.occupancy() & (Bitboard::B1 | Bitboard::C1 | Bitboard::D1) == Bitboard::EMPTY;
-            let squares_attacked = attacks_to_king.all_attack_targets
-                & (Bitboard::C1 | Bitboard::D1 | Bitboard::E1)
+                & pos.castling_squares().white_kingside().non_attacked
                 != Bitboard::EMPTY;
             if squares_passable && !squares_attacked {
                 move_list.push(Move::new(
-                    Square::E1,
+                    king_square,
+                    Square::G1,
+                    MoveType::CASTLE_KINGSIDE,
+                ));
+            }
+        }
+        if castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
+            let king_square = Square::from_file_and_rank(pos.king_start_file(), Rank::R1);
+            let rook_square = Square::from_file_and_rank(pos.queenside_castling_file(), Rank::R1);
+            debug_assert_eq!(Some(piece::Piece::WHITE_KING), pos.piece_at(king_square));
+            debug_assert_eq!(Some(piece::Piece::WHITE_ROOK), pos.piece_at(rook_square));
+            let squares_passable = pos.occupancy()
+                & pos.castling_squares().white_queenside().non_blocked
+                == Bitboard::EMPTY;
+            let squares_attacked = attacks_to_king.all_attack_targets
+                & pos.castling_squares().white_queenside().non_attacked
+                != Bitboard::EMPTY;
+            if squares_passable && !squares_attacked {
+                move_list.push(Move::new(
+                    king_square,
                     Square::C1,
                     MoveType::CASTLE_QUEENSIDE,
                 ));
@@ -313,28 +324,38 @@ pub trait MoveGeneratorTemplate {
         let castling_rights = pos.castling_rights();
 
         if castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
-            debug_assert_eq!(Some(piece::Piece::BLACK_KING), pos.piece_at(Square::E8));
-            debug_assert_eq!(Some(piece::Piece::BLACK_ROOK), pos.piece_at(Square::H8));
-            let squares_passable =
-                pos.occupancy() & (Bitboard::F8 | Bitboard::G8) == Bitboard::EMPTY;
+            let king_square = Square::from_file_and_rank(pos.king_start_file(), Rank::R8);
+            let rook_square = Square::from_file_and_rank(pos.kingside_castling_file(), Rank::R8);
+            debug_assert_eq!(Some(piece::Piece::BLACK_KING), pos.piece_at(king_square));
+            debug_assert_eq!(Some(piece::Piece::BLACK_ROOK), pos.piece_at(rook_square));
+            let squares_passable = pos.occupancy()
+                & pos.castling_squares().black_kingside().non_blocked
+                == Bitboard::EMPTY;
             let squares_attacked = attacks_to_king.all_attack_targets
-                & (Bitboard::E8 | Bitboard::F8 | Bitboard::G8)
-                != Bitboard::EMPTY;
-            if squares_passable && !squares_attacked {
-                move_list.push(Move::new(Square::E8, Square::G8, MoveType::CASTLE_KINGSIDE));
-            }
-        }
-        if castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
-            debug_assert_eq!(Some(piece::Piece::BLACK_KING), pos.piece_at(Square::E8));
-            debug_assert_eq!(Some(piece::Piece::BLACK_ROOK), pos.piece_at(Square::A8));
-            let squares_passable =
-                pos.occupancy() & (Bitboard::B8 | Bitboard::C8 | Bitboard::D8) == Bitboard::EMPTY;
-            let squares_attacked = attacks_to_king.all_attack_targets
-                & (Bitboard::C8 | Bitboard::D8 | Bitboard::E8)
+                & pos.castling_squares().black_kingside().non_attacked
                 != Bitboard::EMPTY;
             if squares_passable && !squares_attacked {
                 move_list.push(Move::new(
-                    Square::E8,
+                    king_square,
+                    Square::G8,
+                    MoveType::CASTLE_KINGSIDE,
+                ));
+            }
+        }
+        if castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
+            let king_square = Square::from_file_and_rank(pos.king_start_file(), Rank::R8);
+            let rook_square = Square::from_file_and_rank(pos.queenside_castling_file(), Rank::R8);
+            debug_assert_eq!(Some(piece::Piece::BLACK_KING), pos.piece_at(king_square));
+            debug_assert_eq!(Some(piece::Piece::BLACK_ROOK), pos.piece_at(rook_square));
+            let squares_passable = pos.occupancy()
+                & pos.castling_squares().black_queenside().non_blocked
+                == Bitboard::EMPTY;
+            let squares_attacked = attacks_to_king.all_attack_targets
+                & pos.castling_squares().black_queenside().non_attacked
+                != Bitboard::EMPTY;
+            if squares_passable && !squares_attacked {
+                move_list.push(Move::new(
+                    king_square,
                     Square::C8,
                     MoveType::CASTLE_QUEENSIDE,
                 ));

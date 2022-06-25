@@ -1,11 +1,11 @@
 use crate::parser::{split_first_word, ParserMessage, UciError};
-use crate::uci_option::OPTIONS;
+use crate::uci_option::{OptionType, OPTIONS};
 use crate::UciOut;
-use engine::Engine;
+use engine::{Engine, EngineOut};
 use std::error::Error;
 
 pub fn run_command(
-    _uci_out: &mut UciOut,
+    uci_out: &mut UciOut,
     args: &str,
     engine: &mut Engine,
 ) -> Result<Option<ParserMessage>, Box<dyn Error>> {
@@ -35,19 +35,32 @@ pub fn run_command(
                 None => return make_err_invalid_argument(args),
             };
 
-            let val = match value {
-                Some(v) => match v.parse::<usize>() {
-                    Ok(v) => v,
-                    Err(_) => return make_err_invalid_argument(args),
-                },
-                None => return make_err_invalid_argument(args),
-            };
-
-            if val < opt.min || val > opt.max {
-                return make_err_invalid_argument(args);
+            match &opt.r#type {
+                OptionType::Check(props) => {
+                    let val = match value {
+                        Some(v) => match v.parse::<bool>() {
+                            Ok(v) => v,
+                            Err(_) => return make_err_invalid_argument(args),
+                        },
+                        None => return make_err_invalid_argument(args),
+                    };
+                    uci_out.info_string(&(props.fun)(engine, val))?;
+                }
+                OptionType::Spin(props) => {
+                    let val = match value {
+                        Some(v) => match v.parse::<usize>() {
+                            Ok(v) => v,
+                            Err(_) => return make_err_invalid_argument(args),
+                        },
+                        None => return make_err_invalid_argument(args),
+                    };
+                    if val < props.min || val > props.max {
+                        return make_err_invalid_argument(args);
+                    }
+                    uci_out.info_string(&(props.fun)(engine, val))?;
+                }
+                _ => todo!("Implement other types!"),
             }
-
-            (opt.fun)(engine, val);
         }
         _ => return make_err_invalid_argument(args),
     };

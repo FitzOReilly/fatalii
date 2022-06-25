@@ -1,5 +1,6 @@
 use crate::best_move_handler::{BestMoveCommand, BestMoveHandler, StopReason};
 use crate::engine_out::EngineOut;
+use crate::{EngineOptions, Variant};
 use crossbeam_channel::{unbounded, Sender};
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
@@ -33,13 +34,14 @@ pub struct Engine {
     pos_hist: Option<PositionHistory>,
     best_move_handler: BestMoveHandler,
     best_move_sender: Sender<BestMoveCommand>,
-    move_overhead: Duration,
+    engine_options: Arc<Mutex<EngineOptions>>,
 }
 
 impl Engine {
     pub fn new(
         search_algo: impl Search + Send + 'static,
         engine_out: impl EngineOut + Send + 'static,
+        engine_options: Arc<Mutex<EngineOptions>>,
     ) -> Self {
         let search_result = Arc::new(Mutex::new(None));
         let (best_move_sender, best_move_receiver) = unbounded();
@@ -68,16 +70,51 @@ impl Engine {
             pos_hist: None,
             best_move_handler,
             best_move_sender,
-            move_overhead: Duration::from_millis(0),
+            engine_options,
+        }
+    }
+
+    pub fn hash_size(&self) -> usize {
+        match self.engine_options.lock() {
+            Ok(opt) => opt.hash_size,
+            Err(e) => panic!("{}", e),
         }
     }
 
     pub fn set_hash_size(&self, bytes: usize) {
+        match self.engine_options.lock() {
+            Ok(mut opt) => opt.hash_size = bytes,
+            Err(e) => panic!("{}", e),
+        }
         self.searcher.set_hash_size(bytes);
     }
 
+    pub fn move_overhead(&self) -> Duration {
+        match self.engine_options.lock() {
+            Ok(opt) => opt.move_overhead,
+            Err(e) => panic!("{}", e),
+        }
+    }
+
     pub fn set_move_overhead(&mut self, move_overhead: Duration) {
-        self.move_overhead = move_overhead;
+        match self.engine_options.lock() {
+            Ok(mut opt) => opt.move_overhead = move_overhead,
+            Err(e) => panic!("{}", e),
+        };
+    }
+
+    pub fn variant(&self) -> Variant {
+        match self.engine_options.lock() {
+            Ok(opt) => opt.variant,
+            Err(e) => panic!("{}", e),
+        }
+    }
+
+    pub fn set_variant(&self, variant: Variant) {
+        match self.engine_options.lock() {
+            Ok(mut opt) => opt.variant = variant,
+            Err(e) => panic!("{}", e),
+        };
     }
 
     pub fn set_position_history(&mut self, pos_hist: Option<PositionHistory>) {
@@ -91,7 +128,7 @@ impl Engine {
 
     pub fn search(&mut self, options: SearchOptions) -> Result<(), EngineError> {
         let mut search_options = options.clone();
-        search_options.move_overhead = self.move_overhead;
+        search_options.move_overhead = self.move_overhead();
         self.clear_best_move();
         self.set_search_options(options);
         self.search_with_options(search_options)?;

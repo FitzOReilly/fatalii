@@ -1,7 +1,7 @@
 use crate::parser::{split_first_word, ParserMessage, UciError};
 use crate::uci_move::UciMove;
 use crate::UciOut;
-use engine::Engine;
+use engine::{Engine, Variant};
 use movegen::fen::Fen;
 use movegen::position::Position as Pos;
 use movegen::position_history::PositionHistory;
@@ -13,7 +13,7 @@ pub fn run_command(
     engine: &mut Engine,
 ) -> Result<Option<ParserMessage>, Box<dyn Error>> {
     let (mut pos_hist, moves_str) = match split_first_word(args) {
-        Some(("fen", tail)) => parse_fen(tail)?,
+        Some(("fen", tail)) => parse_fen(tail, engine)?,
         Some(("startpos", tail)) => (PositionHistory::new(Pos::initial()), tail),
         _ => {
             return Err(Box::new(UciError::InvalidArgument(format!(
@@ -23,18 +23,43 @@ pub fn run_command(
         }
     };
 
+    let var = engine.variant();
+
     match split_first_word(moves_str) {
         Some(("moves", tail)) => {
             let iter = tail.split_whitespace();
-            for move_str in iter {
-                match UciMove::str_to_move(pos_hist.current_pos(), move_str) {
-                    Some(m) => pos_hist.do_move(m),
-                    None => {
-                        return Err(Box::new(UciError::InvalidArgument(format!(
-                            "Invalid move `{}` in command: position {}",
+            match var {
+                Variant::Standard => {
+                    for move_str in iter {
+                        match UciMove::str_to_move(pos_hist.current_pos(), move_str) {
+                            Some(m) => pos_hist.do_move(m),
+                            None => {
+                                return Err(Box::new(UciError::InvalidArgument(format!(
+                                    "Invalid move `{}` in command: position {}",
+                                    move_str,
+                                    args.trim_end()
+                                ))))
+                            }
+                        }
+                    }
+                }
+                Variant::Chess960(king_rook, queen_rook) => {
+                    for move_str in iter {
+                        match UciMove::str_to_move_chess_960(
+                            pos_hist.current_pos(),
                             move_str,
-                            args.trim_end()
-                        ))))
+                            king_rook,
+                            queen_rook,
+                        ) {
+                            Some(m) => pos_hist.do_move(m),
+                            None => {
+                                return Err(Box::new(UciError::InvalidArgument(format!(
+                                    "Invalid move `{}` in command: position {}",
+                                    move_str,
+                                    args.trim_end()
+                                ))))
+                            }
+                        }
                     }
                 }
             }
@@ -52,7 +77,10 @@ pub fn run_command(
     Ok(None)
 }
 
-fn parse_fen(args: &str) -> Result<(PositionHistory, &str), Box<dyn Error>> {
+fn parse_fen<'a>(
+    args: &'a str,
+    engine: &'a Engine,
+) -> Result<(PositionHistory, &'a str), Box<dyn Error>> {
     let trimmed = args.trim_start();
     match trimmed
         .chars()
@@ -62,15 +90,29 @@ fn parse_fen(args: &str) -> Result<(PositionHistory, &str), Box<dyn Error>> {
         })
         .position(|c| c == 6)
     {
-        Some(fen_end) => match Fen::str_to_pos(&trimmed[..fen_end]) {
-            Ok(pos) => Ok((PositionHistory::new(pos), &trimmed[fen_end..])),
-            Err(e) => {
-                return Err(Box::new(UciError::InvalidArgument(format!(
-                    "position fen {}\n{}",
-                    args, e
-                ))))
+        Some(fen_end) => {
+            let opt_pos = match engine.variant() {
+                Variant::Standard => Fen::str_to_pos(&trimmed[..fen_end]),
+                Variant::Chess960(_, _) => Fen::str_to_pos_chess_960(&trimmed[..fen_end]),
+            };
+            match opt_pos {
+                Ok(pos) => {
+                    if let Variant::Chess960(_, _) = engine.variant() {
+                        engine.set_variant(Variant::Chess960(
+                            pos.kingside_castling_file(),
+                            pos.queenside_castling_file(),
+                        ));
+                    }
+                    Ok((PositionHistory::new(pos), &trimmed[fen_end..]))
+                }
+                Err(e) => {
+                    return Err(Box::new(UciError::InvalidArgument(format!(
+                        "position fen {}\n{}",
+                        args, e
+                    ))))
+                }
             }
-        },
+        }
         None => {
             return Err(Box::new(UciError::InvalidArgument(format!(
                 "position fen {}",

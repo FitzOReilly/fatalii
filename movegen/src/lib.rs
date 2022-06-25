@@ -19,6 +19,7 @@ pub mod transposition_table;
 pub mod zobrist;
 
 mod attacks_to;
+mod castling_squares;
 mod direction;
 mod piece_targets;
 mod ray;

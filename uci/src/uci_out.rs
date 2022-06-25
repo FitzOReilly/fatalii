@@ -1,6 +1,6 @@
 use crate::uci_move::UciMove;
 use crate::uci_option::{OptionType, UciOption, OPTIONS};
-use engine::EngineOut;
+use engine::{EngineOptions, EngineOut, Variant};
 use movegen::r#move::Move;
 use search::search::SearchResult;
 use std::error::Error;
@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex};
 struct UciOutInner {
     writer: Box<dyn Write + Send>,
     engine_version: String,
+    engine_options: Arc<Mutex<EngineOptions>>,
     debug: bool,
 }
 
@@ -24,16 +25,26 @@ impl EngineOut for UciOut {
         search_result: Option<SearchResult>,
     ) -> Result<(), Box<dyn Error>> {
         match search_result {
-            Some(res) => {
-                let pv_str = res
-                    .principal_variation()
-                    .iter()
-                    .take_while(|m| **m != Move::NULL)
-                    .map(|m| UciMove::move_to_str(*m))
-                    .collect::<Vec<String>>()
-                    .join(" ");
-                match self.inner.lock() {
-                    Ok(mut inner) => Ok(writeln!(
+            Some(res) => match self.inner.lock() {
+                Ok(mut inner) => {
+                    let move_to_str: Box<dyn Fn(Move) -> String> = match inner.engine_options.lock()
+                    {
+                        Ok(opt) => match opt.variant {
+                            Variant::Standard => Box::new(UciMove::move_to_str),
+                            Variant::Chess960(king_rook, queen_rook) => Box::new(move |m| {
+                                UciMove::move_to_str_chess_960(m, king_rook, queen_rook)
+                            }),
+                        },
+                        Err(e) => panic!("{}", e),
+                    };
+                    let pv_str = res
+                        .principal_variation()
+                        .iter()
+                        .take_while(|m| **m != Move::NULL)
+                        .map(|m| move_to_str(*m))
+                        .collect::<Vec<String>>()
+                        .join(" ");
+                    Ok(writeln!(
                         inner.writer,
                         "info depth {} score cp {} nodes {} nps {} time {} hashfull {} pv {}",
                         res.depth(),
@@ -43,13 +54,13 @@ impl EngineOut for UciOut {
                         res.time_ms(),
                         res.hash_load_factor_permille(),
                         pv_str
-                    )?),
-                    Err(e) => {
-                        self.info_string(format!("{}", e).as_str())?;
-                        panic!("{}", e)
-                    }
+                    )?)
                 }
-            }
+                Err(e) => {
+                    self.info_string(format!("{}", e).as_str())?;
+                    panic!("{}", e)
+                }
+            },
             None => Ok(()),
         }
     }
@@ -68,11 +79,23 @@ impl EngineOut for UciOut {
         self.info_depth_finished(search_result.clone())?;
         match search_result {
             Some(res) => match self.inner.lock() {
-                Ok(mut inner) => Ok(writeln!(
-                    inner.writer,
-                    "bestmove {}",
-                    UciMove::move_to_str(res.best_move())
-                )?),
+                Ok(mut inner) => {
+                    let move_to_str: Box<dyn Fn(Move) -> String> = match inner.engine_options.lock()
+                    {
+                        Ok(opt) => match opt.variant {
+                            Variant::Standard => Box::new(UciMove::move_to_str),
+                            Variant::Chess960(king_rook, queen_rook) => Box::new(move |m| {
+                                UciMove::move_to_str_chess_960(m, king_rook, queen_rook)
+                            }),
+                        },
+                        Err(e) => panic!("{}", e),
+                    };
+                    Ok(writeln!(
+                        inner.writer,
+                        "bestmove {}",
+                        move_to_str(res.best_move())
+                    )?)
+                }
                 Err(e) => {
                     self.info_string(format!("{}", e).as_str())?;
                     panic!("{}", e);
@@ -85,12 +108,17 @@ impl EngineOut for UciOut {
 }
 
 impl UciOut {
-    pub fn new(writer: Box<dyn Write + Send>, engine_version: &str) -> Self {
+    pub fn new(
+        writer: Box<dyn Write + Send>,
+        engine_version: &str,
+        engine_options: Arc<Mutex<EngineOptions>>,
+    ) -> Self {
         Self {
             inner: Arc::new(Mutex::new(UciOutInner {
                 writer,
                 engine_version: String::from(engine_version),
                 debug: false,
+                engine_options,
             })),
         }
     }
@@ -147,19 +175,30 @@ impl UciOut {
     }
 
     fn option(&mut self, opt: &UciOption) -> Result<(), Box<dyn Error>> {
-        match opt.r#type {
-            OptionType::Spin => match self.inner.lock() {
+        match &opt.r#type {
+            OptionType::Check(props) => match self.inner.lock() {
                 Ok(mut inner) => writeln!(
                     inner.writer,
-                    "option name {} type spin default {} min {} max {}",
-                    opt.name, opt.default, opt.min, opt.max
+                    "option name {} type check default {}",
+                    opt.name, props.default,
                 )?,
                 Err(e) => {
                     self.info_string(format!("{}", e).as_str())?;
                     panic!("{}", e)
                 }
             },
-            OptionType::Button | OptionType::Check | OptionType::Combo | OptionType::String => {
+            OptionType::Spin(props) => match self.inner.lock() {
+                Ok(mut inner) => writeln!(
+                    inner.writer,
+                    "option name {} type spin default {} min {} max {}",
+                    opt.name, props.default, props.min, props.max,
+                )?,
+                Err(e) => {
+                    self.info_string(format!("{}", e).as_str())?;
+                    panic!("{}", e)
+                }
+            },
+            OptionType::Button | OptionType::Combo | OptionType::String => {
                 unimplemented!();
             }
         }

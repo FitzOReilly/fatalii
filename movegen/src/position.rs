@@ -1,5 +1,6 @@
 use crate::bishop::Bishop;
 use crate::bitboard::Bitboard;
+use crate::castling_squares::CastlingSquares;
 use crate::file::File;
 use crate::king::King;
 use crate::knight::Knight;
@@ -34,18 +35,24 @@ pub struct Position {
     en_passant_square: Bitboard,
     side_to_move: Side,
     castling_rights: CastlingRights,
+    castling_files: u16,
+    castling_squares: CastlingSquares,
     plies_since_pawn_move_or_capture: usize,
     move_count: usize,
 }
 
 impl Position {
-    pub const fn empty() -> Self {
+    pub fn empty() -> Self {
         Position {
             piece_side_occupancies: [Bitboard::EMPTY; 2],
             piece_type_occupancies: [Bitboard::EMPTY; 6],
             en_passant_square: Bitboard::EMPTY,
             side_to_move: Side::White,
             castling_rights: CastlingRights::empty(),
+            castling_files: File::E.idx() as u16
+                | (File::H.idx() as u16) << 3
+                | (File::A.idx() as u16) << 6,
+            castling_squares: CastlingSquares::new(File::A, File::E, File::H),
             plies_since_pawn_move_or_capture: 0,
             move_count: 1,
         }
@@ -58,6 +65,10 @@ impl Position {
             en_passant_square: Bitboard::EMPTY,
             side_to_move: Side::White,
             castling_rights: CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
+            castling_files: File::E.idx() as u16
+                | (File::H.idx() as u16) << 3
+                | (File::A.idx() as u16) << 6,
+            castling_squares: CastlingSquares::new(File::A, File::E, File::H),
             plies_since_pawn_move_or_capture: 0,
             move_count: 1,
         };
@@ -90,6 +101,22 @@ impl Position {
         self.castling_rights
     }
 
+    pub fn king_start_file(&self) -> File {
+        File::from_idx((self.castling_files & 0x7) as usize)
+    }
+
+    pub fn kingside_castling_file(&self) -> File {
+        File::from_idx((self.castling_files >> 3 & 0x7) as usize)
+    }
+
+    pub fn queenside_castling_file(&self) -> File {
+        File::from_idx((self.castling_files >> 6 & 0x7) as usize)
+    }
+
+    pub fn castling_squares(&self) -> &CastlingSquares {
+        &self.castling_squares
+    }
+
     pub fn plies_since_pawn_move_or_capture(&self) -> usize {
         self.plies_since_pawn_move_or_capture
     }
@@ -108,6 +135,24 @@ impl Position {
 
     pub fn set_castling_rights(&mut self, castling_rights: CastlingRights) {
         self.castling_rights = castling_rights;
+    }
+
+    pub fn set_king_start_file(&mut self, file: File) {
+        self.castling_files &= 0b1_1111_1000;
+        self.castling_files |= file.idx() as u16;
+        self.set_castling_squares();
+    }
+
+    pub fn set_kingside_castling_file(&mut self, file: File) {
+        self.castling_files &= 0b1_1100_0111;
+        self.castling_files |= (file.idx() as u16) << 3;
+        self.set_castling_squares();
+    }
+
+    pub fn set_queenside_castling_file(&mut self, file: File) {
+        self.castling_files &= 0b0_0011_1111;
+        self.castling_files |= (file.idx() as u16) << 6;
+        self.set_castling_squares();
     }
 
     pub fn set_plies_since_pawn_move_or_capture(&mut self, plies: usize) {
@@ -229,16 +274,40 @@ impl Position {
     }
 
     pub fn remove_castling_rights(&mut self, square: Square) {
-        let removed_castling_rights = match square {
-            Square::A1 => CastlingRights::WHITE_QUEENSIDE,
-            Square::H1 => CastlingRights::WHITE_KINGSIDE,
-            Square::E1 => CastlingRights::WHITE_BOTH,
-            Square::A8 => CastlingRights::BLACK_QUEENSIDE,
-            Square::H8 => CastlingRights::BLACK_KINGSIDE,
-            Square::E8 => CastlingRights::BLACK_BOTH,
+        let removed_castling_rights = match square.rank() {
+            Rank::R1 => {
+                if square.file() == self.kingside_castling_file() {
+                    CastlingRights::WHITE_KINGSIDE
+                } else if square.file() == self.queenside_castling_file() {
+                    CastlingRights::WHITE_QUEENSIDE
+                } else if square.file() == self.king_start_file() {
+                    CastlingRights::WHITE_BOTH
+                } else {
+                    CastlingRights::empty()
+                }
+            }
+            Rank::R8 => {
+                if square.file() == self.kingside_castling_file() {
+                    CastlingRights::BLACK_KINGSIDE
+                } else if square.file() == self.queenside_castling_file() {
+                    CastlingRights::BLACK_QUEENSIDE
+                } else if square.file() == self.king_start_file() {
+                    CastlingRights::BLACK_BOTH
+                } else {
+                    CastlingRights::empty()
+                }
+            }
             _ => CastlingRights::empty(),
         };
         self.set_castling_rights(self.castling_rights() & !removed_castling_rights);
+    }
+
+    fn set_castling_squares(&mut self) {
+        self.castling_squares = CastlingSquares::new(
+            self.queenside_castling_file(),
+            self.king_start_file(),
+            self.kingside_castling_file(),
+        );
     }
 
     fn pawn_attacks(&self, side: Side) -> Bitboard {
@@ -295,6 +364,8 @@ mod tests {
             CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
             pos.castling_rights()
         );
+        assert_eq!(File::H, pos.kingside_castling_file());
+        assert_eq!(File::A, pos.queenside_castling_file());
         assert_eq!(0, pos.plies_since_pawn_move_or_capture());
         assert_eq!(1, pos.move_count());
 
@@ -521,5 +592,28 @@ mod tests {
         assert_eq!(CastlingRights::BLACK_KINGSIDE, pos.castling_rights());
         pos.remove_castling_rights(Square::H8);
         assert_eq!(CastlingRights::empty(), pos.castling_rights());
+    }
+
+    #[test]
+    fn castling_files() {
+        let mut pos = Position::empty();
+        assert_eq!(File::E, pos.king_start_file());
+        assert_eq!(File::H, pos.kingside_castling_file());
+        assert_eq!(File::A, pos.queenside_castling_file());
+
+        pos.set_king_start_file(File::D);
+        assert_eq!(File::D, pos.king_start_file());
+        assert_eq!(File::H, pos.kingside_castling_file());
+        assert_eq!(File::A, pos.queenside_castling_file());
+
+        pos.set_kingside_castling_file(File::F);
+        assert_eq!(File::D, pos.king_start_file());
+        assert_eq!(File::F, pos.kingside_castling_file());
+        assert_eq!(File::A, pos.queenside_castling_file());
+
+        pos.set_queenside_castling_file(File::C);
+        assert_eq!(File::D, pos.king_start_file());
+        assert_eq!(File::F, pos.kingside_castling_file());
+        assert_eq!(File::C, pos.queenside_castling_file());
     }
 }
