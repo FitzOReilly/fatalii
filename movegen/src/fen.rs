@@ -8,6 +8,7 @@ use crate::side::Side;
 use crate::square::Square;
 use std::error::Error;
 use std::fmt;
+use std::fmt::Write;
 use std::str;
 
 pub struct Fen;
@@ -133,16 +134,17 @@ impl Fen {
             fen.push('-');
         } else {
             let en_passant_square = en_passant_board.to_square();
-            fen.push_str(&format!("{}", en_passant_square));
+            let _ = write!(fen, "{}", en_passant_square);
         }
     }
 
     fn pos_to_str_move_count(fen: &mut String, pos: &Position) {
-        fen.push_str(&format!(
+        let _ = write!(
+            fen,
             "{} {}",
             pos.plies_since_pawn_move_or_capture(),
             pos.move_count()
-        ));
+        );
     }
 
     pub fn str_to_pos(fen: &str) -> Result<Position, FenError> {
