@@ -46,8 +46,31 @@ impl MoveGenerator {
     }
 
     pub fn generate_captures(move_list: &mut MoveList, pos: &Position) {
-        Self::generate_moves(move_list, pos);
-        move_list.retain(|m| m.is_capture());
+        move_list.clear();
+
+        let own_king_bb = pos.piece_occupancy(pos.side_to_move(), piece::Type::King);
+        let own_king = own_king_bb.to_square();
+
+        let attacks_to_king = AttacksTo::new(pos, own_king, !pos.side_to_move());
+
+        let king_in_check = own_king_bb & attacks_to_king.all_attack_targets != Bitboard::EMPTY;
+        let king_xrayed = attacks_to_king.xrays_to_target != Bitboard::EMPTY;
+
+        if king_in_check {
+            debug_assert!(attacks_to_king.attack_origins.pop_count() >= 1);
+            debug_assert!(attacks_to_king.attack_origins.pop_count() <= 2);
+            debug_assert!(attacks_to_king.each_slider_attack.len() <= 2);
+            if attacks_to_king.attack_origins.pop_count() == 2 {
+                // Only king moves are legal in double check
+                KingInCheckGenerator::generate_king_captures(move_list, &attacks_to_king);
+            } else {
+                KingInCheckGenerator::generate_captures(move_list, &attacks_to_king);
+            }
+        } else if king_xrayed {
+            KingXrayedGenerator::generate_captures(move_list, &attacks_to_king);
+        } else {
+            KingNotXrayedGenerator::generate_captures(move_list, &attacks_to_king);
+        }
     }
 }
 
