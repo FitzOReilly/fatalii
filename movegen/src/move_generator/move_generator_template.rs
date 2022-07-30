@@ -54,6 +54,30 @@ pub trait MoveGeneratorTemplate {
         Self::generate_castles(move_list, attacks_to_king);
     }
 
+    fn generate_captures(move_list: &mut MoveList, attacks_to_king: &AttacksTo) {
+        Self::generate_pawn_captures(move_list, attacks_to_king);
+        Self::generate_knight_captures(move_list, attacks_to_king);
+        Self::generate_sliding_piece_captures(
+            move_list,
+            attacks_to_king,
+            piece::Type::Bishop,
+            Bishop::targets,
+        );
+        Self::generate_sliding_piece_captures(
+            move_list,
+            attacks_to_king,
+            piece::Type::Rook,
+            Rook::targets,
+        );
+        Self::generate_sliding_piece_captures(
+            move_list,
+            attacks_to_king,
+            piece::Type::Queen,
+            Queen::targets,
+        );
+        Self::generate_king_captures(move_list, attacks_to_king);
+    }
+
     fn generate_king_moves(move_list: &mut MoveList, attacks_to_king: &AttacksTo) {
         let pos = attacks_to_king.pos;
         let own_occupancy = pos.side_occupancy(pos.side_to_move());
@@ -78,6 +102,23 @@ pub trait MoveGeneratorTemplate {
         }
     }
 
+    fn generate_king_captures(move_list: &mut MoveList, attacks_to_king: &AttacksTo) {
+        let pos = attacks_to_king.pos;
+        let own_occupancy = pos.side_occupancy(pos.side_to_move());
+        let origin = attacks_to_king.target;
+        let targets = King::targets(origin) & !own_occupancy & !attacks_to_king.all_attack_targets;
+
+        let opponents = pos.side_occupancy(!pos.side_to_move());
+        let mut captures = targets & opponents;
+
+        while captures != Bitboard::EMPTY {
+            let target = captures.square_scan_forward_reset();
+            if Self::is_legal_king_move(attacks_to_king, origin, target) {
+                move_list.push(Move::new(origin, target, MoveType::CAPTURE));
+            }
+        }
+    }
+
     fn generate_knight_moves(move_list: &mut MoveList, attacks_to_king: &AttacksTo) {
         let pos = attacks_to_king.pos;
         let mut knights = pos.piece_occupancy(pos.side_to_move(), piece::Type::Knight);
@@ -86,6 +127,17 @@ pub trait MoveGeneratorTemplate {
             let origin = knights.square_scan_forward_reset();
             let targets = Knight::targets(origin) & !own_occupancy;
             Self::generate_piece_moves(move_list, attacks_to_king, origin, targets);
+        }
+    }
+
+    fn generate_knight_captures(move_list: &mut MoveList, attacks_to_king: &AttacksTo) {
+        let pos = attacks_to_king.pos;
+        let mut knights = pos.piece_occupancy(pos.side_to_move(), piece::Type::Knight);
+        let own_occupancy = pos.side_occupancy(pos.side_to_move());
+        while knights != Bitboard::EMPTY {
+            let origin = knights.square_scan_forward_reset();
+            let targets = Knight::targets(origin) & !own_occupancy;
+            Self::generate_piece_captures(move_list, attacks_to_king, origin, targets);
         }
     }
 
@@ -105,15 +157,39 @@ pub trait MoveGeneratorTemplate {
         }
     }
 
+    fn generate_sliding_piece_captures(
+        move_list: &mut MoveList,
+        attacks_to_king: &AttacksTo,
+        piece_type: piece::Type,
+        piece_targets: fn(Square, Bitboard) -> Bitboard,
+    ) {
+        let pos = attacks_to_king.pos;
+        let mut piece_occupancy = pos.piece_occupancy(pos.side_to_move(), piece_type);
+        let own_occupancy = pos.side_occupancy(pos.side_to_move());
+        while piece_occupancy != Bitboard::EMPTY {
+            let origin = piece_occupancy.square_scan_forward_reset();
+            let targets = piece_targets(origin, pos.occupancy()) & !own_occupancy;
+            Self::generate_piece_captures(move_list, attacks_to_king, origin, targets);
+        }
+    }
+
     fn generate_piece_moves(
         move_list: &mut MoveList,
         attacks_to_king: &AttacksTo,
         origin: Square,
         targets: Bitboard,
     ) {
-        let mut captures = Self::capture_target_filter(attacks_to_king, targets);
-        let mut quiets = Self::non_capture_target_filter(attacks_to_king, targets);
+        Self::generate_piece_captures(move_list, attacks_to_king, origin, targets);
+        Self::generate_piece_quiets(move_list, attacks_to_king, origin, targets);
+    }
 
+    fn generate_piece_captures(
+        move_list: &mut MoveList,
+        attacks_to_king: &AttacksTo,
+        origin: Square,
+        targets: Bitboard,
+    ) {
+        let mut captures = Self::capture_target_filter(attacks_to_king, targets);
         while captures != Bitboard::EMPTY {
             let target = captures.square_scan_forward_reset();
             if Self::is_legal_capture(attacks_to_king, origin, target) {
@@ -121,6 +197,15 @@ pub trait MoveGeneratorTemplate {
                 move_list.push(m);
             }
         }
+    }
+
+    fn generate_piece_quiets(
+        move_list: &mut MoveList,
+        attacks_to_king: &AttacksTo,
+        origin: Square,
+        targets: Bitboard,
+    ) {
+        let mut quiets = Self::non_capture_target_filter(attacks_to_king, targets);
         while quiets != Bitboard::EMPTY {
             let target = quiets.square_scan_forward_reset();
             if Self::is_legal_non_capture(attacks_to_king, origin, target) {
