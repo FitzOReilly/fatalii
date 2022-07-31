@@ -25,6 +25,10 @@ impl MoveSelector {
             return Some(m);
         }
 
+        if let Some(m) = Self::select_killer(search_data, depth, move_list) {
+            return Some(m);
+        }
+
         move_list.pop()
     }
 
@@ -156,5 +160,20 @@ impl MoveSelector {
             piece::Type::King => panic!("King cannot be captured"),
         };
         LEN_ATTACKER_PRIO * target_prio(&target) + attacker_prio(&attacker)
+    }
+
+    fn select_killer(
+        search_data: &mut SearchData,
+        depth: usize,
+        move_list: &mut MoveList,
+    ) -> Option<Move> {
+        for k in search_data.killers(depth).iter().flatten() {
+            if let Some(idx) = move_list.iter().position(|x| x == k) {
+                let next_move = move_list.swap_remove(idx);
+                return Some(next_move);
+            }
+        }
+
+        None
     }
 }

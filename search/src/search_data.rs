@@ -7,6 +7,10 @@ use crossbeam_channel::{Receiver, Sender, TryRecvError};
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
 
+pub type Killers = [Option<Move>; NUM_KILLERS];
+
+const NUM_KILLERS: usize = 2;
+
 pub struct SearchData<'a> {
     command_receiver: &'a Receiver<SearchCommand>,
     info_sender: &'a Sender<SearchInfo>,
@@ -18,6 +22,7 @@ pub struct SearchData<'a> {
     pv_depth: usize,
     pv_table: PvTable,
     node_counter: NodeCounter,
+    killers: Vec<Killers>,
 }
 
 impl<'a> SearchData<'a> {
@@ -40,6 +45,7 @@ impl<'a> SearchData<'a> {
             pv_depth: 0,
             pv_table: PvTable::new(),
             node_counter: NodeCounter::new(),
+            killers: Vec::new(),
         }
     }
 
@@ -105,9 +111,31 @@ impl<'a> SearchData<'a> {
         &self.node_counter
     }
 
+    pub fn killers(&self, depth: usize) -> &Killers {
+        let len = self.killers.len();
+        debug_assert!(len >= depth);
+        &self.killers[len - depth]
+    }
+
+    pub fn contains_killer(&self, depth: usize, m: Move) -> bool {
+        let len = self.killers.len();
+        debug_assert!(len >= depth);
+        self.killers[len - depth].contains(&Some(m))
+    }
+
+    pub fn insert_killer(&mut self, depth: usize, m: Move) {
+        let len = self.killers.len();
+        debug_assert!(len >= depth);
+        for idx in (0..NUM_KILLERS - 2).rev() {
+            self.killers[len - depth][idx + 1] = self.killers[len - depth][idx];
+        }
+        self.killers[len - depth][0] = Some(m);
+    }
+
     pub fn increase_search_depth(&mut self) {
         self.pv_depth = self.search_depth;
         self.search_depth += 1;
+        self.killers.push([None; NUM_KILLERS]);
     }
 
     pub fn decrease_pv_depth(&mut self) {
