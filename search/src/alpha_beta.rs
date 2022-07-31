@@ -240,7 +240,7 @@ impl AlphaBeta {
                                     let node =
                                         AlphaBetaEntry::new(depth, beta, ScoreType::LowerBound, m);
                                     self.update_table(pos_hash, node);
-                                    if !search_data.contains_killer(depth, m) {
+                                    if !m.is_capture() && !search_data.contains_killer(depth, m) {
                                         search_data.insert_killer(depth, m);
                                     }
                                     return Some(node);
