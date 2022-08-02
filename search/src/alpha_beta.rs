@@ -10,6 +10,7 @@ use crate::SearchOptions;
 use crossbeam_channel::{Receiver, Sender};
 use eval::{Score, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF, POSITIVE_INF};
 use movegen::move_generator::MoveGenerator;
+use movegen::piece;
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
@@ -311,6 +312,8 @@ impl AlphaBeta {
 
         let mut move_list = MoveList::new();
         MoveGenerator::generate_captures(&mut move_list, pos);
+        // Ignore underpromotions
+        move_list.retain(|m| !m.is_promotion() || m.promotion_piece() == Some(piece::Type::Queen));
         while let Some(m) = MoveSelector::select_next_move_quiescence(
             search_data,
             &mut self.transpos_table,
