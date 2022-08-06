@@ -1,11 +1,14 @@
 use std::time::{Duration, Instant};
 
+use crate::history_table::HistoryTable;
 use crate::node_counter::NodeCounter;
 use crate::pv_table::PvTable;
 use crate::search::{SearchCommand, SearchInfo};
 use crossbeam_channel::{Receiver, Sender, TryRecvError};
+use movegen::piece::Piece;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
+use movegen::square::Square;
 
 pub type Killers = [Option<Move>; NUM_KILLERS];
 
@@ -23,6 +26,7 @@ pub struct SearchData<'a> {
     pv_table: PvTable,
     node_counter: NodeCounter,
     killers: Vec<Killers>,
+    history_table: HistoryTable,
 }
 
 impl<'a> SearchData<'a> {
@@ -46,6 +50,7 @@ impl<'a> SearchData<'a> {
             pv_table: PvTable::new(),
             node_counter: NodeCounter::new(),
             killers: Vec::new(),
+            history_table: HistoryTable::new(),
         }
     }
 
@@ -130,6 +135,14 @@ impl<'a> SearchData<'a> {
             self.killers[len - depth][idx + 1] = self.killers[len - depth][idx];
         }
         self.killers[len - depth][0] = Some(m);
+    }
+
+    pub fn prioritize_history(&mut self, p: Piece, to: Square, depth: usize) {
+        self.history_table.prioritize(p, to, depth)
+    }
+
+    pub fn history_priority(&self, p: Piece, to: Square) -> u32 {
+        self.history_table.priority(p, to)
     }
 
     pub fn increase_search_depth(&mut self) {

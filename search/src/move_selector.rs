@@ -29,6 +29,10 @@ impl MoveSelector {
             return Some(m);
         }
 
+        if let Some(m) = Self::select_history(search_data, move_list) {
+            return Some(m);
+        }
+
         move_list.pop()
     }
 
@@ -172,6 +176,23 @@ impl MoveSelector {
                 let next_move = move_list.swap_remove(idx);
                 return Some(next_move);
             }
+        }
+
+        None
+    }
+
+    fn select_history(search_data: &mut SearchData, move_list: &mut MoveList) -> Option<Move> {
+        if let Some((idx, &m)) = move_list.iter().enumerate().max_by_key(|&(_, x)| {
+            let p = search_data
+                .pos_history()
+                .current_pos()
+                .piece_at(x.origin())
+                .expect("Expected a piece at move origin");
+            search_data.history_priority(p, x.target())
+        }) {
+            debug_assert_eq!(m, move_list[idx]);
+            let next_move = move_list.swap_remove(idx);
+            return Some(next_move);
         }
 
         None

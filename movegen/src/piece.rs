@@ -16,6 +16,8 @@ pub enum Type {
 pub struct Piece(u8);
 
 impl Piece {
+    pub const NUM_PIECES: usize = 12;
+
     pub const WHITE_PAWN: Self = Self::new(Side::White, Type::Pawn);
     pub const WHITE_KNIGHT: Self = Self::new(Side::White, Type::Knight);
     pub const WHITE_BISHOP: Self = Self::new(Side::White, Type::Bishop);
@@ -41,6 +43,10 @@ impl Piece {
 
     pub fn piece_type(&self) -> Type {
         unsafe { std::mem::transmute::<u8, Type>(self.0 >> 1) }
+    }
+
+    pub fn idx(&self) -> usize {
+        self.0 as usize
     }
 
     pub fn from_ascii(c: u8) -> Result<Self, String> {
@@ -122,6 +128,22 @@ mod tests {
         let wp = Piece::new(Side::Black, Type::King);
         assert_eq!(Side::Black, wp.piece_side());
         assert_eq!(Type::King, wp.piece_type());
+    }
+
+    #[test]
+    fn idx() {
+        assert_eq!(10, Piece::WHITE_PAWN.idx());
+        assert_eq!(0, Piece::WHITE_KNIGHT.idx());
+        assert_eq!(2, Piece::WHITE_BISHOP.idx());
+        assert_eq!(4, Piece::WHITE_ROOK.idx());
+        assert_eq!(6, Piece::WHITE_QUEEN.idx());
+        assert_eq!(8, Piece::WHITE_KING.idx());
+        assert_eq!(11, Piece::BLACK_PAWN.idx());
+        assert_eq!(1, Piece::BLACK_KNIGHT.idx());
+        assert_eq!(3, Piece::BLACK_BISHOP.idx());
+        assert_eq!(5, Piece::BLACK_ROOK.idx());
+        assert_eq!(7, Piece::BLACK_QUEEN.idx());
+        assert_eq!(9, Piece::BLACK_KING.idx());
     }
 
     #[test]
