@@ -243,6 +243,12 @@ impl AlphaBeta {
                                     self.update_table(pos_hash, node);
                                     if !m.is_capture() && !search_data.contains_killer(depth, m) {
                                         search_data.insert_killer(depth, m);
+                                        let p = search_data
+                                            .pos_history()
+                                            .current_pos()
+                                            .piece_at(m.origin())
+                                            .expect("Expected a piece at move origin");
+                                        search_data.prioritize_history(p, m.target(), depth);
                                     }
                                     return Some(node);
                                 }
