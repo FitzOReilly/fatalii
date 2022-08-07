@@ -4,47 +4,85 @@ use movegen::piece;
 use movegen::position::Position;
 use movegen::r#move::{Move, MoveList};
 
-pub struct MoveSelector;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+enum Stage {
+    PrincipalVariation,
+    Hash,
+    MvvLva,
+    Killers,
+    History,
+}
+
+pub struct MoveSelector {
+    stage: Stage,
+}
 
 impl MoveSelector {
+    pub fn new() -> Self {
+        MoveSelector {
+            stage: Stage::PrincipalVariation,
+        }
+    }
+
     pub fn select_next_move(
+        &mut self,
         search_data: &mut SearchData,
         transpos_table: &mut AlphaBetaTable,
         depth: usize,
         move_list: &mut MoveList,
     ) -> Option<Move> {
-        if let Some(m) = Self::select_pv_move(search_data, depth, move_list) {
-            return Some(m);
+        if self.stage == Stage::PrincipalVariation {
+            if let Some(m) = Self::select_pv_move(search_data, depth, move_list) {
+                return Some(m);
+            }
+            self.stage = Stage::Hash;
         }
 
-        if let Some(m) = Self::select_hash_move(search_data, transpos_table, move_list) {
-            return Some(m);
+        if self.stage == Stage::Hash {
+            if let Some(m) = Self::select_hash_move(search_data, transpos_table, move_list) {
+                return Some(m);
+            }
+            self.stage = Stage::MvvLva;
         }
 
-        if let Some(m) = Self::filter_captures_select_mvv_lva(search_data, move_list) {
-            return Some(m);
+        if self.stage == Stage::MvvLva {
+            if let Some(m) = Self::filter_captures_select_mvv_lva(search_data, move_list) {
+                return Some(m);
+            }
+            self.stage = Stage::Killers;
         }
 
-        if let Some(m) = Self::select_killer(search_data, depth, move_list) {
-            return Some(m);
+        if self.stage == Stage::Killers {
+            if let Some(m) = Self::select_killer(search_data, depth, move_list) {
+                return Some(m);
+            }
+            self.stage = Stage::History;
         }
 
+        debug_assert_eq!(Stage::History, self.stage);
         if let Some(m) = Self::select_history(search_data, move_list) {
             return Some(m);
         }
 
-        move_list.pop()
+        debug_assert!(move_list.is_empty());
+        None
     }
 
     pub fn select_next_move_quiescence(
+        &mut self,
         search_data: &mut SearchData,
         transpos_table: &mut AlphaBetaTable,
         move_list: &mut MoveList,
     ) -> Option<Move> {
-        if let Some(m) = Self::select_hash_move(search_data, transpos_table, move_list) {
-            return Some(m);
+        if self.stage == Stage::PrincipalVariation || self.stage == Stage::Hash {
+            if let Some(m) = Self::select_hash_move(search_data, transpos_table, move_list) {
+                return Some(m);
+            }
+            self.stage = Stage::MvvLva;
         }
 
+        debug_assert_eq!(Stage::MvvLva, self.stage);
         let opt_m = Self::select_mvv_lva(search_data, move_list);
         debug_assert!(opt_m.is_some() || move_list.is_empty());
         opt_m

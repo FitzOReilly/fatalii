@@ -221,7 +221,8 @@ impl AlphaBeta {
                         .update_move_and_truncate(depth, Move::NULL);
                     Some(node)
                 } else {
-                    while let Some(m) = MoveSelector::select_next_move(
+                    let mut move_selector = MoveSelector::new();
+                    while let Some(m) = move_selector.select_next_move(
                         search_data,
                         &mut self.transpos_table,
                         depth,
@@ -320,7 +321,8 @@ impl AlphaBeta {
         MoveGenerator::generate_captures(&mut move_list, pos);
         // Ignore underpromotions
         move_list.retain(|m| !m.is_promotion() || m.promotion_piece() == Some(piece::Type::Queen));
-        while let Some(m) = MoveSelector::select_next_move_quiescence(
+        let mut move_selector = MoveSelector::new();
+        while let Some(m) = move_selector.select_next_move_quiescence(
             search_data,
             &mut self.transpos_table,
             &mut move_list,
