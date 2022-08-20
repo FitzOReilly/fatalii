@@ -7,9 +7,8 @@ use crate::search_data::SearchData;
 use crate::time_manager::TimeManager;
 use crate::SearchOptions;
 use crossbeam_channel::{Receiver, Sender};
-use eval::{Score, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF};
+use eval::{Eval, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF};
 use movegen::move_generator::MoveGenerator;
-use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
@@ -21,7 +20,7 @@ use std::time::Instant;
 type NegamaxTable = TranspositionTable<Zobrist, NegamaxEntry>;
 
 pub struct Negamax {
-    eval_relative: fn(&Position) -> Score,
+    evaluator: Box<dyn Eval + Send>,
     transpos_table: NegamaxTable,
 }
 
@@ -112,10 +111,10 @@ impl Search for Negamax {
 }
 
 impl Negamax {
-    pub fn new(eval_relative: fn(&Position) -> Score, table_idx_bits: usize) -> Self {
+    pub fn new(evaluator: Box<dyn Eval + Send>, table_idx_bits: usize) -> Self {
         assert!(table_idx_bits > 0);
         Self {
-            eval_relative,
+            evaluator,
             transpos_table: NegamaxTable::new(table_idx_bits),
         }
     }
@@ -260,7 +259,7 @@ impl Negamax {
 
         search_data.increment_eval_calls();
         let pos = search_data.pos_history().current_pos();
-        let mut score = (self.eval_relative)(pos);
+        let mut score = self.evaluator.eval_relative(pos);
         let mut best_score = score;
         let mut best_move = Move::NULL;
 

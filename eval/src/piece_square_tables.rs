@@ -29,10 +29,17 @@ const INTERPOLATE_MAX_MATERIAL: Score = 2
         + 8 * PAWN_WEIGHT.0);
 const INTERPOLATE_MIN_MATERIAL: Score = 2 * KING_WEIGHT.0;
 
+#[derive(Debug, Clone)]
 pub struct PieceSquareTables;
 
+impl PieceSquareTables {
+    pub const fn new() -> Self {
+        PieceSquareTables
+    }
+}
+
 impl Eval for PieceSquareTables {
-    fn eval(pos: &Position) -> Score {
+    fn eval(&mut self, pos: &Position) -> Score {
         let mut opening_score = 0;
         let mut endgame_score = 0;
         let mut total_material = PAWN_WEIGHT.0
@@ -71,13 +78,6 @@ impl Eval for PieceSquareTables {
             + (INTERPOLATE_MAX_MATERIAL - game_phase) as i64 * endgame_score as i64)
             / (INTERPOLATE_MAX_MATERIAL - INTERPOLATE_MIN_MATERIAL) as i64;
         total_score as i16
-    }
-
-    fn eval_relative(pos: &Position) -> Score {
-        match pos.side_to_move() {
-            Side::White => Self::eval(pos),
-            Side::Black => -Self::eval(pos),
-        }
     }
 }
 

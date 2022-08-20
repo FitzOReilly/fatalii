@@ -13,7 +13,7 @@ use search::searcher::Searcher;
 use search::SearchOptions;
 use std::time::Duration;
 
-const EVAL_RELATIVE: fn(pos: &Position) -> Score = MaterialMobility::eval_relative;
+const EVALUATOR: MaterialMobility = MaterialMobility::new();
 const TIMEOUT_PER_BENCH: Duration = Duration::from_millis(10000);
 
 struct SearchBencher {
@@ -73,7 +73,7 @@ fn negamax(c: &mut Criterion, group_name: &str, pos: Position, min_depth: usize,
         group.throughput(Throughput::Elements(depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), &depth, |b, &depth| {
             b.iter_batched(
-                || SearchBencher::new(Negamax::new(EVAL_RELATIVE, table_idx_bits)),
+                || SearchBencher::new(Negamax::new(Box::new(EVALUATOR), table_idx_bits)),
                 |mut searcher| searcher.search(pos_history.clone(), depth),
                 BatchSize::SmallInput,
             );
@@ -97,7 +97,7 @@ fn alpha_beta(
         group.throughput(Throughput::Elements(depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), &depth, |b, &depth| {
             b.iter_batched(
-                || SearchBencher::new(AlphaBeta::new(EVAL_RELATIVE, table_idx_bits)),
+                || SearchBencher::new(AlphaBeta::new(Box::new(EVALUATOR), table_idx_bits)),
                 |mut searcher| searcher.search(pos_history.clone(), depth),
                 BatchSize::SmallInput,
             );
