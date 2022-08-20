@@ -9,9 +9,13 @@ use movegen::r#move::{Move, MoveList};
 enum Stage {
     PrincipalVariation,
     Hash,
+    QueenPromoCaptures,
+    QueenPromos,
     MvvLva,
     Killers,
     History,
+    UnderPromoCaptures,
+    UnderPromos,
 }
 
 pub struct MoveSelector {
@@ -43,6 +47,20 @@ impl MoveSelector {
             if let Some(m) = Self::select_hash_move(search_data, transpos_table, move_list) {
                 return Some(m);
             }
+            self.stage = Stage::QueenPromoCaptures;
+        }
+
+        if self.stage == Stage::QueenPromoCaptures {
+            if let Some(m) = Self::select_queen_promo_capture(move_list) {
+                return Some(m);
+            }
+            self.stage = Stage::QueenPromos;
+        }
+
+        if self.stage == Stage::QueenPromos {
+            if let Some(m) = Self::select_queen_promo(move_list) {
+                return Some(m);
+            }
             self.stage = Stage::MvvLva;
         }
 
@@ -60,8 +78,22 @@ impl MoveSelector {
             self.stage = Stage::History;
         }
 
-        debug_assert_eq!(Stage::History, self.stage);
-        if let Some(m) = Self::select_history(search_data, move_list) {
+        if self.stage == Stage::History {
+            if let Some(m) = Self::select_history(search_data, move_list) {
+                return Some(m);
+            }
+            self.stage = Stage::UnderPromoCaptures;
+        }
+
+        if self.stage == Stage::UnderPromoCaptures {
+            if let Some(m) = Self::select_under_promo_capture(move_list) {
+                return Some(m);
+            }
+            self.stage = Stage::UnderPromos;
+        }
+
+        debug_assert_eq!(Stage::UnderPromos, self.stage);
+        if let Some(m) = Self::select_under_promo(move_list) {
             return Some(m);
         }
 
@@ -77,6 +109,13 @@ impl MoveSelector {
     ) -> Option<Move> {
         if self.stage == Stage::PrincipalVariation || self.stage == Stage::Hash {
             if let Some(m) = Self::select_hash_move(search_data, transpos_table, move_list) {
+                return Some(m);
+            }
+            self.stage = Stage::QueenPromoCaptures;
+        }
+
+        if self.stage == Stage::QueenPromoCaptures {
+            if let Some(m) = Self::select_queen_promo_capture(move_list) {
                 return Some(m);
             }
             self.stage = Stage::MvvLva;
@@ -131,6 +170,82 @@ impl MoveSelector {
         None
     }
 
+    fn select_queen_promo_capture(move_list: &mut MoveList) -> Option<Move> {
+        if let Some(idx) = move_list.iter().enumerate().position(|(_, x)| {
+            x.is_promotion() && x.is_capture() && x.promotion_piece() == Some(piece::Type::Queen)
+        }) {
+            let next_move = move_list.swap_remove(idx);
+            return Some(next_move);
+        }
+
+        None
+    }
+
+    fn select_queen_promo(move_list: &mut MoveList) -> Option<Move> {
+        if let Some(idx) = move_list
+            .iter()
+            .enumerate()
+            .position(|(_, x)| x.is_promotion() && x.promotion_piece() == Some(piece::Type::Queen))
+        {
+            let next_move = move_list.swap_remove(idx);
+            return Some(next_move);
+        }
+
+        None
+    }
+
+    fn select_under_promo_capture(move_list: &mut MoveList) -> Option<Move> {
+        if let Some(idx) = move_list.iter().enumerate().position(|(_, x)| {
+            x.is_promotion() && x.is_capture() && x.promotion_piece() == Some(piece::Type::Knight)
+        }) {
+            let next_move = move_list.swap_remove(idx);
+            return Some(next_move);
+        }
+        if let Some(idx) = move_list.iter().enumerate().position(|(_, x)| {
+            x.is_promotion() && x.is_capture() && x.promotion_piece() == Some(piece::Type::Rook)
+        }) {
+            let next_move = move_list.swap_remove(idx);
+            return Some(next_move);
+        }
+        if let Some(idx) = move_list.iter().enumerate().position(|(_, x)| {
+            x.is_promotion() && x.is_capture() && x.promotion_piece() == Some(piece::Type::Bishop)
+        }) {
+            let next_move = move_list.swap_remove(idx);
+            return Some(next_move);
+        }
+
+        None
+    }
+
+    fn select_under_promo(move_list: &mut MoveList) -> Option<Move> {
+        if let Some(idx) = move_list
+            .iter()
+            .enumerate()
+            .position(|(_, x)| x.is_promotion() && x.promotion_piece() == Some(piece::Type::Knight))
+        {
+            let next_move = move_list.swap_remove(idx);
+            return Some(next_move);
+        }
+        if let Some(idx) = move_list
+            .iter()
+            .enumerate()
+            .position(|(_, x)| x.is_promotion() && x.promotion_piece() == Some(piece::Type::Rook))
+        {
+            let next_move = move_list.swap_remove(idx);
+            return Some(next_move);
+        }
+        if let Some(idx) = move_list
+            .iter()
+            .enumerate()
+            .position(|(_, x)| x.is_promotion() && x.promotion_piece() == Some(piece::Type::Bishop))
+        {
+            let next_move = move_list.swap_remove(idx);
+            return Some(next_move);
+        }
+
+        None
+    }
+
     fn filter_captures_select_mvv_lva(
         search_data: &mut SearchData,
         move_list: &mut MoveList,
@@ -138,7 +253,7 @@ impl MoveSelector {
         if let Some((idx, &m)) = move_list
             .iter()
             .enumerate()
-            .filter(|&(_, x)| x.is_capture())
+            .filter(|&(_, x)| x.is_capture() && !x.is_promotion())
             .min_by_key(|&(_, x)| {
                 let (attacker, target) =
                     Self::capture_piece_types(search_data.pos_history().current_pos(), *x);
@@ -220,14 +335,19 @@ impl MoveSelector {
     }
 
     fn select_history(search_data: &mut SearchData, move_list: &mut MoveList) -> Option<Move> {
-        if let Some((idx, &m)) = move_list.iter().enumerate().max_by_key(|&(_, x)| {
-            let p = search_data
-                .pos_history()
-                .current_pos()
-                .piece_at(x.origin())
-                .expect("Expected a piece at move origin");
-            search_data.history_priority(p, x.target())
-        }) {
+        if let Some((idx, &m)) = move_list
+            .iter()
+            .enumerate()
+            .filter(|&(_, x)| !x.is_promotion())
+            .max_by_key(|&(_, x)| {
+                let p = search_data
+                    .pos_history()
+                    .current_pos()
+                    .piece_at(x.origin())
+                    .expect("Expected a piece at move origin");
+                search_data.history_priority(p, x.target())
+            })
+        {
             debug_assert_eq!(m, move_list[idx]);
             let next_move = move_list.swap_remove(idx);
             return Some(next_move);

@@ -356,6 +356,68 @@ fn fifty_move_rule(search_algo: impl Search + Send + 'static) {
     assert_eq!(CHECKMATE_WHITE, res.score());
 }
 
+fn underpromotions(search_algo: impl Search + Send + 'static) {
+    let mut tester = SearchTester::new(search_algo);
+
+    let test_positions_underpromo = [
+        (
+            "6k1/5p2/8/8/8/8/1Q1p1K1P/8 b - - 0 1",
+            2,
+            Move::new(Square::D2, Square::D1, MoveType::PROMOTION_KNIGHT),
+        ),
+        (
+            "8/8/8/8/8/5K2/4p2R/5k2 b - - 0 1",
+            3,
+            Move::new(Square::E2, Square::E1, MoveType::PROMOTION_KNIGHT),
+        ),
+        (
+            "8/6P1/7k/8/6K1/8/8/8 w - - 0 1",
+            2,
+            Move::new(Square::G7, Square::G8, MoveType::PROMOTION_ROOK),
+        ),
+        (
+            "8/8/4Q3/8/5q2/8/1p2K2k/8 b - - 0 1",
+            6,
+            Move::new(Square::B2, Square::B1, MoveType::PROMOTION_ROOK),
+        ),
+        (
+            "8/3P4/3b4/8/8/1p2k2p/1Pp4P/2K5 w - - 0 1",
+            5,
+            Move::new(Square::D7, Square::D8, MoveType::PROMOTION_ROOK),
+        ),
+        (
+            "kb6/2P5/K7/2N5/8/8/8/8 w - - 0 1",
+            6,
+            Move::new(Square::C7, Square::C8, MoveType::PROMOTION_BISHOP),
+        ),
+        (
+            "K1N3r1/1Pr5/8/4k3/8/8/8/8 w - - 0 1",
+            3,
+            Move::new(Square::B7, Square::B8, MoveType::PROMOTION_BISHOP),
+        ),
+        (
+            "4Q3/Pq4pk/5p1p/5P1K/6PP/8/8/8 w - - 0 1",
+            8,
+            Move::new(Square::A7, Square::A8, MoveType::PROMOTION_BISHOP),
+        ),
+    ];
+
+    for (fen, depth, exp_move) in test_positions_underpromo {
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let pos_history = PositionHistory::new(pos.clone());
+        let res = tester.search(pos_history, depth);
+        assert_eq!(
+            exp_move,
+            res.best_move(),
+            "\nposition:\n{}{}\nexpected move: {},\n  actual move: {}",
+            pos,
+            fen,
+            exp_move,
+            res.best_move()
+        );
+    }
+}
+
 #[test]
 #[ignore]
 fn negamax_search_results_independent_of_transposition_table_size() {
@@ -514,4 +576,10 @@ fn alpha_beta_avoid_threefold_repetition_in_winning_position() {
 fn alpha_beta_fifty_move_rule() {
     let alpha_beta = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     fifty_move_rule(alpha_beta);
+}
+
+#[test]
+fn alpha_beta_underpromotions() {
+    let alpha_beta = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    underpromotions(alpha_beta);
 }
