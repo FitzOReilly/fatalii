@@ -4,7 +4,6 @@ use crate::test_buffer::TestBuffer;
 use assert_matches::assert_matches;
 use engine::{Engine, EngineOptions, Variant};
 use eval::material_mobility::MaterialMobility;
-use eval::{Eval, Score};
 use movegen::fen::Fen;
 use movegen::position::Position;
 use regex::Regex;
@@ -20,7 +19,7 @@ use uci::uci_in::{
 use uci::UciOut;
 use uci::{Parser, ParserMessage};
 
-const EVAL_RELATIVE: fn(pos: &Position) -> Score = MaterialMobility::eval_relative;
+const EVALUATOR: MaterialMobility = MaterialMobility::new();
 const TABLE_IDX_BITS: usize = 16;
 const FEN_STR: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
 const FEN_STR_CHESS_960: &str = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w HA - 1 8";
@@ -31,7 +30,7 @@ fn contains(v: Vec<u8>, s: &str) -> bool {
 
 #[test]
 fn run_command_uci() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -57,7 +56,7 @@ fn run_command_uci() {
 
 #[test]
 fn run_command_isready() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -82,7 +81,7 @@ fn run_command_isready() {
 
 #[test]
 fn run_command_debug() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -106,7 +105,7 @@ fn run_command_debug() {
 
 #[test]
 fn run_command_setoption() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -146,7 +145,7 @@ fn run_command_setoption() {
 
 #[test]
 fn run_command_position() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -193,7 +192,7 @@ fn run_command_position() {
 
 #[test]
 fn run_command_position_chess_960() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -249,7 +248,7 @@ fn run_command_position_chess_960() {
 
 #[test]
 fn run_command_ucinewgame() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -282,7 +281,7 @@ fn run_command_ucinewgame() {
 
 #[test]
 fn run_command_go() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -416,7 +415,7 @@ fn run_command_go() {
 
 #[test]
 fn run_command_go_time() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -457,7 +456,7 @@ fn run_command_go_time() {
 fn run_command_go_time_limit_exceeded() {
     // Even if the time limit is exceeded, the engine should still send
     // a bestmove response to a go command
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -493,7 +492,7 @@ fn run_command_go_time_limit_exceeded() {
 
 #[test]
 fn run_command_go_twice() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -522,7 +521,7 @@ fn run_command_go_twice() {
 
 #[test]
 fn run_command_isready_during_go() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -554,7 +553,7 @@ fn run_command_isready_during_go() {
 
 #[test]
 fn run_command_quit() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -584,7 +583,7 @@ fn run_command_quit() {
 
 #[test]
 fn info_score_equal_from_both_sides() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -654,7 +653,7 @@ fn info_score_equal_from_both_sides() {
 
 #[test]
 fn mate_in_one_white_to_move() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -686,7 +685,7 @@ fn mate_in_one_white_to_move() {
 
 #[test]
 fn mate_in_one_black_to_move() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let mut test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -718,18 +717,17 @@ fn mate_in_one_black_to_move() {
 
 #[test]
 fn negamax_threefold_repetition() {
-    let negamax = Negamax::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let negamax = Negamax::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     threefold_repetition(negamax);
 }
 
 #[test]
 fn alpha_beta_threefold_repetition() {
-    let alpha_beta = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let alpha_beta = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     threefold_repetition(alpha_beta);
 }
 
 fn threefold_repetition(search_algo: impl Search + Send + 'static) {
-    // let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(
@@ -776,7 +774,7 @@ fn threefold_repetition(search_algo: impl Search + Send + 'static) {
 #[test]
 #[ignore]
 fn stress() {
-    let search_algo = AlphaBeta::new(EVAL_RELATIVE, TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     let test_writer = TestBuffer::new();
     let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
     let uci_out = UciOut::new(

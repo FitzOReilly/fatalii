@@ -11,18 +11,18 @@ use movegen::queen::Queen;
 use movegen::rook::Rook;
 use movegen::side::Side;
 
+#[derive(Debug, Clone)]
 pub struct MaterialMobility;
 
-impl Eval for MaterialMobility {
-    fn eval(pos: &Position) -> Score {
-        Self::material_score(pos) + Self::mobility_score(pos)
+impl MaterialMobility {
+    pub const fn new() -> Self {
+        MaterialMobility
     }
+}
 
-    fn eval_relative(pos: &Position) -> Score {
-        match pos.side_to_move() {
-            Side::White => Self::eval(pos),
-            Side::Black => -Self::eval(pos),
-        }
+impl Eval for MaterialMobility {
+    fn eval(&mut self, pos: &Position) -> Score {
+        Self::material_score(pos) + Self::mobility_score(pos)
     }
 }
 
@@ -197,9 +197,10 @@ mod tests {
     #[test]
     fn eval_relative() {
         let mut pos_history = PositionHistory::new(Position::initial());
+        let mut evaluator = MaterialMobility::new();
         assert_eq!(
-            MaterialMobility::eval(pos_history.current_pos()),
-            MaterialMobility::eval_relative(pos_history.current_pos())
+            evaluator.eval(pos_history.current_pos()),
+            evaluator.eval_relative(pos_history.current_pos())
         );
 
         pos_history.do_move(Move::new(
@@ -208,8 +209,8 @@ mod tests {
             MoveType::DOUBLE_PAWN_PUSH,
         ));
         assert_eq!(
-            MaterialMobility::eval(pos_history.current_pos()),
-            -MaterialMobility::eval_relative(pos_history.current_pos())
+            evaluator.eval(pos_history.current_pos()),
+            -evaluator.eval_relative(pos_history.current_pos())
         );
 
         pos_history.do_move(Move::new(
@@ -218,8 +219,8 @@ mod tests {
             MoveType::DOUBLE_PAWN_PUSH,
         ));
         assert_eq!(
-            MaterialMobility::eval(pos_history.current_pos()),
-            MaterialMobility::eval_relative(pos_history.current_pos())
+            evaluator.eval(pos_history.current_pos()),
+            evaluator.eval_relative(pos_history.current_pos())
         );
 
         pos_history.do_move(Move::new(
@@ -228,8 +229,8 @@ mod tests {
             MoveType::DOUBLE_PAWN_PUSH,
         ));
         assert_eq!(
-            MaterialMobility::eval(pos_history.current_pos()),
-            -MaterialMobility::eval_relative(pos_history.current_pos())
+            evaluator.eval(pos_history.current_pos()),
+            -evaluator.eval_relative(pos_history.current_pos())
         );
     }
 }

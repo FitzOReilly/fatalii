@@ -11,12 +11,12 @@ pub const CHECKMATE_WHITE: Score = NEGATIVE_INF + 1;
 pub const CHECKMATE_BLACK: Score = POSITIVE_INF - 1;
 
 pub trait Eval {
-    fn eval(pos: &Position) -> Score;
+    fn eval(&mut self, pos: &Position) -> Score;
 
-    fn eval_relative(pos: &Position) -> Score {
+    fn eval_relative(&mut self, pos: &Position) -> Score {
         match pos.side_to_move() {
-            Side::White => Self::eval(pos),
-            Side::Black => -Self::eval(pos),
+            Side::White => self.eval(pos),
+            Side::Black => -self.eval(pos),
         }
     }
 }
