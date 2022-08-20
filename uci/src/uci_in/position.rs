@@ -64,18 +64,14 @@ fn parse_fen(args: &str) -> Result<(PositionHistory, &str), Box<dyn Error>> {
     {
         Some(fen_end) => match Fen::str_to_pos(&trimmed[..fen_end]) {
             Ok(pos) => Ok((PositionHistory::new(pos), &trimmed[fen_end..])),
-            Err(e) => {
-                return Err(Box::new(UciError::InvalidArgument(format!(
-                    "position fen {}\n{}",
-                    args, e
-                ))))
-            }
+            Err(e) => Err(Box::new(UciError::InvalidArgument(format!(
+                "position fen {}\n{}",
+                args, e
+            )))),
         },
-        None => {
-            return Err(Box::new(UciError::InvalidArgument(format!(
-                "position fen {}",
-                args.trim_end()
-            ))))
-        }
+        None => Err(Box::new(UciError::InvalidArgument(format!(
+            "position fen {}",
+            args.trim_end()
+        )))),
     }
 }
