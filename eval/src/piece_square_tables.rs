@@ -30,54 +30,84 @@ const INTERPOLATE_MAX_MATERIAL: Score = 2
 const INTERPOLATE_MIN_MATERIAL: Score = 2 * KING_WEIGHT.0;
 
 #[derive(Debug, Clone)]
-pub struct PieceSquareTables;
-
-impl PieceSquareTables {
-    pub const fn new() -> Self {
-        PieceSquareTables
-    }
+pub struct PieceSquareTables {
+    current_pos: Position,
+    opening_score: Score,
+    endgame_score: Score,
+    total_material: Score,
 }
 
 impl Eval for PieceSquareTables {
     fn eval(&mut self, pos: &Position) -> Score {
-        let mut opening_score = 0;
-        let mut endgame_score = 0;
-        let mut total_material = PAWN_WEIGHT.0
-            * pos.piece_type_occupancy(piece::Type::Pawn).pop_count() as Score
-            + KNIGHT_WEIGHT.0 * pos.piece_type_occupancy(piece::Type::Knight).pop_count() as Score
-            + BISHOP_WEIGHT.0 * pos.piece_type_occupancy(piece::Type::Bishop).pop_count() as Score
-            + ROOK_WEIGHT.0 * pos.piece_type_occupancy(piece::Type::Rook).pop_count() as Score
-            + QUEEN_WEIGHT.0 * pos.piece_type_occupancy(piece::Type::Queen).pop_count() as Score
-            + KING_WEIGHT.0 * pos.piece_type_occupancy(piece::Type::King).pop_count() as Score;
-        total_material = cmp::min(INTERPOLATE_MAX_MATERIAL, total_material);
-        let game_phase = total_material - INTERPOLATE_MIN_MATERIAL;
-
-        for (piece_type, table) in [
-            (piece::Type::Pawn, PST_PAWN),
-            (piece::Type::Knight, PST_KNIGHT),
-            (piece::Type::Bishop, PST_BISHOP),
-            (piece::Type::Rook, PST_ROOK),
-            (piece::Type::Queen, PST_QUEEN),
-            (piece::Type::King, PST_KING),
-        ] {
-            let mut white_piece = pos.piece_occupancy(Side::White, piece_type);
-            while white_piece != Bitboard::EMPTY {
-                let square = white_piece.square_scan_forward_reset();
-                opening_score += table[0][square.idx()];
-                endgame_score += table[1][square.idx()];
-            }
-            let mut black_piece = pos.piece_occupancy(Side::Black, piece_type);
-            while black_piece != Bitboard::EMPTY {
-                let square = black_piece.square_scan_forward_reset();
-                opening_score -= table[0][square.flip_vertical().idx()];
-                endgame_score -= table[1][square.flip_vertical().idx()];
-            }
-        }
-
-        let total_score = (game_phase as i64 * opening_score as i64
-            + (INTERPOLATE_MAX_MATERIAL - game_phase) as i64 * endgame_score as i64)
+        self.update(pos);
+        let clamped_material = cmp::min(INTERPOLATE_MAX_MATERIAL, self.total_material);
+        let game_phase = clamped_material - INTERPOLATE_MIN_MATERIAL;
+        let total_score = (game_phase as i64 * self.opening_score as i64
+            + (INTERPOLATE_MAX_MATERIAL - game_phase) as i64 * self.endgame_score as i64)
             / (INTERPOLATE_MAX_MATERIAL - INTERPOLATE_MIN_MATERIAL) as i64;
         total_score as i16
+    }
+}
+
+impl Default for PieceSquareTables {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PieceSquareTables {
+    pub fn new() -> Self {
+        PieceSquareTables {
+            current_pos: Position::empty(),
+            opening_score: 0,
+            endgame_score: 0,
+            total_material: 0,
+        }
+    }
+
+    fn update(&mut self, pos: &Position) {
+        for (piece_type, table, weight) in [
+            (piece::Type::Pawn, PST_PAWN, PAWN_WEIGHT.0),
+            (piece::Type::Knight, PST_KNIGHT, KNIGHT_WEIGHT.0),
+            (piece::Type::Bishop, PST_BISHOP, BISHOP_WEIGHT.0),
+            (piece::Type::Rook, PST_ROOK, ROOK_WEIGHT.0),
+            (piece::Type::Queen, PST_QUEEN, QUEEN_WEIGHT.0),
+            (piece::Type::King, PST_KING, KING_WEIGHT.0),
+        ] {
+            let old_white = self.current_pos.piece_occupancy(Side::White, piece_type);
+            let new_white = pos.piece_occupancy(Side::White, piece_type);
+            let mut white_remove = old_white & !new_white;
+            let mut white_add = new_white & !old_white;
+            while white_remove != Bitboard::EMPTY {
+                let square = white_remove.square_scan_forward_reset();
+                self.opening_score -= table[0][square.idx()];
+                self.endgame_score -= table[1][square.idx()];
+                self.total_material -= weight;
+            }
+            while white_add != Bitboard::EMPTY {
+                let square = white_add.square_scan_forward_reset();
+                self.opening_score += table[0][square.idx()];
+                self.endgame_score += table[1][square.idx()];
+                self.total_material += weight;
+            }
+            let old_black = self.current_pos.piece_occupancy(Side::Black, piece_type);
+            let new_black = pos.piece_occupancy(Side::Black, piece_type);
+            let mut black_remove = old_black & !new_black;
+            let mut black_add = new_black & !old_black;
+            while black_remove != Bitboard::EMPTY {
+                let square = black_remove.square_scan_forward_reset();
+                self.opening_score += table[0][square.flip_vertical().idx()];
+                self.endgame_score += table[1][square.flip_vertical().idx()];
+                self.total_material -= weight;
+            }
+            while black_add != Bitboard::EMPTY {
+                let square = black_add.square_scan_forward_reset();
+                self.opening_score -= table[0][square.flip_vertical().idx()];
+                self.endgame_score -= table[1][square.flip_vertical().idx()];
+                self.total_material += weight;
+            }
+        }
+        self.current_pos = pos.clone();
     }
 }
 
