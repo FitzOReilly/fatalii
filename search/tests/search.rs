@@ -417,6 +417,24 @@ fn underpromotions(search_algo: impl Search + Send + 'static) {
     }
 }
 
+fn stalemate_and_threefold_repetition(search_algo: impl Search + Send + 'static) {
+    let mut tester = SearchTester::new(search_algo);
+
+    let test_positions_stalemate = [
+        ("7k/7p/8/8/8/8/5q2/6RK w - - 0 1", 10), // Stalemate after Rg8+
+        ("7k/5Q2/6pp/6q1/8/3rr3/8/7K w - - 0 1", 10), // 3-fold repetition
+        ("7k/5Q2/6pp/8/8/6q1/3rr3/7K w - - 0 1", 10), // Stalemate or 3-fold repetition possible
+    ];
+    let exp_score = EQUAL_POSITION;
+
+    for (fen, depth) in test_positions_stalemate {
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let pos_history = PositionHistory::new(pos.clone());
+        let res = tester.search(pos_history, depth);
+        assert_eq!(exp_score, res.score(),);
+    }
+}
+
 #[test]
 #[ignore]
 fn negamax_search_results_independent_of_transposition_table_size() {
@@ -581,4 +599,11 @@ fn alpha_beta_fifty_move_rule() {
 fn alpha_beta_underpromotions() {
     let alpha_beta = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
     underpromotions(alpha_beta);
+}
+
+#[test]
+#[ignore]
+fn alpha_beta_stalemate_and_threefold_repetition() {
+    let alpha_beta = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
+    stalemate_and_threefold_repetition(alpha_beta);
 }
