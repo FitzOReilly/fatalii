@@ -220,6 +220,7 @@ impl AlphaBeta {
                     search_data
                         .pv_table_mut()
                         .update_move_and_truncate(depth, Move::NULL);
+                    search_data.end_pv();
                     Some(node)
                 } else {
                     let mut move_selector = MoveSelector::new();
