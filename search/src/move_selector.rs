@@ -59,7 +59,7 @@ impl MoveSelector {
                 .unwrap_or_else(|| {
                     panic!(
                         "\nPV move not found in move list\n\
-                    Search depth: {}\nDepth: {}\nMove list: {}\nPV move: {}\nPV table:\n{}",
+                        Search depth: {}\nDepth: {}\nMove list: {}\nPV move: {}\nPV table:\n{}",
                         search_data.search_depth(),
                         depth,
                         move_list,
