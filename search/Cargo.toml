@@ -2,7 +2,7 @@
 name = "search"
 version = "0.1.0"
 authors = ["Patrick Heck <49785565+FitzOReilly@users.noreply.github.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 crossbeam-channel = "0.5"
