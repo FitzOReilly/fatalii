@@ -1,5 +1,6 @@
 use crate::bitboard::Bitboard;
 use crate::fen::Fen;
+use crate::move_generator::MoveGenerator;
 use crate::pawn::Pawn;
 use crate::piece;
 use crate::position::{CastlingRights, Position};
@@ -46,15 +47,20 @@ pub struct PositionHistory {
 impl PositionHistory {
     pub fn new(pos: Position) -> Self {
         let pos_hash = Zobrist::new(&pos);
-        let mut rep_tracker = RepetitionTracker::new();
-        rep_tracker.push(pos_hash, false);
-        Self {
+        let rep_tracker = RepetitionTracker::new();
+        let mut pos_hist = Self {
             pos_hash,
             pos,
             irreversible_props: Vec::<IrreversibleProperties>::new(),
             moves: Vec::<Move>::new(),
             rep_tracker,
-        }
+        };
+        let en_passant_square = pos_hist.current_pos().en_passant_square();
+        pos_hist.clear_en_passant_square_if_irrelevant(en_passant_square);
+        pos_hist
+            .rep_tracker
+            .push(pos_hist.current_pos_hash(), false);
+        pos_hist
     }
 
     pub fn current_pos(&self) -> &Position {
@@ -202,7 +208,16 @@ impl PositionHistory {
         self.pos.set_move_count(move_count + side_to_move as usize);
         self.pos.set_side_to_move(!side_to_move);
         self.pos_hash.toggle_side_to_move(Side::Black);
+        self.clear_en_passant_square_if_irrelevant(en_passant_square);
+
         self.rep_tracker.push(self.pos_hash, IS_REVERSIBLE);
+    }
+
+    fn clear_en_passant_square_if_irrelevant(&mut self, en_passant_square: Bitboard) {
+        if !MoveGenerator::has_en_passant_capture(&self.pos) {
+            self.pos.set_en_passant_square(Bitboard::EMPTY);
+            self.pos_hash.toggle_en_passant_square(en_passant_square);
+        }
     }
 
     fn do_castle(&mut self, m: Move) {
@@ -554,7 +569,10 @@ mod tests {
             Bitboard::E4,
             pos_history.current_pos().side_occupancy(Side::White) & (Bitboard::E2 | Bitboard::E4)
         );
-        assert_eq!(Bitboard::E3, pos_history.current_pos().en_passant_square());
+        assert_eq!(
+            Bitboard::EMPTY,
+            pos_history.current_pos().en_passant_square()
+        );
         assert_eq!(Side::Black, pos_history.current_pos().side_to_move());
         assert_eq!(
             CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
@@ -576,7 +594,10 @@ mod tests {
             Bitboard::C5,
             pos_history.current_pos().side_occupancy(Side::Black) & (Bitboard::C7 | Bitboard::C5)
         );
-        assert_eq!(Bitboard::C6, pos_history.current_pos().en_passant_square());
+        assert_eq!(
+            Bitboard::EMPTY,
+            pos_history.current_pos().en_passant_square()
+        );
         assert_eq!(Side::White, pos_history.current_pos().side_to_move());
         assert_eq!(
             CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
@@ -1366,7 +1387,10 @@ mod tests {
         let m = Move::new(Square::E2, Square::E4, MoveType::DOUBLE_PAWN_PUSH);
         move_history.push(m);
         pos_history.do_move(m);
-        assert_eq!(Bitboard::E3, pos_history.current_pos().en_passant_square());
+        assert_eq!(
+            Bitboard::EMPTY,
+            pos_history.current_pos().en_passant_square()
+        );
         assert_eq!(Side::Black, pos_history.current_pos().side_to_move());
 
         // Position after 1. e4 null
@@ -1624,5 +1648,36 @@ mod tests {
         println!("Position\n{}", pos_hist.current_pos());
         pos_hist.undo_last_move();
         println!("Position\n{}", pos_hist.current_pos());
+    }
+
+    #[test]
+    fn repetitions_with_irrelevant_en_passant_square() {
+        // Expected: Detect repetitions in positions after a double pawn push
+        // when there is no legal en passant capture.
+
+        let g7g5 = Move::new(Square::G7, Square::G5, MoveType::DOUBLE_PAWN_PUSH);
+        let c3d3 = Move::new(Square::C3, Square::D3, MoveType::QUIET);
+        let b7a6 = Move::new(Square::B7, Square::A6, MoveType::QUIET);
+        let d3c3 = Move::new(Square::D3, Square::C3, MoveType::QUIET);
+        let a6b7 = Move::new(Square::A6, Square::B7, MoveType::QUIET);
+
+        let fen_before_pawn_push = "8/1b1rr1p1/3kpp1p/2pn4/2P1B1P1/2R2N1P/2P2PK1/3R4 b - - 20 35";
+        let pos = Fen::str_to_pos(fen_before_pawn_push).unwrap();
+        let mut pos_hist = PositionHistory::new(pos.clone());
+        pos_hist.do_move(g7g5);
+        pos_hist.do_move(c3d3);
+        pos_hist.do_move(b7a6);
+        pos_hist.do_move(d3c3);
+        pos_hist.do_move(a6b7);
+        assert_eq!(2, pos_hist.current_pos_repetitions());
+
+        let fen_after_pawn_push = "8/1b1rr3/3kpp1p/2pn2p1/2P1B1P1/2R2N1P/2P2PK1/3R4 w - g6 0 36";
+        let pos = Fen::str_to_pos(fen_after_pawn_push).unwrap();
+        let mut pos_hist = PositionHistory::new(pos.clone());
+        pos_hist.do_move(c3d3);
+        pos_hist.do_move(b7a6);
+        pos_hist.do_move(d3c3);
+        pos_hist.do_move(a6b7);
+        assert_eq!(2, pos_hist.current_pos_repetitions());
     }
 }

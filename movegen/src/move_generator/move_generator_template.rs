@@ -29,6 +29,32 @@ pub trait MoveGeneratorTemplate {
     ) -> bool;
     fn is_legal_king_move(attacks_to_king: &AttacksTo, origin: Square, target: Square) -> bool;
 
+    fn has_en_passant_capture(attacks_to_king: &AttacksTo) -> bool {
+        let pos = attacks_to_king.pos;
+        if pos.en_passant_square() == Bitboard::EMPTY {
+            return false;
+        }
+
+        let potential_origins =
+            Pawn::west_attack_origins(pos.en_passant_square(), pos.side_to_move())
+                | Pawn::east_attack_origins(pos.en_passant_square(), pos.side_to_move());
+        let own_pawns = pos.piece_occupancy(pos.side_to_move(), piece::Type::Pawn);
+        let mut attack_origins = potential_origins & own_pawns;
+        if attack_origins == Bitboard::EMPTY {
+            return false;
+        }
+
+        let target = pos.en_passant_square().to_square();
+        while attack_origins != Bitboard::EMPTY {
+            let origin = attack_origins.square_scan_forward_reset();
+            if Self::is_legal_en_passant_capture(attacks_to_king, origin, target) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     fn generate_moves(move_list: &mut MoveList, attacks_to_king: &AttacksTo) {
         Self::generate_pawn_moves(move_list, attacks_to_king);
         Self::generate_knight_moves(move_list, attacks_to_king);
