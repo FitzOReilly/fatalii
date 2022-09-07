@@ -149,34 +149,10 @@ impl AlphaBeta {
             }
         }
 
-        if search_data.pos_history().current_pos_repetitions() >= REPETITIONS_TO_DRAW {
-            let entry = AlphaBetaEntry::new(depth, EQUAL_POSITION, ScoreType::Exact, Move::NULL);
-            if depth > 0 {
-                search_data
-                    .pv_table_mut()
-                    .update_move_and_truncate(depth, entry.best_move());
-                search_data.end_pv();
-            }
+        if let Some(entry) = check_draw_by_rep(search_data, depth) {
             return Some(entry);
         }
-
-        let pos = search_data.pos_history().current_pos();
-        if pos.plies_since_pawn_move_or_capture() >= PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW {
-            let mut score = EQUAL_POSITION;
-            if pos.is_in_check(pos.side_to_move()) {
-                let mut move_list = MoveList::new();
-                MoveGenerator::generate_moves(&mut move_list, pos);
-                if move_list.is_empty() {
-                    score = CHECKMATE_WHITE;
-                }
-            }
-            let entry = AlphaBetaEntry::new(depth, score, ScoreType::Exact, Move::NULL);
-            if depth > 0 {
-                search_data
-                    .pv_table_mut()
-                    .update_move_and_truncate(depth, entry.best_move());
-                search_data.end_pv();
-            }
+        if let Some(entry) = check_draw_by_moves(search_data, depth) {
             return Some(entry);
         }
 
@@ -285,17 +261,15 @@ impl AlphaBeta {
         beta: Score,
     ) -> AlphaBetaEntry {
         let depth = 0;
+
+        if let Some(entry) = check_draw_by_rep(search_data, depth) {
+            return entry;
+        }
+        if let Some(entry) = check_draw_by_moves(search_data, depth) {
+            return entry;
+        }
+
         let pos_hash = search_data.pos_history().current_pos_hash();
-
-        debug_assert!(search_data.pos_history().current_pos_repetitions() < REPETITIONS_TO_DRAW);
-        debug_assert!(
-            search_data
-                .pos_history()
-                .current_pos()
-                .plies_since_pawn_move_or_capture()
-                < PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW
-        );
-
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             if let Some(bounded) = entry.bound_hard(alpha, beta) {
                 search_data.increment_cache_hits(depth);
@@ -303,6 +277,14 @@ impl AlphaBeta {
             }
         }
 
+        let pos = search_data.pos_history().current_pos();
+        let is_in_check = pos.is_in_check(pos.side_to_move());
+        if is_in_check {
+            return self.search_quiescence_check(search_data, alpha, beta);
+        }
+
+        // We might be evaluating a stalemate here. This is ok for now because checking for legal
+        // moves is expensive here.
         search_data.increment_eval_calls();
         let pos = search_data.pos_history().current_pos();
         let mut score = self.evaluator.eval_relative(pos);
@@ -324,7 +306,7 @@ impl AlphaBeta {
         // Ignore underpromotions
         move_list.retain(|m| !m.is_promotion() || m.promotion_piece() == Some(piece::Type::Queen));
         let mut move_selector = MoveSelector::new();
-        while let Some(m) = move_selector.select_next_move_quiescence(
+        while let Some(m) = move_selector.select_next_move_quiescence_capture(
             search_data,
             &mut self.transpos_table,
             &mut move_list,
@@ -352,6 +334,63 @@ impl AlphaBeta {
         node
     }
 
+    fn search_quiescence_check(
+        &mut self,
+        search_data: &mut SearchData,
+        mut alpha: Score,
+        beta: Score,
+    ) -> AlphaBetaEntry {
+        debug_assert!({
+            let pos = search_data.pos_history().current_pos();
+            pos.is_in_check(pos.side_to_move())
+        });
+
+        let depth = 0;
+        let pos_hash = search_data.pos_history().current_pos_hash();
+
+        let mut score;
+        let mut score_type = ScoreType::UpperBound;
+        let mut best_move = Move::NULL;
+
+        let mut move_list = MoveList::new();
+        let mut move_selector = MoveSelector::new();
+
+        MoveGenerator::generate_moves(&mut move_list, search_data.pos_history().current_pos());
+        if move_list.is_empty() {
+            let node = AlphaBetaEntry::new(depth, CHECKMATE_WHITE, ScoreType::Exact, Move::NULL);
+            self.update_table(pos_hash, node);
+            return node;
+        }
+        while let Some(m) = move_selector.select_next_move(
+            search_data,
+            &mut self.transpos_table,
+            depth,
+            &mut move_list,
+        ) {
+            search_data.increment_nodes(depth);
+            search_data.pos_history_mut().do_move(m);
+            let search_result = -self.search_quiescence(search_data, -beta, -alpha);
+            score = search_result.score();
+            search_data.pos_history_mut().undo_last_move();
+
+            if score >= beta {
+                let node = AlphaBetaEntry::new(depth, beta, ScoreType::LowerBound, m);
+                self.update_table(pos_hash, node);
+                return node;
+            }
+            if score > alpha {
+                alpha = score;
+                score_type = ScoreType::Exact;
+                best_move = m;
+            }
+        }
+
+        debug_assert!(score_type == ScoreType::Exact || score_type == ScoreType::UpperBound);
+        let node = AlphaBetaEntry::new(depth, alpha, score_type, best_move);
+        self.update_table(pos_hash, node);
+        node
+    }
+
     fn update_table(&mut self, pos_hash: Zobrist, node: AlphaBetaEntry) {
         self.transpos_table.insert(pos_hash, node);
     }
@@ -362,6 +401,43 @@ impl AlphaBeta {
             _ => None,
         }
     }
+}
+
+fn check_draw_by_rep(search_data: &mut SearchData, depth: usize) -> Option<AlphaBetaEntry> {
+    if search_data.pos_history().current_pos_repetitions() >= REPETITIONS_TO_DRAW {
+        let entry = AlphaBetaEntry::new(depth, EQUAL_POSITION, ScoreType::Exact, Move::NULL);
+        if depth > 0 {
+            search_data
+                .pv_table_mut()
+                .update_move_and_truncate(depth, entry.best_move());
+            search_data.end_pv();
+        }
+        return Some(entry);
+    }
+    None
+}
+
+fn check_draw_by_moves(search_data: &mut SearchData, depth: usize) -> Option<AlphaBetaEntry> {
+    let pos = search_data.pos_history().current_pos();
+    if pos.plies_since_pawn_move_or_capture() >= PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW {
+        let mut score = EQUAL_POSITION;
+        if pos.is_in_check(pos.side_to_move()) {
+            let mut move_list = MoveList::new();
+            MoveGenerator::generate_moves(&mut move_list, pos);
+            if move_list.is_empty() {
+                score = CHECKMATE_WHITE;
+            }
+        }
+        let entry = AlphaBetaEntry::new(depth, score, ScoreType::Exact, Move::NULL);
+        if depth > 0 {
+            search_data
+                .pv_table_mut()
+                .update_move_and_truncate(depth, entry.best_move());
+            search_data.end_pv();
+        }
+        return Some(entry);
+    }
+    None
 }
 
 #[cfg(test)]

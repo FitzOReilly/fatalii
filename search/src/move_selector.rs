@@ -101,7 +101,7 @@ impl MoveSelector {
         None
     }
 
-    pub fn select_next_move_quiescence(
+    pub fn select_next_move_quiescence_capture(
         &mut self,
         search_data: &mut SearchData,
         transpos_table: &mut AlphaBetaTable,
@@ -324,6 +324,10 @@ impl MoveSelector {
         depth: usize,
         move_list: &mut MoveList,
     ) -> Option<Move> {
+        if depth == 0 {
+            return None;
+        }
+
         for k in search_data.killers(depth).iter().flatten() {
             if let Some(idx) = move_list.iter().position(|x| x == k) {
                 let next_move = move_list.swap_remove(idx);
