@@ -102,7 +102,7 @@ fn search_results_equal(min_depth: usize, max_depth: usize, mut searchers: Vec<S
     }
 }
 
-fn checkmate_white(search_algo: impl Search + Send + 'static) {
+fn checkmate_white(search_algo: impl Search + Send + 'static, depth: usize) {
     let mut pos_history = PositionHistory::new(Position::initial());
     pos_history.do_move(Move::new(Square::F2, Square::F3, MoveType::QUIET));
     pos_history.do_move(Move::new(Square::E7, Square::E6, MoveType::QUIET));
@@ -112,7 +112,6 @@ fn checkmate_white(search_algo: impl Search + Send + 'static) {
         MoveType::DOUBLE_PAWN_PUSH,
     ));
 
-    let depth = 2;
     let expected = SearchResult::new(
         depth,
         CHECKMATE_WHITE,
@@ -132,7 +131,7 @@ fn checkmate_white(search_algo: impl Search + Send + 'static) {
     assert_eq!(expected.best_move(), actual.best_move());
 }
 
-fn checkmate_black(search_algo: impl Search + Send + 'static) {
+fn checkmate_black(search_algo: impl Search + Send + 'static, depth: usize) {
     let mut pos = Position::empty();
     pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
     pos.set_piece_at(Square::A1, Some(piece::Piece::WHITE_ROOK));
@@ -142,7 +141,6 @@ fn checkmate_black(search_algo: impl Search + Send + 'static) {
     pos.set_side_to_move(Side::White);
     let pos_history = PositionHistory::new(pos);
 
-    let depth = 2;
     let expected = SearchResult::new(
         depth,
         CHECKMATE_BLACK,
@@ -361,12 +359,12 @@ fn underpromotions(search_algo: impl Search + Send + 'static) {
     let test_positions_underpromo = [
         (
             "6k1/5p2/8/8/8/8/1Q1p1K1P/8 b - - 0 1",
-            2,
+            1,
             Move::new(Square::D2, Square::D1, MoveType::PROMOTION_KNIGHT),
         ),
         (
             "8/8/8/8/8/5K2/4p2R/5k2 b - - 0 1",
-            3,
+            2,
             Move::new(Square::E2, Square::E1, MoveType::PROMOTION_KNIGHT),
         ),
         (
@@ -386,7 +384,7 @@ fn underpromotions(search_algo: impl Search + Send + 'static) {
         ),
         (
             "kb6/2P5/K7/2N5/8/8/8/8 w - - 0 1",
-            6,
+            5,
             Move::new(Square::C7, Square::C8, MoveType::PROMOTION_BISHOP),
         ),
         (
@@ -458,13 +456,15 @@ fn negamax_search_results_independent_of_transposition_table_size() {
 #[test]
 fn negamax_checkmate_white() {
     let negamax = Negamax::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
-    checkmate_white(negamax);
+    let depth = 2;
+    checkmate_white(negamax, depth);
 }
 
 #[test]
 fn negamax_checkmate_black() {
     let negamax = Negamax::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
-    checkmate_black(negamax);
+    let depth = 2;
+    checkmate_black(negamax, depth);
 }
 
 #[test]
@@ -533,13 +533,15 @@ fn alpha_beta_search_results_independent_of_transposition_table_size() {
 #[test]
 fn alpha_beta_checkmate_white() {
     let alpha_beta = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
-    checkmate_white(alpha_beta);
+    let depth = 1;
+    checkmate_white(alpha_beta, depth);
 }
 
 #[test]
 fn alpha_beta_checkmate_black() {
     let alpha_beta = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
-    checkmate_black(alpha_beta);
+    let depth = 1;
+    checkmate_black(alpha_beta, depth);
 }
 
 #[test]
