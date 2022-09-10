@@ -23,6 +23,9 @@ use std::time::Instant;
 
 pub type AlphaBetaTable = TranspositionTable<Zobrist, AlphaBetaEntry>;
 
+// Minimum depth for principal variation search. Disable null-window searches below this depth.
+const MIN_PVS_DEPTH: usize = 3;
+
 // Alpha-beta search with fail-hard cutoffs
 pub struct AlphaBeta {
     evaluator: Box<dyn Eval + Send>,
@@ -199,6 +202,7 @@ impl AlphaBeta {
                     search_data.end_pv();
                     Some(node)
                 } else {
+                    let mut pvs_full_window = true;
                     let mut move_selector = MoveSelector::new();
                     while let Some(m) = move_selector.select_next_move(
                         search_data,
@@ -208,8 +212,27 @@ impl AlphaBeta {
                     ) {
                         search_data.increment_nodes(depth);
                         search_data.pos_history_mut().do_move(m);
-                        let opt_neg_res =
-                            self.search_recursive(search_data, depth - 1, -beta, -alpha);
+                        // Principal variation search
+                        let opt_neg_res = if pvs_full_window || depth < MIN_PVS_DEPTH {
+                            self.search_recursive(search_data, depth - 1, -beta, -alpha)
+                        } else {
+                            // Null window search
+                            let onr =
+                                self.search_recursive(search_data, depth - 1, -alpha - 1, -alpha);
+                            match onr {
+                                Some(nr) => {
+                                    let search_res = -nr;
+                                    let score = search_res.score();
+                                    if score > alpha {
+                                        // Re-search with full window
+                                        self.search_recursive(search_data, depth - 1, -beta, -alpha)
+                                    } else {
+                                        onr
+                                    }
+                                }
+                                None => return None,
+                            }
+                        };
                         search_data.pos_history_mut().undo_last_move();
 
                         match opt_neg_res {
@@ -233,6 +256,7 @@ impl AlphaBeta {
                                 }
                                 if score > alpha {
                                     alpha = score;
+                                    pvs_full_window = false;
                                     score_type = ScoreType::Exact;
                                     best_move = m;
                                     search_data
