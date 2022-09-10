@@ -1,9 +1,22 @@
 [![Tests](https://github.com/FitzOReilly/fatalii/actions/workflows/tests.yml/badge.svg)](https://github.com/FitzOReilly/fatalii/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/FitzOReilly/fatalii/branch/main/graph/badge.svg?token=KJNHD6Z7ZM)](https://codecov.io/gh/FitzOReilly/fatalii)
 
-UCI compatible chess engine
+UCI compliant chess engine
 
 Challenge me on Lichess: https://lichess.org/@/FataliiBot
+
+## Usage
+Fatalii supports the UCI protocol (universal chess interface), so it can be used with a UCI compatible GUI.
+Some choices are [Cute Chess](https://cutechess.com/), [Arena](http://www.playwitharena.de/) or
+[Lucas Chess](https://lucaschess.pythonanywhere.com/) among others.
+
+## UCI options
+- Hash \
+  The size of the hash table in MB
+- Move Overhead \
+  Subtract this value from the movetime to compensate for network delays or GUI overheads
+- UCI_Chess960 \
+  Enable Chess960 if this is set to true
 
 ## Building from source
 To compile the engine, you need to have [Rust](https://www.rust-lang.org/) installed. Then clone the repo
@@ -20,15 +33,21 @@ cargo build --profile release-lto
 The binary will be in `target/release-lto/fatalii`.
 
 ## Supported features
+- Chess960
 - Bitboards using file rank mapping
 - Evaluation currently solely based on piece square tables
 - Alpha-Beta search
-  - Quiescence search
   - Iterative deepening
+  - Principal variation search
+  - Quiescence search
   - Move ordering
     - Principal variation move
     - Hash move
+    - Queen promotions
     - Most valuable victim - least valueable attacker (MVV-LVA)
+    - Killer heuristic
+    - History heuristic
+    - Underpromotions last
 - Transposition table with Zobrist hashing
 - Detect draws by 3-fold repetition
 - Detect draws by 50 move rule
