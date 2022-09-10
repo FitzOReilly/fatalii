@@ -32,7 +32,7 @@ pub const OPTIONS: [UciOption; 3] = [
     UciOption {
         name: "Hash",
         r#type: OptionType::Spin(SpinProps {
-            default: 8,
+            default: 16,
             min: 1,
             max: 65536,
             fun: set_hash_size,
