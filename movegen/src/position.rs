@@ -302,6 +302,12 @@ impl Position {
         self.set_castling_rights(self.castling_rights() & !removed_castling_rights);
     }
 
+    pub fn has_minor_or_major_piece(&self, side: Side) -> bool {
+        (self.piece_occupancy(side, piece::Type::King)
+            | self.piece_occupancy(side, piece::Type::Pawn))
+            != self.side_occupancy(side)
+    }
+
     fn set_castling_squares(&mut self) {
         self.castling_squares = CastlingSquares::new(
             self.queenside_castling_file(),
@@ -615,5 +621,75 @@ mod tests {
         assert_eq!(File::D, pos.king_start_file());
         assert_eq!(File::F, pos.kingside_castling_file());
         assert_eq!(File::C, pos.queenside_castling_file());
+    }
+
+    #[test]
+    fn has_minor_or_major_piece() {
+        let pos = Position::initial();
+        assert_eq!(true, pos.has_minor_or_major_piece(Side::White));
+        assert_eq!(true, pos.has_minor_or_major_piece(Side::Black));
+
+        let mut pos = Position::empty();
+        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
+        assert_eq!(false, pos.has_minor_or_major_piece(Side::White));
+        assert_eq!(false, pos.has_minor_or_major_piece(Side::Black));
+
+        let mut pos_white_pawn = pos.clone();
+        pos_white_pawn.set_piece_at(Square::G1, Some(piece::Piece::WHITE_PAWN));
+        assert_eq!(false, pos_white_pawn.has_minor_or_major_piece(Side::White));
+        assert_eq!(false, pos_white_pawn.has_minor_or_major_piece(Side::Black));
+        let mut pos_black_pawn = pos.clone();
+        pos_black_pawn.set_piece_at(Square::G8, Some(piece::Piece::BLACK_PAWN));
+        assert_eq!(false, pos_black_pawn.has_minor_or_major_piece(Side::White));
+        assert_eq!(false, pos_black_pawn.has_minor_or_major_piece(Side::Black));
+
+        let mut pos_white_knight = pos.clone();
+        pos_white_knight.set_piece_at(Square::G1, Some(piece::Piece::WHITE_KNIGHT));
+        assert_eq!(true, pos_white_knight.has_minor_or_major_piece(Side::White));
+        assert_eq!(
+            false,
+            pos_white_knight.has_minor_or_major_piece(Side::Black)
+        );
+        let mut pos_black_knight = pos.clone();
+        pos_black_knight.set_piece_at(Square::G8, Some(piece::Piece::BLACK_KNIGHT));
+        assert_eq!(
+            false,
+            pos_black_knight.has_minor_or_major_piece(Side::White)
+        );
+        assert_eq!(true, pos_black_knight.has_minor_or_major_piece(Side::Black));
+
+        let mut pos_white_bishop = pos.clone();
+        pos_white_bishop.set_piece_at(Square::F1, Some(piece::Piece::WHITE_BISHOP));
+        assert_eq!(true, pos_white_bishop.has_minor_or_major_piece(Side::White));
+        assert_eq!(
+            false,
+            pos_white_bishop.has_minor_or_major_piece(Side::Black)
+        );
+        let mut pos_black_bishop = pos.clone();
+        pos_black_bishop.set_piece_at(Square::F8, Some(piece::Piece::BLACK_BISHOP));
+        assert_eq!(
+            false,
+            pos_black_bishop.has_minor_or_major_piece(Side::White)
+        );
+        assert_eq!(true, pos_black_bishop.has_minor_or_major_piece(Side::Black));
+
+        let mut pos_white_rook = pos.clone();
+        pos_white_rook.set_piece_at(Square::H1, Some(piece::Piece::WHITE_ROOK));
+        assert_eq!(true, pos_white_rook.has_minor_or_major_piece(Side::White));
+        assert_eq!(false, pos_white_rook.has_minor_or_major_piece(Side::Black));
+        let mut pos_black_rook = pos.clone();
+        pos_black_rook.set_piece_at(Square::H8, Some(piece::Piece::BLACK_ROOK));
+        assert_eq!(false, pos_black_rook.has_minor_or_major_piece(Side::White));
+        assert_eq!(true, pos_black_rook.has_minor_or_major_piece(Side::Black));
+
+        let mut pos_white_queen = pos.clone();
+        pos_white_queen.set_piece_at(Square::D1, Some(piece::Piece::WHITE_QUEEN));
+        assert_eq!(true, pos_white_queen.has_minor_or_major_piece(Side::White));
+        assert_eq!(false, pos_white_queen.has_minor_or_major_piece(Side::Black));
+        let mut pos_black_queen = pos.clone();
+        pos_black_queen.set_piece_at(Square::D8, Some(piece::Piece::BLACK_QUEEN));
+        assert_eq!(false, pos_black_queen.has_minor_or_major_piece(Side::White));
+        assert_eq!(true, pos_black_queen.has_minor_or_major_piece(Side::Black));
     }
 }
