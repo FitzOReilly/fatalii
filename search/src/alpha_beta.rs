@@ -26,6 +26,9 @@ pub type AlphaBetaTable = TranspositionTable<Zobrist, AlphaBetaEntry>;
 // Minimum depth for principal variation search. Disable null-window searches below this depth.
 const MIN_PVS_DEPTH: usize = 3;
 
+// Minimum depth for null move pruning.
+const MIN_NULL_MOVE_PRUNE_DEPTH: usize = 3;
+
 // Alpha-beta search with fail-hard cutoffs
 pub struct AlphaBeta {
     evaluator: Box<dyn Eval + Send>,
@@ -202,6 +205,37 @@ impl AlphaBeta {
                     search_data.end_pv();
                     Some(node)
                 } else {
+                    let pos = search_data.pos_history().current_pos();
+                    if depth >= MIN_NULL_MOVE_PRUNE_DEPTH
+                        && search_data.pv_depth() == 0
+                        && !pos.is_in_check(pos.side_to_move())
+                        && pos.has_minor_or_major_piece(pos.side_to_move())
+                    {
+                        search_data.increment_nodes(depth);
+                        search_data.pos_history_mut().do_move(Move::NULL);
+                        let reduced_depth = depth - Self::null_move_depth_reduction(depth) - 1;
+                        let opt_neg_res =
+                            self.search_recursive(search_data, reduced_depth, -beta, -alpha);
+                        match opt_neg_res {
+                            Some(neg_search_res) => {
+                                let search_res = -neg_search_res;
+                                let score = search_res.score();
+                                if score >= beta {
+                                    let node = AlphaBetaEntry::new(
+                                        depth,
+                                        beta,
+                                        ScoreType::LowerBound,
+                                        Move::NULL,
+                                    );
+                                    search_data.pos_history_mut().undo_last_move();
+                                    return Some(node);
+                                }
+                            }
+                            None => return None,
+                        }
+                        search_data.pos_history_mut().undo_last_move();
+                    }
+
                     let mut pvs_full_window = true;
                     let mut move_selector = MoveSelector::new();
                     while let Some(m) = move_selector.select_next_move(
@@ -461,6 +495,16 @@ impl AlphaBeta {
             return Some(entry);
         }
         None
+    }
+
+    fn null_move_depth_reduction(depth: usize) -> usize {
+        debug_assert!(depth >= MIN_NULL_MOVE_PRUNE_DEPTH);
+        match depth {
+            3 => 1,
+            4 | 5 => 2,
+            6 | 7 => 3,
+            _ => 4,
+        }
     }
 }
 
