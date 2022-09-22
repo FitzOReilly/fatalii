@@ -29,6 +29,9 @@ const MIN_PVS_DEPTH: usize = 3;
 // Minimum depth for null move pruning.
 const MIN_NULL_MOVE_PRUNE_DEPTH: usize = 3;
 
+// Enable futility pruning if the evaluation is more than this value below alpha.
+const FUTILITY_MARGIN: Score = 120;
+
 // Alpha-beta search with fail-hard cutoffs
 pub struct AlphaBeta {
     evaluator: Box<dyn Eval + Send>,
@@ -236,6 +239,18 @@ impl AlphaBeta {
                         search_data.pos_history_mut().undo_last_move();
                     }
 
+                    let mut futility_pruning = false;
+                    // Futility pruning
+                    let pos = search_data.pos_history().current_pos();
+                    if depth == 1 && !pos.is_in_check(pos.side_to_move()) {
+                        search_data.increment_eval_calls();
+                        let pos = search_data.pos_history().current_pos();
+                        let score = self.evaluator.eval_relative(pos);
+                        if score + FUTILITY_MARGIN < alpha {
+                            futility_pruning = true;
+                        }
+                    }
+
                     let mut pvs_full_window = true;
                     let mut move_selector = MoveSelector::new();
                     while let Some(m) = move_selector.select_next_move(
@@ -244,8 +259,13 @@ impl AlphaBeta {
                         depth,
                         &mut move_list,
                     ) {
+                        if futility_pruning && !m.is_capture() && !m.is_promotion() {
+                            continue;
+                        }
+
                         search_data.increment_nodes(depth);
                         search_data.pos_history_mut().do_move(m);
+
                         // Principal variation search
                         let opt_neg_res = if pvs_full_window || depth < MIN_PVS_DEPTH {
                             self.search_recursive(search_data, depth - 1, -beta, -alpha)
