@@ -29,8 +29,11 @@ const MIN_PVS_DEPTH: usize = 3;
 // Minimum depth for null move pruning.
 const MIN_NULL_MOVE_PRUNE_DEPTH: usize = 3;
 
-// Enable futility pruning if the evaluation is more than this value below alpha.
+// Enable futility pruning if the evaluation plus this value is less than alpha.
 const FUTILITY_MARGIN: Score = 120;
+
+// Enable reverse futility pruning if the evaluation plus this value is greater than or equal to beta.
+const REVERSE_FUTILITY_MARGIN: Score = 120;
 
 // Alpha-beta search with fail-hard cutoffs
 pub struct AlphaBeta {
@@ -246,6 +249,11 @@ impl AlphaBeta {
                         search_data.increment_eval_calls();
                         let pos = search_data.pos_history().current_pos();
                         let score = self.evaluator.eval_relative(pos);
+                        if score - REVERSE_FUTILITY_MARGIN >= beta {
+                            let node =
+                                AlphaBetaEntry::new(depth, beta, ScoreType::LowerBound, Move::NULL);
+                            return Some(node);
+                        }
                         if score + FUTILITY_MARGIN < alpha {
                             futility_pruning = true;
                         }
