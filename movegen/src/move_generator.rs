@@ -1149,6 +1149,39 @@ mod tests {
         MoveGenerator::generate_moves(&mut move_list, &pos);
         assert!(move_list.contains(&black_kingside_castle));
         assert!(!move_list.contains(&black_queenside_castle));
+
+        // Edge case for queenside castling:
+        // Opponents queen/rook on a1/a8 is blocked by our rook on b1/b8.
+        // The king would be attacked after castling queenside, so it's illegal.
+        // White
+        let white_queenside_castle = Move::new(Square::C1, Square::C1, MoveType::CASTLE_QUEENSIDE);
+
+        let fen = "4k3/8/8/8/8/8/8/rRK5 w B - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&white_queenside_castle));
+
+        let fen = "4k3/8/8/8/8/8/8/qRK5 w B - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&white_queenside_castle));
+
+        // Black
+        let black_queenside_castle = Move::new(Square::C8, Square::C8, MoveType::CASTLE_QUEENSIDE);
+
+        let fen = "Rrk5/8/8/8/8/8/8/4K3 b b - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&black_queenside_castle));
+
+        let fen = "Qrk5/8/8/8/8/8/8/4K3 b b - 0 1";
+        let pos = Fen::str_to_pos_chess_960(fen).unwrap();
+        let mut move_list = MoveList::new();
+        MoveGenerator::generate_moves(&mut move_list, &pos);
+        assert!(!move_list.contains(&black_queenside_castle));
     }
 
     #[test]
