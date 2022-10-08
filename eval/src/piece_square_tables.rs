@@ -8,7 +8,7 @@ use movegen::side::Side;
 use movegen::square::Square;
 use std::cmp;
 
-type PieceSquareTable = [Score; 64];
+type PieceSquareTable = [(Score, Score); 64];
 
 // (opening, endgame)
 const KING_WEIGHT: (Score, Score) = (0, 0);
@@ -80,14 +80,14 @@ impl PieceSquareTables {
             let mut white_add = new_white & !old_white;
             while white_remove != Bitboard::EMPTY {
                 let square = white_remove.square_scan_forward_reset();
-                self.opening_score -= table[0][square.idx()];
-                self.endgame_score -= table[1][square.idx()];
+                self.opening_score -= table[square.idx()].0;
+                self.endgame_score -= table[square.idx()].1;
                 self.total_material -= weight;
             }
             while white_add != Bitboard::EMPTY {
                 let square = white_add.square_scan_forward_reset();
-                self.opening_score += table[0][square.idx()];
-                self.endgame_score += table[1][square.idx()];
+                self.opening_score += table[square.idx()].0;
+                self.endgame_score += table[square.idx()].1;
                 self.total_material += weight;
             }
             let old_black = self.current_pos.piece_occupancy(Side::Black, piece_type);
@@ -96,14 +96,14 @@ impl PieceSquareTables {
             let mut black_add = new_black & !old_black;
             while black_remove != Bitboard::EMPTY {
                 let square = black_remove.square_scan_forward_reset();
-                self.opening_score += table[0][square.flip_vertical().idx()];
-                self.endgame_score += table[1][square.flip_vertical().idx()];
+                self.opening_score += table[square.flip_vertical().idx()].0;
+                self.endgame_score += table[square.flip_vertical().idx()].1;
                 self.total_material -= weight;
             }
             while black_add != Bitboard::EMPTY {
                 let square = black_add.square_scan_forward_reset();
-                self.opening_score -= table[0][square.flip_vertical().idx()];
-                self.endgame_score -= table[1][square.flip_vertical().idx()];
+                self.opening_score -= table[square.flip_vertical().idx()].0;
+                self.endgame_score -= table[square.flip_vertical().idx()].1;
                 self.total_material += weight;
             }
         }
@@ -111,10 +111,7 @@ impl PieceSquareTables {
     }
 }
 
-const fn human_readable_to_file_rank(
-    piece_value: Score,
-    pst: PieceSquareTable,
-) -> PieceSquareTable {
+const fn human_readable_to_file_rank(piece_value: Score, pst: [Score; 64]) -> [Score; 64] {
     let mut res = [0; 64];
     let mut idx = 0;
     while idx < 64 {
@@ -128,8 +125,8 @@ const fn human_readable_to_file_rank(
 }
 
 #[rustfmt::skip]
-const PST_PAWN: [PieceSquareTable; 2] = [
-    human_readable_to_file_rank(
+const PST_PAWN: PieceSquareTable = {
+    let mg = human_readable_to_file_rank(
         PAWN_WEIGHT.0,
         [
               0,   0,   0,   0,   0,   0,   0,   0,
@@ -141,8 +138,8 @@ const PST_PAWN: [PieceSquareTable; 2] = [
               5,  10,  10, -20, -20,  10,  10,   5,
               0,   0,   0,   0,   0,   0,   0,   0,
         ],
-    ),
-    human_readable_to_file_rank(
+    );
+    let eg = human_readable_to_file_rank(
         PAWN_WEIGHT.1,
         [
               0,   0,   0,   0,   0,   0,   0,   0,
@@ -154,12 +151,19 @@ const PST_PAWN: [PieceSquareTable; 2] = [
               0,   0,   0,   0,   0,   0,   0,   0,
               0,   0,   0,   0,   0,   0,   0,   0,
         ],
-    ),
-];
+    );
+    let mut table = [(0, 0); 64];
+    let mut idx = 0;
+    while idx < 64 {
+        table[idx] = (mg[idx], eg[idx]);
+        idx += 1;
+    }
+    table
+};
 
 #[rustfmt::skip]
-const PST_KNIGHT: [PieceSquareTable; 2] = [
-    human_readable_to_file_rank(
+const PST_KNIGHT: PieceSquareTable = {
+    let mg = human_readable_to_file_rank(
         KNIGHT_WEIGHT.0,
         [
             -40, -25, -20, -20, -20, -20, -25, -40,
@@ -171,8 +175,8 @@ const PST_KNIGHT: [PieceSquareTable; 2] = [
             -25, -10,   0,   5,   5,   0, -10, -25,
             -40, -25, -20, -20, -20, -20, -25, -40,
         ],
-    ),
-    human_readable_to_file_rank(
+    );
+    let eg = human_readable_to_file_rank(
         KNIGHT_WEIGHT.1,
         [
             -40, -25, -20, -20, -20, -20, -25, -40,
@@ -184,12 +188,19 @@ const PST_KNIGHT: [PieceSquareTable; 2] = [
             -25, -10,   0,   0,   0,   0, -10, -25,
             -40, -25, -20, -20, -20, -20, -25, -40,
         ],
-    ),
-];
+    );
+    let mut table = [(0, 0); 64];
+    let mut idx = 0;
+    while idx < 64 {
+        table[idx] = (mg[idx], eg[idx]);
+        idx += 1;
+    }
+    table
+};
 
 #[rustfmt::skip]
-const PST_BISHOP: [PieceSquareTable; 2] = [
-    human_readable_to_file_rank(
+const PST_BISHOP: PieceSquareTable = {
+    let mg = human_readable_to_file_rank(
         BISHOP_WEIGHT.0,
         [
             -20, -10, -10, -10, -10, -10, -10, -20,
@@ -201,8 +212,8 @@ const PST_BISHOP: [PieceSquareTable; 2] = [
             -10,   5,   0,   0,   0,   0,   5, -10,
             -20, -10, -10, -10, -10, -10, -10, -20,
         ],
-    ),
-    human_readable_to_file_rank(
+    );
+    let eg = human_readable_to_file_rank(
         BISHOP_WEIGHT.1,
         [
             -10,  -5,  -5,  -5,  -5,  -5,  -5, -10,
@@ -214,12 +225,19 @@ const PST_BISHOP: [PieceSquareTable; 2] = [
              -5,   0,   0,   0,   0,   0,   0,  -5,
             -10,  -5,  -5,  -5,  -5,  -5,  -5, -10,
         ],
-    ),
-];
+    );
+    let mut table = [(0, 0); 64];
+    let mut idx = 0;
+    while idx < 64 {
+        table[idx] = (mg[idx], eg[idx]);
+        idx += 1;
+    }
+    table
+};
 
 #[rustfmt::skip]
-const PST_ROOK: [PieceSquareTable; 2] = [
-    human_readable_to_file_rank(
+const PST_ROOK: PieceSquareTable = {
+    let mg = human_readable_to_file_rank(
         ROOK_WEIGHT.0,
         [
               0,   0,   0,   0,   0,   0,   0,   0,
@@ -231,8 +249,8 @@ const PST_ROOK: [PieceSquareTable; 2] = [
              -5,   0,   0,   5,   5,   0,   0,  -5,
               0,   0,   0,   5,   5,   0,   0,   0,
         ],
-    ),
-    human_readable_to_file_rank(
+    );
+    let eg = human_readable_to_file_rank(
         ROOK_WEIGHT.1,
         [
              -5,  -5,  -5,  -5,  -5,  -5,  -5,  -5,
@@ -244,12 +262,19 @@ const PST_ROOK: [PieceSquareTable; 2] = [
              -5,   0,   0,   0,   0,   0,   0,  -5,
              -5,  -5,  -5,  -5,  -5,  -5,  -5,  -5,
         ],
-    ),
-];
+    );
+    let mut table = [(0, 0); 64];
+    let mut idx = 0;
+    while idx < 64 {
+        table[idx] = (mg[idx], eg[idx]);
+        idx += 1;
+    }
+    table
+};
 
 #[rustfmt::skip]
-const PST_QUEEN: [PieceSquareTable; 2] = [
-    human_readable_to_file_rank(
+const PST_QUEEN: PieceSquareTable = {
+    let mg = human_readable_to_file_rank(
         QUEEN_WEIGHT.0,
         [
             -20, -10, -10,  -5,  -5, -10, -10, -20,
@@ -261,8 +286,8 @@ const PST_QUEEN: [PieceSquareTable; 2] = [
             -10,   0,   5,   0,   0,   0,   0, -10,
             -20, -10, -10,  -5,  -5, -10, -10, -20,
         ],
-    ),
-    human_readable_to_file_rank(
+    );
+    let eg = human_readable_to_file_rank(
         QUEEN_WEIGHT.1,
         [
              -5,  -5,  -5,  -5,  -5,  -5,  -5,  -5,
@@ -274,12 +299,19 @@ const PST_QUEEN: [PieceSquareTable; 2] = [
              -5,   0,   0,   0,   0,   0,   0,  -5,
              -5,  -5,  -5,  -5,  -5,  -5,  -5,  -5,
         ],
-    ),
-];
+    );
+    let mut table = [(0, 0); 64];
+    let mut idx = 0;
+    while idx < 64 {
+        table[idx] = (mg[idx], eg[idx]);
+        idx += 1;
+    }
+    table
+};
 
 #[rustfmt::skip]
-const PST_KING: [PieceSquareTable; 2] = [
-    human_readable_to_file_rank(
+const PST_KING: PieceSquareTable = {
+    let mg = human_readable_to_file_rank(
         KING_WEIGHT.0,
         [
             -30, -40, -40, -50, -50, -40, -40, -30,
@@ -291,8 +323,8 @@ const PST_KING: [PieceSquareTable; 2] = [
              20,  20,   0,   0,   0,   0,  20,  20,
              20,  30,  10, -10,   0,   0,  30,  20,
         ],
-    ),
-    human_readable_to_file_rank(
+    );
+    let eg = human_readable_to_file_rank(
         KING_WEIGHT.1,
         [
             -50, -35, -25, -20, -20, -25, -35, -50,
@@ -304,8 +336,15 @@ const PST_KING: [PieceSquareTable; 2] = [
             -35, -15,  -5,   0,   0,  -5, -15, -35,
             -50, -35, -25, -20, -20, -25, -35, -50,
         ],
-    ),
-];
+    );
+    let mut table = [(0, 0); 64];
+    let mut idx = 0;
+    while idx < 64 {
+        table[idx] = (mg[idx], eg[idx]);
+        idx += 1;
+    }
+    table
+};
 
 #[cfg(test)]
 mod tests {
