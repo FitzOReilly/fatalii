@@ -5,14 +5,14 @@ use movegen::position_history::PositionHistory;
 use perft::PerformanceTester;
 
 fn perft(c: &mut Criterion, group_name: &str, pos: Position, min_depth: usize, max_depth: usize) {
-    let table_idx_bits = 20;
+    let bytes = 32 * 64 * 1024;
 
     let mut group = c.benchmark_group(group_name);
     for depth in min_depth..=max_depth {
         group.throughput(Throughput::Elements(depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), &depth, |b, &depth| {
             b.iter_batched(
-                || PerformanceTester::new(PositionHistory::new(pos.clone()), table_idx_bits),
+                || PerformanceTester::new(PositionHistory::new(pos.clone()), bytes),
                 |mut perft| perft.count_nodes(depth),
                 BatchSize::SmallInput,
             );

@@ -17,11 +17,11 @@ use std::time::Duration;
 use std::time::Instant;
 
 const EVALUATOR: MaterialMobility = MaterialMobility::new();
-const TABLE_IDX_BITS: usize = 16;
+const TABLE_SIZE: usize = 16 * 1024;
 
 #[test]
 fn search_timeout() {
-    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_SIZE);
     let (sender, receiver) = unbounded();
     let mut engine = Engine::new(
         search_algo,
@@ -57,7 +57,7 @@ fn search_timeout() {
 
 #[test]
 fn search_timeout_aborted() {
-    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_SIZE);
     let (sender, receiver) = unbounded();
     let mut engine = Engine::new(
         search_algo,
@@ -98,7 +98,7 @@ fn search_timeout_aborted() {
 fn search_timeout_finished_early() {
     // Test for positions in which the search finishes earlier than the given timeout
     // (e.g. checkmate)
-    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_IDX_BITS);
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_SIZE);
     let (sender, receiver) = unbounded();
     let mut engine = Engine::new(
         search_algo,
