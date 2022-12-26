@@ -65,7 +65,7 @@ impl SearchBencher {
 }
 
 fn negamax(c: &mut Criterion, group_name: &str, pos: Position, min_depth: usize, max_depth: usize) {
-    let table_idx_bits = 20;
+    let table_size = 16 * 1024 * 1024;
     let pos_history = PositionHistory::new(pos);
 
     let mut group = c.benchmark_group(group_name);
@@ -73,7 +73,7 @@ fn negamax(c: &mut Criterion, group_name: &str, pos: Position, min_depth: usize,
         group.throughput(Throughput::Elements(depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), &depth, |b, &depth| {
             b.iter_batched(
-                || SearchBencher::new(Negamax::new(Box::new(EVALUATOR), table_idx_bits)),
+                || SearchBencher::new(Negamax::new(Box::new(EVALUATOR), table_size)),
                 |mut searcher| searcher.search(pos_history.clone(), depth),
                 BatchSize::SmallInput,
             );
@@ -89,7 +89,7 @@ fn alpha_beta(
     min_depth: usize,
     max_depth: usize,
 ) {
-    let table_idx_bits = 20;
+    let table_size = 16 * 1024 * 1024;
     let pos_history = PositionHistory::new(pos);
 
     let mut group = c.benchmark_group(group_name);
@@ -97,7 +97,7 @@ fn alpha_beta(
         group.throughput(Throughput::Elements(depth as u64));
         group.bench_with_input(BenchmarkId::from_parameter(depth), &depth, |b, &depth| {
             b.iter_batched(
-                || SearchBencher::new(AlphaBeta::new(Box::new(EVALUATOR), table_idx_bits)),
+                || SearchBencher::new(AlphaBeta::new(Box::new(EVALUATOR), table_size)),
                 |mut searcher| searcher.search(pos_history.clone(), depth),
                 BatchSize::SmallInput,
             );

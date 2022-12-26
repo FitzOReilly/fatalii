@@ -16,10 +16,10 @@ pub struct PerformanceTester {
 }
 
 impl PerformanceTester {
-    pub fn new(pos_history: PositionHistory, table_idx_bits: usize) -> PerformanceTester {
+    pub fn new(pos_history: PositionHistory, bytes: usize) -> PerformanceTester {
         Self {
             pos_history,
-            transpos_table: TranspositionTable::new(table_idx_bits),
+            transpos_table: TranspositionTable::new(bytes),
         }
     }
 

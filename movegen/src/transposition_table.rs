@@ -1,4 +1,4 @@
-use std::mem;
+use std::{cmp, mem};
 
 #[derive(Debug)]
 pub struct TranspositionTable<K, V> {
@@ -13,10 +13,17 @@ where
     V: Copy,
     u64: From<K>,
 {
-    pub fn new(index_bits: usize) -> TranspositionTable<K, V> {
+    pub fn new(bytes: usize) -> TranspositionTable<K, V> {
+        debug_assert!(bytes <= u64::MAX as usize);
+        let entry_size = mem::size_of::<Option<(K, V)>>();
+        // Reserve memory for at least 2 entries, so that at least one index bit
+        // is used (even if bytes is 0)
+        let max_num_entries = cmp::max(2, bytes / entry_size);
+        // The actual number of entries must be a power of 2.
+        let index_bits = 64 - max_num_entries.leading_zeros() - 1;
         debug_assert!(index_bits <= 64);
         TranspositionTable {
-            index_bits,
+            index_bits: index_bits as usize,
             entries: vec![None; 2_usize.pow(index_bits as u32)].into_boxed_slice(),
             len: 0,
         }
@@ -95,8 +102,34 @@ mod tests {
     use crate::zobrist::Zobrist;
 
     #[test]
+    fn new() {
+        let entry_size = mem::size_of::<Option<(u64, u64)>>();
+
+        // Always reserve memory for at least two entries
+        let tt = TranspositionTable::<u64, u64>::new(0);
+        assert_eq!(2 * entry_size, tt.reserved_memory());
+        let tt = TranspositionTable::<u64, u64>::new(1 * entry_size);
+        assert_eq!(2 * entry_size, tt.reserved_memory());
+        let tt = TranspositionTable::<u64, u64>::new(2 * entry_size);
+        assert_eq!(2 * entry_size, tt.reserved_memory());
+        let tt = TranspositionTable::<u64, u64>::new(4 * entry_size - 1);
+        assert_eq!(2 * entry_size, tt.reserved_memory());
+        let tt = TranspositionTable::<u64, u64>::new(4 * entry_size);
+        assert_eq!(4 * entry_size, tt.reserved_memory());
+        let tt = TranspositionTable::<u64, u64>::new(4 * entry_size + 1);
+        assert_eq!(4 * entry_size, tt.reserved_memory());
+
+        // Don't reserve more memory than wanted (if it is enough for 2 entries)
+        let tt = TranspositionTable::<u64, u64>::new(1000);
+        assert!(tt.reserved_memory() <= 1000);
+        let tt = TranspositionTable::<u64, u64>::new(2000);
+        assert!(tt.reserved_memory() <= 2000);
+    }
+
+    #[test]
     fn insert_and_replace_and_clear() {
-        let mut tt = TranspositionTable::<u64, u64>::new(8);
+        let entry_size = mem::size_of::<Option<(u64, u64)>>();
+        let mut tt = TranspositionTable::<u64, u64>::new(8 * entry_size);
 
         assert_eq!(false, tt.contains_key(&0));
         assert_eq!(None, tt.get(&0));
@@ -136,7 +169,8 @@ mod tests {
 
     #[test]
     fn position_with_zobrist() {
-        let mut tt = TranspositionTable::<Zobrist, u64>::new(20);
+        let entry_size = mem::size_of::<Option<(Zobrist, u64)>>();
+        let mut tt = TranspositionTable::<Zobrist, u64>::new(16 * entry_size);
 
         let mut pos_history = PositionHistory::new(Position::initial());
         let hash = pos_history.current_pos_hash();
@@ -172,10 +206,10 @@ mod tests {
 
     #[test]
     fn is_empty_and_len_and_capacity() {
-        let table_idx_bits: usize = 8;
-        let capacity = 2_usize.pow(table_idx_bits as u32);
+        let capacity = 256;
 
-        let mut tt = TranspositionTable::<u64, u64>::new(table_idx_bits);
+        let entry_size = mem::size_of::<Option<(u64, u64)>>();
+        let mut tt = TranspositionTable::<u64, u64>::new(capacity * entry_size);
 
         assert_eq!(0, tt.len());
         assert_eq!(true, tt.is_empty());

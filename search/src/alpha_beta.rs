@@ -44,12 +44,10 @@ pub struct AlphaBeta {
 impl Search for AlphaBeta {
     fn set_hash_size(&mut self, bytes: usize) {
         debug_assert!(bytes <= u64::MAX as usize);
-        debug_assert_ne!(0, AlphaBetaEntry::ENTRY_SIZE);
-        let max_num_entries = (bytes / AlphaBetaEntry::ENTRY_SIZE) as u64;
-        // The actual number of entries must be a power of 2.
-        let index_bits = 64 - max_num_entries.leading_zeros() - 1;
-        debug_assert!(index_bits > 0);
-        self.transpos_table = AlphaBetaTable::new(index_bits as usize);
+        // Clear the old table before creating a new one to avoid reserving
+        // memory for two potentially large tables
+        self.transpos_table = AlphaBetaTable::new(0);
+        self.transpos_table = AlphaBetaTable::new(bytes);
     }
 
     fn clear_hash_table(&mut self) {
@@ -130,11 +128,10 @@ impl Search for AlphaBeta {
 }
 
 impl AlphaBeta {
-    pub fn new(evaluator: Box<dyn Eval + Send>, table_idx_bits: usize) -> Self {
-        assert!(table_idx_bits > 0);
+    pub fn new(evaluator: Box<dyn Eval + Send>, table_size: usize) -> Self {
         Self {
             evaluator,
-            transpos_table: AlphaBetaTable::new(table_idx_bits),
+            transpos_table: AlphaBetaTable::new(table_size),
         }
     }
 
@@ -533,27 +530,5 @@ impl AlphaBeta {
             6 | 7 => 3,
             _ => 4,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use eval::material_mobility::MaterialMobility;
-
-    #[test]
-    fn set_hash_size() {
-        let evaluator = Box::new(MaterialMobility::new());
-        let mut searcher = AlphaBeta::new(evaluator, 1);
-        let entry_size = AlphaBetaEntry::ENTRY_SIZE;
-
-        searcher.set_hash_size(2 * entry_size);
-        assert_eq!(2 * entry_size, searcher.transpos_table.reserved_memory());
-        searcher.set_hash_size(4 * entry_size - 1);
-        assert_eq!(2 * entry_size, searcher.transpos_table.reserved_memory());
-        searcher.set_hash_size(4 * entry_size);
-        assert_eq!(4 * entry_size, searcher.transpos_table.reserved_memory());
-        searcher.set_hash_size(4 * entry_size + 1);
-        assert_eq!(4 * entry_size, searcher.transpos_table.reserved_memory());
     }
 }

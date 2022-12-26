@@ -2,6 +2,9 @@ use engine::{Engine, Variant};
 use movegen::file::File;
 use std::time::Duration;
 
+pub const DEFAULT_HASH_MB: usize = 16;
+pub const DEFAULT_HASH_BYTES: usize = DEFAULT_HASH_MB * 2_usize.pow(20);
+
 #[allow(dead_code)]
 pub enum OptionType {
     Button,
@@ -32,7 +35,7 @@ pub const OPTIONS: [UciOption; 3] = [
     UciOption {
         name: "Hash",
         r#type: OptionType::Spin(SpinProps {
-            default: 16,
+            default: DEFAULT_HASH_MB,
             min: 1,
             max: 65536,
             fun: set_hash_size,

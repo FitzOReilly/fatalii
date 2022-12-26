@@ -25,11 +25,12 @@ pub struct Negamax {
 }
 
 impl Search for Negamax {
-    fn set_hash_size(&mut self, _bytes: usize) {
-        unimplemented!(
-            "This will be moved to Searcher when multithreaded search \
-            with shared hash table is implemented"
-        );
+    fn set_hash_size(&mut self, bytes: usize) {
+        debug_assert!(bytes <= u64::MAX as usize);
+        // Clear the old table before creating a new one to avoid reserving
+        // memory for two potentially large tables
+        self.transpos_table = NegamaxTable::new(0);
+        self.transpos_table = NegamaxTable::new(bytes);
     }
 
     fn clear_hash_table(&mut self) {
@@ -111,11 +112,10 @@ impl Search for Negamax {
 }
 
 impl Negamax {
-    pub fn new(evaluator: Box<dyn Eval + Send>, table_idx_bits: usize) -> Self {
-        assert!(table_idx_bits > 0);
+    pub fn new(evaluator: Box<dyn Eval + Send>, table_size: usize) -> Self {
         Self {
             evaluator,
-            transpos_table: NegamaxTable::new(table_idx_bits),
+            transpos_table: NegamaxTable::new(table_size),
         }
     }
 

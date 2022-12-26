@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 use uci::uci_in::{
     debug, go, is_ready, position, quit, set_option, stop, uci as cmd_uci, ucinewgame,
 };
+use uci::uci_option;
 use uci::UciOut;
 use uci::{Parser, ParserMessage};
 
@@ -18,8 +19,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         Arc::clone(&engine_options),
     );
     let evaluator = Box::new(PieceSquareTables::new());
-    let table_idx_bits = 20;
-    let search_algo = AlphaBeta::new(evaluator, table_idx_bits);
+    let search_algo = AlphaBeta::new(evaluator, uci_option::DEFAULT_HASH_BYTES);
     let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
 
     let mut parser = Parser::new(uci_out);

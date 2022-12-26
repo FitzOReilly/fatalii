@@ -17,7 +17,7 @@ use search::SearchOptions;
 use std::cmp;
 use std::time::Duration;
 
-const TABLE_IDX_BITS: usize = 20;
+const TABLE_SIZE: usize = 16 * 1024 * 1024;
 const TIMEOUT_PER_TEST: Duration = Duration::from_millis(30000);
 const HASH_LOAD_FACTOR_MIN: u16 = 0;
 const HASH_LOAD_FACTOR_MAX: u16 = 1000;
@@ -443,14 +443,14 @@ fn negamax_search_results_independent_of_transposition_table_size() {
     // transposition table should only improve the performance of the search, but not the
     // evaluation or the best move.
 
-    let max_table_idx_bits = TABLE_IDX_BITS;
+    let max_table_size = TABLE_SIZE;
     let min_depth = 1;
     let max_depth = 2;
     let mut searchers = Vec::new();
-    for table_idx_bits in 1..=max_table_idx_bits {
+    for table_size in (1 * 1024 * 1024..=max_table_size).step_by(1024 * 1024) {
         searchers.push(SearchTester::new(Negamax::new(
             Box::new(evaluator()),
-            table_idx_bits,
+            table_size,
         )));
     }
     search_results_equal(min_depth, max_depth, searchers);
@@ -458,58 +458,58 @@ fn negamax_search_results_independent_of_transposition_table_size() {
 
 #[test]
 fn negamax_checkmate_white() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
     let depth = 2;
     checkmate_white(negamax, depth);
 }
 
 #[test]
 fn negamax_checkmate_black() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
     let depth = 2;
     checkmate_black(negamax, depth);
 }
 
 #[test]
 fn negamax_stalemate() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
     stalemate(negamax);
 }
 
 #[test]
 fn negamax_search_quiescence() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
     search_quiescence(negamax);
 }
 
 #[test]
 fn negamax_pv_valid_after_hash_table_hit_depth_1() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
     pv_valid_after_hash_table_hit_depth_1(negamax);
 }
 
 #[test]
 #[ignore]
 fn negamax_pv_valid_after_hash_table_hit_depth_greater_than_1() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
     pv_valid_after_hash_table_hit_depth_greater_than_1(negamax);
 }
 
 #[test]
 fn negamax_play_threefold_repetition_in_losing_position() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
     play_threefold_repetition_in_losing_position(negamax);
 }
 
 #[test]
 fn negamax_avoid_threefold_repetition_in_winning_position() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
     avoid_threefold_repetition_in_winning_position(negamax);
 }
 
 #[test]
 fn negamax_fifty_move_rule() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
     fifty_move_rule(negamax);
 }
 
@@ -520,14 +520,14 @@ fn alpha_beta_search_results_independent_of_transposition_table_size() {
     // transposition table should only improve the performance of the search, but not the
     // evaluation or the best move.
 
-    let max_table_idx_bits = TABLE_IDX_BITS;
+    let max_table_size = TABLE_SIZE;
     let min_depth = 1;
     let max_depth = 5;
     let mut searchers = Vec::new();
-    for table_idx_bits in 1..=max_table_idx_bits {
+    for table_size in (1 * 1024 * 1024..=max_table_size).step_by(1024 * 1024) {
         searchers.push(SearchTester::new(AlphaBeta::new(
             Box::new(evaluator()),
-            table_idx_bits,
+            table_size,
         )));
     }
     search_results_equal(min_depth, max_depth, searchers);
@@ -535,40 +535,40 @@ fn alpha_beta_search_results_independent_of_transposition_table_size() {
 
 #[test]
 fn alpha_beta_checkmate_white() {
-    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     let depth = 1;
     checkmate_white(alpha_beta, depth);
 }
 
 #[test]
 fn alpha_beta_checkmate_black() {
-    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     let depth = 1;
     checkmate_black(alpha_beta, depth);
 }
 
 #[test]
 fn alpha_beta_stalemate() {
-    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     stalemate(alpha_beta);
 }
 
 #[test]
 fn alpha_beta_search_quiescence() {
-    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     search_quiescence(alpha_beta);
 }
 
 #[test]
 fn alpha_beta_pv_valid_after_hash_table_hit_depth_1() {
-    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     pv_valid_after_hash_table_hit_depth_1(alpha_beta);
 }
 
 #[test]
 #[ignore]
 fn alpha_beta_pv_valid_after_hash_table_hit_depth_greater_than_1() {
-    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     pv_valid_after_hash_table_hit_depth_greater_than_1(alpha_beta);
 }
 
@@ -578,37 +578,37 @@ fn alpha_beta_count_searched_nodes_middlegame_position() {
     let fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
     let pos = Fen::str_to_pos(fen).unwrap();
     let depth = 6;
-    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     count_searched_nodes(alpha_beta, pos, depth);
 }
 
 #[test]
 fn alpha_beta_play_threefold_repetition_in_losing_position() {
-    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     play_threefold_repetition_in_losing_position(alpha_beta);
 }
 
 #[test]
 fn alpha_beta_avoid_threefold_repetition_in_winning_position() {
-    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     avoid_threefold_repetition_in_winning_position(alpha_beta);
 }
 
 #[test]
 fn alpha_beta_fifty_move_rule() {
-    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     fifty_move_rule(alpha_beta);
 }
 
 #[test]
 fn alpha_beta_underpromotions() {
-    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     underpromotions(alpha_beta);
 }
 
 #[test]
 #[ignore]
 fn alpha_beta_stalemate_and_threefold_repetition() {
-    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_IDX_BITS);
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     stalemate_and_threefold_repetition(alpha_beta);
 }
