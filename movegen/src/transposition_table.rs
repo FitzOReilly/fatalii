@@ -1,9 +1,13 @@
 use std::{cmp, mem};
 
+const ENTRIES_PER_BUCKET: usize = 2;
+
+type Bucket<K, V> = [Option<(K, V)>; ENTRIES_PER_BUCKET];
+
 #[derive(Debug)]
 pub struct TranspositionTable<K, V> {
     index_bits: usize,
-    entries: Box<[Option<(K, V)>]>,
+    buckets: Box<[Bucket<K, V>]>,
     len: usize,
 }
 
@@ -15,16 +19,16 @@ where
 {
     pub fn new(bytes: usize) -> TranspositionTable<K, V> {
         debug_assert!(bytes <= u64::MAX as usize);
-        let entry_size = mem::size_of::<Option<(K, V)>>();
-        // Reserve memory for at least 2 entries, so that at least one index bit
+        let bucket_size = mem::size_of::<Option<(K, V)>>() * ENTRIES_PER_BUCKET;
+        // Reserve memory for at least 2 buckets, so that at least one index bit
         // is used (even if bytes is 0)
-        let max_num_entries = cmp::max(2, bytes / entry_size);
-        // The actual number of entries must be a power of 2.
-        let index_bits = 64 - max_num_entries.leading_zeros() - 1;
+        let max_num_buckets = cmp::max(2, bytes / bucket_size);
+        // The actual number of buckets must be a power of 2.
+        let index_bits = 64 - max_num_buckets.leading_zeros() - 1;
         debug_assert!(index_bits <= 64);
         TranspositionTable {
             index_bits: index_bits as usize,
-            entries: vec![None; 2_usize.pow(index_bits as u32)].into_boxed_slice(),
+            buckets: vec![[None; ENTRIES_PER_BUCKET]; 2_usize.pow(index_bits)].into_boxed_slice(),
             len: 0,
         }
     }
@@ -32,22 +36,28 @@ where
     pub fn len(&self) -> usize {
         debug_assert_eq!(
             self.len,
-            self.entries.iter().filter(|x| x.is_some()).count()
+            self.buckets
+                .iter()
+                .map(|b| b.iter().filter(|x| x.is_some()).count())
+                .sum()
         );
         self.len
     }
 
     pub fn is_empty(&self) -> bool {
-        debug_assert_eq!(self.len == 0, self.entries.iter().all(|x| x.is_none()));
+        debug_assert_eq!(
+            self.len == 0,
+            self.buckets.iter().all(|b| b.iter().all(|x| x.is_none()))
+        );
         self.len == 0
     }
 
     pub fn capacity(&self) -> usize {
-        self.entries.len()
+        self.buckets.len() * ENTRIES_PER_BUCKET
     }
 
     pub fn clear(&mut self) {
-        self.entries.fill(None);
+        self.buckets.fill([None; ENTRIES_PER_BUCKET]);
         self.len = 0;
     }
 
@@ -58,18 +68,24 @@ where
 
     pub fn contains_key(&self, k: &K) -> bool {
         let index = self.key_to_index(k);
-        match self.entries[index] {
-            Some(entry) => entry.0 == *k,
-            None => false,
+        for entry in self.buckets[index] {
+            match entry {
+                Some(e) if e.0 == *k => return true,
+                _ => {}
+            };
         }
+        false
     }
 
     pub fn get(&self, k: &K) -> Option<&V> {
         let index = self.key_to_index(k);
-        match self.entries[index] {
-            Some(ref entry) if entry.0 == *k => Some(&entry.1),
-            _ => None,
+        for entry in &self.buckets[index] {
+            match entry {
+                Some(ref e) if e.0 == *k => return Some(&e.1),
+                _ => {}
+            }
         }
+        None
     }
 
     // std::collections::HashMap::insert returns Option<V>
@@ -77,14 +93,21 @@ where
     // different from k. Only the indexes must be equal.
     pub fn insert(&mut self, k: K, value: V) -> Option<(K, V)> {
         let index = self.key_to_index(&k);
-        let old_entry = self.entries[index];
-        self.entries[index] = Some((k, value));
-        self.len += old_entry.is_none() as usize;
-        old_entry
+        let mut current = Some((k, value));
+        for entry in self.buckets[index].iter_mut() {
+            mem::swap(&mut *entry, &mut current);
+            // If the key is already present, remove it
+            match current {
+                Some(e) if e.0 == k => break,
+                _ => {}
+            }
+        }
+        self.len += current.is_none() as usize;
+        current
     }
 
     pub fn reserved_memory(&self) -> usize {
-        mem::size_of_val(&*self.entries)
+        mem::size_of_val(&*self.buckets)
     }
 
     fn key_to_index(&self, k: &K) -> usize {
@@ -103,21 +126,21 @@ mod tests {
 
     #[test]
     fn new() {
-        let entry_size = mem::size_of::<Option<(u64, u64)>>();
+        let bucket_size = mem::size_of::<Option<(u64, u64)>>() * ENTRIES_PER_BUCKET;
 
-        // Always reserve memory for at least two entries
+        // Always reserve memory for at least two buckets
         let tt = TranspositionTable::<u64, u64>::new(0);
-        assert_eq!(2 * entry_size, tt.reserved_memory());
-        let tt = TranspositionTable::<u64, u64>::new(1 * entry_size);
-        assert_eq!(2 * entry_size, tt.reserved_memory());
-        let tt = TranspositionTable::<u64, u64>::new(2 * entry_size);
-        assert_eq!(2 * entry_size, tt.reserved_memory());
-        let tt = TranspositionTable::<u64, u64>::new(4 * entry_size - 1);
-        assert_eq!(2 * entry_size, tt.reserved_memory());
-        let tt = TranspositionTable::<u64, u64>::new(4 * entry_size);
-        assert_eq!(4 * entry_size, tt.reserved_memory());
-        let tt = TranspositionTable::<u64, u64>::new(4 * entry_size + 1);
-        assert_eq!(4 * entry_size, tt.reserved_memory());
+        assert_eq!(2 * bucket_size, tt.reserved_memory());
+        let tt = TranspositionTable::<u64, u64>::new(1 * bucket_size);
+        assert_eq!(2 * bucket_size, tt.reserved_memory());
+        let tt = TranspositionTable::<u64, u64>::new(2 * bucket_size);
+        assert_eq!(2 * bucket_size, tt.reserved_memory());
+        let tt = TranspositionTable::<u64, u64>::new(4 * bucket_size - 1);
+        assert_eq!(2 * bucket_size, tt.reserved_memory());
+        let tt = TranspositionTable::<u64, u64>::new(4 * bucket_size);
+        assert_eq!(4 * bucket_size, tt.reserved_memory());
+        let tt = TranspositionTable::<u64, u64>::new(4 * bucket_size + 1);
+        assert_eq!(4 * bucket_size, tt.reserved_memory());
 
         // Don't reserve more memory than wanted (if it is enough for 2 entries)
         let tt = TranspositionTable::<u64, u64>::new(1000);
@@ -128,49 +151,86 @@ mod tests {
 
     #[test]
     fn insert_and_replace_and_clear() {
+        let capacity = 8 * ENTRIES_PER_BUCKET;
         let entry_size = mem::size_of::<Option<(u64, u64)>>();
-        let mut tt = TranspositionTable::<u64, u64>::new(8 * entry_size);
+        let mut tt = TranspositionTable::<u64, u64>::new(capacity * entry_size);
 
         assert_eq!(false, tt.contains_key(&0));
         assert_eq!(None, tt.get(&0));
         assert_eq!(false, tt.contains_key(&1));
         assert_eq!(None, tt.get(&1));
+        assert_eq!(0, tt.len());
+        assert_eq!(true, tt.is_empty());
+        assert_eq!(capacity, tt.capacity());
+        assert_eq!(0, tt.load_factor_permille());
 
-        let replaced = tt.insert(0, 0);
-        assert_eq!(None, replaced);
+        for i in 0..ENTRIES_PER_BUCKET {
+            let num = i as u64;
+            let replaced = tt.insert(num, num);
+            assert_eq!(None, replaced);
+        }
 
-        assert_eq!(true, tt.contains_key(&0));
-        assert_eq!(Some(&0), tt.get(&0));
-        assert_eq!(false, tt.contains_key(&1));
-        assert_eq!(None, tt.get(&1));
+        for i in 0..ENTRIES_PER_BUCKET {
+            let num = i as u64;
+            assert_eq!(true, tt.contains_key(&num));
+            assert_eq!(Some(&num), tt.get(&num));
+        }
 
-        let replaced = tt.insert(0, 1);
+        assert_eq!(ENTRIES_PER_BUCKET, tt.len());
+        assert_eq!(false, tt.is_empty());
+        assert_eq!(capacity, tt.capacity());
+        assert_eq!(
+            (1000 * tt.len() / tt.capacity()) as u16,
+            tt.load_factor_permille()
+        );
+
+        let inserted = ENTRIES_PER_BUCKET as u64;
+        assert_eq!(false, tt.contains_key(&inserted));
+        assert_eq!(None, tt.get(&inserted));
+
+        let replaced = tt.insert(inserted, inserted);
         assert_eq!(Some((0, 0)), replaced);
-
-        assert_eq!(true, tt.contains_key(&0));
-        assert_eq!(Some(&1), tt.get(&0));
-        assert_eq!(false, tt.contains_key(&1));
-        assert_eq!(None, tt.get(&1));
-
-        let replaced = tt.insert(1, 2);
-        assert_eq!(Some((0, 1)), replaced);
-
         assert_eq!(false, tt.contains_key(&0));
         assert_eq!(None, tt.get(&0));
         assert_eq!(true, tt.contains_key(&1));
-        assert_eq!(Some(&2), tt.get(&1));
+        assert_eq!(Some(&1), tt.get(&1));
+        assert_eq!(true, tt.contains_key(&inserted));
+        assert_eq!(Some(&inserted), tt.get(&inserted));
+
+        let replaced = tt.insert(inserted + 1, inserted + 1);
+        assert_eq!(Some((1, 1)), replaced);
+        assert_eq!(false, tt.contains_key(&1));
+        assert_eq!(None, tt.get(&1));
+        assert_eq!(true, tt.contains_key(&inserted));
+        assert_eq!(Some(&inserted), tt.get(&inserted));
+
+        let _ = tt.insert(0xff00_0000_0000_0000, 2);
+        assert_eq!(ENTRIES_PER_BUCKET + 1, tt.len());
+        assert_eq!(false, tt.is_empty());
+        assert_eq!(capacity, tt.capacity());
+        assert_eq!(
+            (1000 * tt.len() / tt.capacity()) as u16,
+            tt.load_factor_permille()
+        );
 
         tt.clear();
         assert_eq!(false, tt.contains_key(&0));
         assert_eq!(None, tt.get(&0));
         assert_eq!(false, tt.contains_key(&1));
         assert_eq!(None, tt.get(&1));
+        assert_eq!(false, tt.contains_key(&inserted));
+        assert_eq!(None, tt.get(&inserted));
+        assert_eq!(0, tt.len());
+        assert_eq!(true, tt.is_empty());
+        assert_eq!(capacity, tt.capacity());
+        assert_eq!(0, tt.load_factor_permille());
     }
 
     #[test]
     fn position_with_zobrist() {
+        let capacity = 16 * ENTRIES_PER_BUCKET;
         let entry_size = mem::size_of::<Option<(Zobrist, u64)>>();
-        let mut tt = TranspositionTable::<Zobrist, u64>::new(16 * entry_size);
+        let mut tt = TranspositionTable::<Zobrist, u64>::new(capacity * entry_size);
 
         let mut pos_history = PositionHistory::new(Position::initial());
         let hash = pos_history.current_pos_hash();
@@ -202,51 +262,5 @@ mod tests {
         assert_eq!(Some((hash, 0)), old_entry);
         assert_eq!(true, tt.contains_key(&hash));
         assert_eq!(Some(&2), tt.get(&hash));
-    }
-
-    #[test]
-    fn is_empty_and_len_and_capacity() {
-        let capacity = 256;
-
-        let entry_size = mem::size_of::<Option<(u64, u64)>>();
-        let mut tt = TranspositionTable::<u64, u64>::new(capacity * entry_size);
-
-        assert_eq!(0, tt.len());
-        assert_eq!(true, tt.is_empty());
-        assert_eq!(capacity, tt.capacity());
-        assert_eq!(0, tt.load_factor_permille());
-
-        let _ = tt.insert(0, 0);
-        assert_eq!(1, tt.len());
-        assert_eq!(false, tt.is_empty());
-        assert_eq!(capacity, tt.capacity());
-        assert_eq!(
-            (1000 * tt.len() / tt.capacity()) as u16,
-            tt.load_factor_permille()
-        );
-
-        let _ = tt.insert(0, 1);
-        assert_eq!(1, tt.len());
-        assert_eq!(false, tt.is_empty());
-        assert_eq!(capacity, tt.capacity());
-        assert_eq!(
-            (1000 * tt.len() / tt.capacity()) as u16,
-            tt.load_factor_permille()
-        );
-
-        let _ = tt.insert(0xff00_0000_0000_0000, 2);
-        assert_eq!(2, tt.len());
-        assert_eq!(false, tt.is_empty());
-        assert_eq!(capacity, tt.capacity());
-        assert_eq!(
-            (1000 * tt.len() / tt.capacity()) as u16,
-            tt.load_factor_permille()
-        );
-
-        tt.clear();
-        assert_eq!(0, tt.len());
-        assert_eq!(true, tt.is_empty());
-        assert_eq!(capacity, tt.capacity());
-        assert_eq!(0, tt.load_factor_permille());
     }
 }
