@@ -1,5 +1,11 @@
 use std::{cmp, mem};
 
+pub trait Prio {
+    fn prio(&self, other: &Self, age: u8) -> cmp::Ordering;
+
+    fn age(&self) -> u8;
+}
+
 const ENTRIES_PER_BUCKET: usize = 2;
 
 type Bucket<K, V> = [Option<(K, V)>; ENTRIES_PER_BUCKET];
@@ -14,7 +20,7 @@ pub struct TranspositionTable<K, V> {
 impl<K, V> TranspositionTable<K, V>
 where
     K: Copy + Eq,
-    V: Copy,
+    V: Copy + Prio,
     u64: From<K>,
 {
     pub fn new(bytes: usize) -> TranspositionTable<K, V> {
@@ -88,22 +94,45 @@ where
         None
     }
 
+    // Inserts a value into the table
+    //
+    // Replacement scheme (the new entry is always inserted):
+    // 1. Entry with the same hash value (even if there are None entries)
+    // 2. None entry
+    // 3. Least important entry (i.e. highest prio)
+    //
+    // Note:
     // std::collections::HashMap::insert returns Option<V>
     // This method returns Option<(K, V)>, because the returned key can be
     // different from k. Only the indexes must be equal.
     pub fn insert(&mut self, k: K, value: V) -> Option<(K, V)> {
         let index = self.key_to_index(&k);
-        let mut current = Some((k, value));
-        for entry in self.buckets[index].iter_mut() {
-            mem::swap(&mut *entry, &mut current);
-            // If the key is already present, remove it
-            match current {
-                Some(e) if e.0 == k => break,
-                _ => {}
+        let mut replaced_idx = 0;
+
+        for (i, entry) in self.buckets[index].iter().enumerate() {
+            match entry {
+                Some(e) if e.0 != k => {
+                    if replaced_idx != i {
+                        let replaced = &self.buckets[index][replaced_idx]
+                            .expect("Expected Some(_) value to be replaced");
+                        match replaced.1.prio(&e.1, value.age()) {
+                            cmp::Ordering::Less | cmp::Ordering::Equal => replaced_idx = i,
+                            cmp::Ordering::Greater => {}
+                        }
+                    }
+                }
+                _ => {
+                    // Entry is None or its key matches the inserted value's key
+                    // => replace it
+                    replaced_idx = i;
+                    break;
+                }
             }
         }
-        self.len += current.is_none() as usize;
-        current
+        let replaced = self.buckets[index][replaced_idx];
+        self.buckets[index][replaced_idx] = Some((k, value));
+        self.len += replaced.is_none() as usize;
+        replaced
     }
 
     pub fn reserved_memory(&self) -> usize {
@@ -123,6 +152,22 @@ mod tests {
     use crate::r#move::{Move, MoveType};
     use crate::square::Square;
     use crate::zobrist::Zobrist;
+
+    impl Prio for u64 {
+        fn prio(&self, other: &Self, age: u8) -> cmp::Ordering {
+            let halfmoves_since_self = ((age as u16 + 256 - self.age() as u16) % 256) as u8;
+            let halfmoves_since_other = ((age as u16 + 256 - other.age() as u16) % 256) as u8;
+            match halfmoves_since_self.cmp(&halfmoves_since_other) {
+                cmp::Ordering::Less => cmp::Ordering::Less,
+                cmp::Ordering::Equal => self.cmp(&other).reverse(),
+                cmp::Ordering::Greater => cmp::Ordering::Greater,
+            }
+        }
+
+        fn age(&self) -> u8 {
+            (self % 256) as u8
+        }
+    }
 
     #[test]
     fn new() {

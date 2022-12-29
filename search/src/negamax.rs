@@ -141,7 +141,7 @@ impl Negamax {
         }
 
         if search_data.pos_history().current_pos_repetitions() >= REPETITIONS_TO_DRAW {
-            let entry = NegamaxEntry::new(depth, EQUAL_POSITION, Move::NULL);
+            let entry = NegamaxEntry::new(depth, EQUAL_POSITION, Move::NULL, search_data.age());
             if depth > 0 {
                 search_data
                     .pv_table_mut()
@@ -160,7 +160,7 @@ impl Negamax {
                     score = CHECKMATE_WHITE;
                 }
             }
-            let entry = NegamaxEntry::new(depth, score, Move::NULL);
+            let entry = NegamaxEntry::new(depth, score, Move::NULL, search_data.age());
             if depth > 0 {
                 search_data
                     .pv_table_mut()
@@ -202,7 +202,7 @@ impl Negamax {
                     } else {
                         EQUAL_POSITION
                     };
-                    let node = NegamaxEntry::new(depth, score, Move::NULL);
+                    let node = NegamaxEntry::new(depth, score, Move::NULL, search_data.age());
                     self.update_table(pos_hash, node);
                     search_data
                         .pv_table_mut()
@@ -230,7 +230,7 @@ impl Negamax {
                             None => return None,
                         }
                     }
-                    let node = NegamaxEntry::new(depth, best_score, best_move);
+                    let node = NegamaxEntry::new(depth, best_score, best_move, search_data.age());
                     self.update_table(pos_hash, node);
                     Some(node)
                 }
@@ -277,7 +277,7 @@ impl Negamax {
                 best_move = *m;
             }
         }
-        let node = NegamaxEntry::new(depth, best_score, best_move);
+        let node = NegamaxEntry::new(depth, best_score, best_move, search_data.age());
         self.update_table(pos_hash, node);
         node
     }

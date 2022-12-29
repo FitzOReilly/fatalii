@@ -1,13 +1,25 @@
+use std::cmp;
+
 use movegen::move_generator::MoveGenerator;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::MoveList;
-use movegen::transposition_table::TranspositionTable;
+use movegen::transposition_table::{Prio, TranspositionTable};
 use movegen::zobrist::Zobrist;
 
 #[derive(Clone, Copy, Debug)]
 struct TableEntry {
     depth: usize,
     num_nodes: usize,
+}
+
+impl Prio for TableEntry {
+    fn prio(&self, other: &Self, _age: u8) -> cmp::Ordering {
+        self.depth.cmp(&other.depth).reverse()
+    }
+
+    fn age(&self) -> u8 {
+        0
+    }
 }
 
 pub struct PerformanceTester {
