@@ -18,6 +18,7 @@ pub struct SearchData<'a> {
     command_receiver: &'a Receiver<SearchCommand>,
     info_sender: &'a Sender<SearchInfo>,
     pos_history: PositionHistory,
+    halfmove_count: usize,
     start_time: Instant,
     hard_time_limit: Option<Duration>,
     max_nodes: Option<usize>,
@@ -38,10 +39,12 @@ impl<'a> SearchData<'a> {
         hard_time_limit: Option<Duration>,
         max_nodes: Option<usize>,
     ) -> Self {
+        let halfmove_count = pos_history.current_pos().halfmove_count();
         Self {
             command_receiver,
             info_sender,
             pos_history,
+            halfmove_count,
             start_time,
             hard_time_limit,
             max_nodes,
@@ -70,6 +73,14 @@ impl<'a> SearchData<'a> {
 
     pub fn pos_history_mut(&mut self) -> &mut PositionHistory {
         &mut self.pos_history
+    }
+
+    pub fn halfmove_count(&self) -> usize {
+        self.halfmove_count
+    }
+
+    pub fn age(&self) -> u8 {
+        (self.halfmove_count() % 256) as u8
     }
 
     pub fn start_time(&self) -> Instant {

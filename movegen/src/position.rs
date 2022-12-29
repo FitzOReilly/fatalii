@@ -125,6 +125,13 @@ impl Position {
         self.move_count
     }
 
+    // Number of halfmoves played in the game
+    //
+    // Note: This is not the halfmove clock!
+    pub fn halfmove_count(&self) -> usize {
+        self.move_count() * 2 - !self.side_to_move() as usize
+    }
+
     pub fn set_en_passant_square(&mut self, square_bit: Bitboard) {
         self.en_passant_square = square_bit;
     }
@@ -160,6 +167,7 @@ impl Position {
     }
 
     pub fn set_move_count(&mut self, move_count: usize) {
+        debug_assert!(move_count > 0);
         self.move_count = move_count;
     }
 
@@ -691,5 +699,34 @@ mod tests {
         pos_black_queen.set_piece_at(Square::D8, Some(piece::Piece::BLACK_QUEEN));
         assert_eq!(false, pos_black_queen.has_minor_or_major_piece(Side::White));
         assert_eq!(true, pos_black_queen.has_minor_or_major_piece(Side::Black));
+    }
+
+    #[test]
+    fn halfmove_count() {
+        let mut pos = Position::empty();
+        assert_eq!(1, pos.move_count());
+        assert_eq!(1, pos.halfmove_count());
+
+        pos.set_side_to_move(Side::Black);
+        assert_eq!(1, pos.move_count());
+        assert_eq!(2, pos.halfmove_count());
+
+        pos.set_move_count(2);
+        pos.set_side_to_move(Side::White);
+        assert_eq!(2, pos.move_count());
+        assert_eq!(3, pos.halfmove_count());
+
+        pos.set_side_to_move(Side::Black);
+        assert_eq!(2, pos.move_count());
+        assert_eq!(4, pos.halfmove_count());
+
+        pos.set_move_count(10);
+        pos.set_side_to_move(Side::White);
+        assert_eq!(10, pos.move_count());
+        assert_eq!(19, pos.halfmove_count());
+
+        pos.set_side_to_move(Side::Black);
+        assert_eq!(10, pos.move_count());
+        assert_eq!(20, pos.halfmove_count());
     }
 }

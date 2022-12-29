@@ -457,8 +457,8 @@ impl Fen {
 
     fn str_to_pos_move_count(pos: &mut Position, fen: &str) -> Result<(), FenError> {
         let move_count = match fen.parse::<usize>() {
-            Ok(p) => p,
-            Err(_) => return Err(FenError::InvalidMoveCount),
+            Ok(p) if p > 0 => p,
+            _ => return Err(FenError::InvalidMoveCount),
         };
         pos.set_move_count(move_count);
         Ok(())
@@ -557,9 +557,12 @@ mod tests {
         let invalid_halfmove_clock = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - x 1";
         assert!(Fen::str_to_pos(invalid_halfmove_clock).is_err());
         println!("{}", Fen::str_to_pos(invalid_halfmove_clock).unwrap_err());
-        let invalid_move_count = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 x";
-        assert!(Fen::str_to_pos(invalid_move_count).is_err());
-        println!("{}", Fen::str_to_pos(invalid_move_count).unwrap_err());
+        let invalid_move_count_zero = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 0";
+        assert!(Fen::str_to_pos(invalid_move_count_zero).is_err());
+        println!("{}", Fen::str_to_pos(invalid_move_count_zero).unwrap_err());
+        let invalid_move_count_nan = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 x";
+        assert!(Fen::str_to_pos(invalid_move_count_nan).is_err());
+        println!("{}", Fen::str_to_pos(invalid_move_count_nan).unwrap_err());
         let too_few_parts = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
         assert!(Fen::str_to_pos(too_few_parts).is_err());
         println!("{}", Fen::str_to_pos(too_few_parts).unwrap_err());
