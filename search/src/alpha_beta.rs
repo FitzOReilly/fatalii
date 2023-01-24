@@ -190,7 +190,7 @@ impl AlphaBeta {
         let mut best_move = Move::NULL;
 
         match depth {
-            0 => Some(self.search_quiescence(search_data, alpha, beta)),
+            0 => return Some(self.search_quiescence(search_data, alpha, beta)),
             _ => {
                 let mut move_list = MoveList::new();
                 MoveGenerator::generate_moves(&mut move_list, pos);
@@ -200,19 +200,15 @@ impl AlphaBeta {
                     } else {
                         EQUAL_POSITION
                     };
-                    let node = AlphaBetaEntry::new(
-                        depth,
-                        score,
-                        ScoreType::Exact,
-                        Move::NULL,
-                        search_data.age(),
-                    );
-                    self.update_table(pos_hash, node);
-                    search_data
-                        .pv_table_mut()
-                        .update_move_and_truncate(depth, Move::NULL);
-                    search_data.end_pv();
-                    Some(node)
+                    if score > alpha {
+                        alpha = score;
+                        score_type = ScoreType::Exact;
+                        best_move = Move::NULL;
+                        search_data
+                            .pv_table_mut()
+                            .update_move_and_truncate(depth, best_move);
+                        search_data.end_pv();
+                    }
                 } else {
                     let pos = search_data.pos_history().current_pos();
                     if depth >= MIN_NULL_MOVE_PRUNE_DEPTH
@@ -343,16 +339,13 @@ impl AlphaBeta {
                             None => return None,
                         }
                     }
-                    debug_assert!(
-                        score_type == ScoreType::Exact || score_type == ScoreType::UpperBound
-                    );
-                    let node =
-                        AlphaBetaEntry::new(depth, alpha, score_type, best_move, search_data.age());
-                    self.update_table(pos_hash, node);
-                    Some(node)
                 }
             }
         }
+        debug_assert!(score_type == ScoreType::Exact || score_type == ScoreType::UpperBound);
+        let node = AlphaBetaEntry::new(depth, alpha, score_type, best_move, search_data.age());
+        self.update_table(pos_hash, node);
+        Some(node)
     }
 
     fn search_quiescence(
@@ -465,38 +458,41 @@ impl AlphaBeta {
 
         MoveGenerator::generate_moves(&mut move_list, search_data.pos_history().current_pos());
         if move_list.is_empty() {
-            let node = AlphaBetaEntry::new(
-                depth,
-                CHECKMATE_WHITE,
-                ScoreType::Exact,
-                Move::NULL,
-                search_data.age(),
-            );
-            self.update_table(pos_hash, node);
-            return node;
-        }
-        while let Some(m) = move_selector.select_next_move(
-            search_data,
-            &mut self.transpos_table,
-            depth,
-            &mut move_list,
-        ) {
-            search_data.increment_nodes(depth);
-            search_data.pos_history_mut().do_move(m);
-            let search_result = -self.search_quiescence(search_data, -beta, -alpha);
-            score = search_result.score();
-            search_data.pos_history_mut().undo_last_move();
-
-            if score >= beta {
-                let node =
-                    AlphaBetaEntry::new(depth, beta, ScoreType::LowerBound, m, search_data.age());
-                self.update_table(pos_hash, node);
-                return node;
-            }
+            score = CHECKMATE_WHITE;
             if score > alpha {
                 alpha = score;
                 score_type = ScoreType::Exact;
-                best_move = m;
+                best_move = Move::NULL;
+            }
+        } else {
+            while let Some(m) = move_selector.select_next_move(
+                search_data,
+                &mut self.transpos_table,
+                depth,
+                &mut move_list,
+            ) {
+                search_data.increment_nodes(depth);
+                search_data.pos_history_mut().do_move(m);
+                let search_result = -self.search_quiescence(search_data, -beta, -alpha);
+                score = search_result.score();
+                search_data.pos_history_mut().undo_last_move();
+
+                if score >= beta {
+                    let node = AlphaBetaEntry::new(
+                        depth,
+                        beta,
+                        ScoreType::LowerBound,
+                        m,
+                        search_data.age(),
+                    );
+                    self.update_table(pos_hash, node);
+                    return node;
+                }
+                if score > alpha {
+                    alpha = score;
+                    score_type = ScoreType::Exact;
+                    best_move = m;
+                }
             }
         }
 
