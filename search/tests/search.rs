@@ -49,28 +49,30 @@ impl SearchTester {
             depth: Some(depth),
             ..Default::default()
         };
+        let mut search_result = None;
         self.searcher.search(pos_hist, search_options);
         loop {
             let received = self.result_receiver.recv_timeout(TIMEOUT_PER_TEST);
             println!("{:?}", received);
-            let search_result = match received {
-                Ok(SearchInfo::DepthFinished(res)) => res,
+            match received {
+                Ok(SearchInfo::DepthFinished(res)) => search_result = Some(res),
+                Ok(SearchInfo::Stopped) => return search_result.unwrap(),
                 unexp => panic!("Expected Ok(SearchInfo::DepthFinished(_)), got {:?}", unexp),
             };
             assert!(
-                search_result.depth() <= depth,
+                search_result.clone().unwrap().depth() <= depth,
                 "Expected max depth: {}, actual depth: {}",
                 depth,
-                search_result.depth()
+                search_result.clone().unwrap().depth()
             );
-            if search_result.depth() == depth {
+            if search_result.clone().unwrap().depth() == depth {
                 self.searcher.stop();
                 loop {
                     if let Ok(SearchInfo::Stopped) = self.result_receiver.recv() {
                         break;
                     }
                 }
-                return search_result;
+                return search_result.unwrap();
             }
         }
     }
