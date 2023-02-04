@@ -106,8 +106,7 @@ fn parse_fen<'a>(
                     Ok((PositionHistory::new(pos), &trimmed[fen_end..]))
                 }
                 Err(e) => Err(Box::new(UciError::InvalidArgument(format!(
-                    "position fen {}\n{}",
-                    args, e
+                    "position fen {args}\n{e}",
                 )))),
             }
         }

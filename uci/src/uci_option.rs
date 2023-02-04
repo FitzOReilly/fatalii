@@ -62,12 +62,12 @@ pub const OPTIONS: [UciOption; 3] = [
 fn set_hash_size(engine: &mut Engine, megabytes: usize) -> String {
     let bytes = 2_usize.pow(20) * megabytes;
     engine.set_hash_size(bytes);
-    format!("Hash set to {} MB", megabytes)
+    format!("Hash set to {megabytes} MB")
 }
 
 fn set_move_overhead(engine: &mut Engine, move_overhead: usize) -> String {
     engine.set_move_overhead(Duration::from_millis(move_overhead as u64));
-    format!("Move Overhead set to {} ms", move_overhead)
+    format!("Move Overhead set to {move_overhead} ms")
 }
 
 fn set_chess_960(engine: &mut Engine, enable: bool) -> String {

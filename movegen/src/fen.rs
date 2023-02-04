@@ -40,13 +40,13 @@ impl Error for FenError {}
 impl fmt::Display for FenError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match self {
-            FenError::InvalidFenString(s, e) => format!("Invalid FEN string: `{}`: {}", s, e),
+            FenError::InvalidFenString(s, e) => format!("Invalid FEN string: `{s}`: {e}"),
             FenError::TooFewParts => "Too few parts".to_string(),
             FenError::TooManyParts => "Too many parts".to_string(),
             FenError::TooFewRanks => "Too few ranks".to_string(),
             FenError::TooManyRanks => "Too many ranks".to_string(),
-            FenError::TooFewSquares(r) => format!("Too few squares in rank {}", r),
-            FenError::TooManySquares(r) => format!("Too many squares in rank {}", r),
+            FenError::TooFewSquares(r) => format!("Too few squares in rank {r}"),
+            FenError::TooManySquares(r) => format!("Too many squares in rank {r}"),
             FenError::InvalidPiece(p) => p.to_string(),
             FenError::InvalidSideToMove => "Invalid side to move".to_string(),
             FenError::DuplicateCastlingRights => "Duplicate castling rights".to_string(),
@@ -59,7 +59,7 @@ impl fmt::Display for FenError {
             FenError::InvalidMoveCount => "Invalid move count".to_string(),
             FenError::MissingKing => "Missing king".to_string(),
         };
-        write!(f, "{}", msg)
+        write!(f, "{msg}")
     }
 }
 
@@ -172,7 +172,7 @@ impl Fen {
             fen.push('-');
         } else {
             let en_passant_square = en_passant_board.to_square();
-            let _ = write!(fen, "{}", en_passant_square);
+            let _ = write!(fen, "{en_passant_square}");
         }
     }
 
