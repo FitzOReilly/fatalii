@@ -1,5 +1,5 @@
 use engine::{Engine, EngineOptions};
-use eval::piece_square_tables::PieceSquareTables;
+use eval::complex::Complex;
 use search::alpha_beta::AlphaBeta;
 use std::error::Error;
 use std::io;
@@ -18,7 +18,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         env!("CARGO_PKG_VERSION"),
         Arc::clone(&engine_options),
     );
-    let evaluator = Box::new(PieceSquareTables::new());
+    let evaluator = Box::new(Complex::new());
     let search_algo = AlphaBeta::new(evaluator, uci_option::DEFAULT_HASH_BYTES);
     let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
 

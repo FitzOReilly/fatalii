@@ -1,5 +1,5 @@
 use crossbeam_channel::{unbounded, Receiver};
-use eval::piece_square_tables::PieceSquareTables;
+use eval::complex::Complex;
 use eval::{Eval, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF};
 use movegen::fen::Fen;
 use movegen::move_generator::MoveGenerator;
@@ -23,7 +23,7 @@ const HASH_LOAD_FACTOR_MIN: u16 = 0;
 const HASH_LOAD_FACTOR_MAX: u16 = 1000;
 
 fn evaluator() -> impl Eval {
-    PieceSquareTables::new()
+    Complex::new()
 }
 
 struct SearchTester {
