@@ -51,7 +51,7 @@ impl NodeCounter {
 impl fmt::Display for NodeCounter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for d in 1..=self.max_depth {
-            writeln!(f, "Search depth {}:", d)?;
+            writeln!(f, "Search depth {d}:")?;
             writeln!(f, "\tEvaluate calls: {}", self.eval_count[d - 1])?;
             for p in 0..=d {
                 let nc = &self.node_counts[d - 1][p];

@@ -28,10 +28,10 @@ impl Error for UciError {}
 impl fmt::Display for UciError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match self {
-            UciError::InvalidArgument(s) => format!("Invalid argument `{}`", s),
-            UciError::UnknownCommand(s) => format!("Unknown command `{}`", s),
+            UciError::InvalidArgument(s) => format!("Invalid argument `{s}`"),
+            UciError::UnknownCommand(s) => format!("Unknown command `{s}`"),
         };
-        write!(f, "Uci error: {}", msg)
+        write!(f, "Uci error: {msg}")
     }
 }
 

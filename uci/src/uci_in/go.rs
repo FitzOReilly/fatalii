@@ -24,8 +24,7 @@ fn parse_options(args: &str, engine: &Engine) -> Result<SearchOptions, Box<dyn E
     while let Some((cmd, tail)) = split_first_word(s) {
         if !seen_options.insert(cmd) {
             return Err(Box::new(UciError::InvalidArgument(format!(
-                "Option `{}` must not appear more than once in\ngo {}",
-                cmd, args
+                "Option `{cmd}` must not appear more than once in\ngo {args}",
             ))));
         }
         s = match cmd {
@@ -65,7 +64,7 @@ fn parse_usize<'a>(args: &'a str, number: &mut Option<usize>) -> Result<&'a str,
             *number = Some(first_word.parse::<usize>()?);
             Ok(tail)
         }
-        _ => Err(Box::new(UciError::InvalidArgument(format!("go {}", args)))),
+        _ => Err(Box::new(UciError::InvalidArgument(format!("go {args}")))),
     }
 }
 
@@ -79,7 +78,7 @@ fn parse_duration<'a>(
             *dur = Some(Duration::from_millis(first_word.parse::<u64>()?));
             Ok(tail)
         }
-        _ => Err(Box::new(UciError::InvalidArgument(format!("go {}", args)))),
+        _ => Err(Box::new(UciError::InvalidArgument(format!("go {args}")))),
     }
 }
 

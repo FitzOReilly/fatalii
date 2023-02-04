@@ -40,7 +40,7 @@ impl File {
 impl fmt::Display for File {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let file_char = self.to_ascii() as char;
-        write!(f, "{}", file_char)
+        write!(f, "{file_char}")
     }
 }
 

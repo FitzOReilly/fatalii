@@ -146,7 +146,7 @@ impl fmt::Display for Move {
                 }
             },
         };
-        write!(f, "{}", move_str)
+        write!(f, "{move_str}")
     }
 }
 
@@ -193,10 +193,10 @@ impl fmt::Display for MoveList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let move_list_str = self
             .iter()
-            .map(|&m| format!("{}", m))
+            .map(|&m| format!("{m}"))
             .collect::<Vec<String>>()
             .join(" ");
-        write!(f, "{}", move_list_str)
+        write!(f, "{move_list_str}")
     }
 }
 

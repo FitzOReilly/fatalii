@@ -57,8 +57,8 @@ impl EngineOut for UciOut {
                     )?)
                 }
                 Err(e) => {
-                    self.info_string(format!("{}", e).as_str())?;
-                    panic!("{}", e)
+                    self.info_string(format!("{e}").as_str())?;
+                    panic!("{e}")
                 }
             },
             None => Ok(()),
@@ -68,10 +68,10 @@ impl EngineOut for UciOut {
     fn info_string(&self, s: &str) -> Result<(), Box<dyn Error>> {
         match self.inner.lock() {
             Ok(mut inner) => match inner.debug {
-                true => Ok(writeln!(inner.writer, "info string {}", s)?),
+                true => Ok(writeln!(inner.writer, "info string {s}")?),
                 false => Ok(()),
             },
-            Err(e) => panic!("{}", e),
+            Err(e) => panic!("{e}"),
         }
     }
 
@@ -88,7 +88,7 @@ impl EngineOut for UciOut {
                                 UciMove::move_to_str_chess_960(m, king_rook, queen_rook)
                             }),
                         },
-                        Err(e) => panic!("{}", e),
+                        Err(e) => panic!("{e}"),
                     };
                     Ok(writeln!(
                         inner.writer,
@@ -97,8 +97,8 @@ impl EngineOut for UciOut {
                     )?)
                 }
                 Err(e) => {
-                    self.info_string(format!("{}", e).as_str())?;
-                    panic!("{}", e);
+                    self.info_string(format!("{e}").as_str())?;
+                    panic!("{e}");
                 }
             },
 
@@ -126,7 +126,7 @@ impl UciOut {
     pub fn set_debug(&self, tf: bool) {
         match self.inner.lock() {
             Ok(mut inner) => inner.debug = tf,
-            Err(e) => panic!("{}", e),
+            Err(e) => panic!("{e}"),
         }
     }
 
@@ -136,13 +136,12 @@ impl UciOut {
                 let version = inner.engine_version.clone();
                 Ok(write!(
                     inner.writer,
-                    "id name Fatalii {}\nid author Patrick Heck\n",
-                    version,
+                    "id name Fatalii {version}\nid author Patrick Heck\n",
                 )?)
             }
             Err(e) => {
-                self.info_string(format!("{}", e).as_str())?;
-                panic!("{}", e)
+                self.info_string(format!("{e}").as_str())?;
+                panic!("{e}")
             }
         }
     }
@@ -158,8 +157,8 @@ impl UciOut {
         match self.inner.lock() {
             Ok(mut inner) => Ok(writeln!(inner.writer, "uciok")?),
             Err(e) => {
-                self.info_string(format!("{}", e).as_str())?;
-                panic!("{}", e)
+                self.info_string(format!("{e}").as_str())?;
+                panic!("{e}")
             }
         }
     }
@@ -168,8 +167,8 @@ impl UciOut {
         match self.inner.lock() {
             Ok(mut inner) => Ok(writeln!(inner.writer, "readyok")?),
             Err(e) => {
-                self.info_string(format!("{}", e).as_str())?;
-                panic!("{}", e)
+                self.info_string(format!("{e}").as_str())?;
+                panic!("{e}")
             }
         }
     }
@@ -183,8 +182,8 @@ impl UciOut {
                     opt.name, props.default,
                 )?,
                 Err(e) => {
-                    self.info_string(format!("{}", e).as_str())?;
-                    panic!("{}", e)
+                    self.info_string(format!("{e}").as_str())?;
+                    panic!("{e}")
                 }
             },
             OptionType::Spin(props) => match self.inner.lock() {
@@ -194,8 +193,8 @@ impl UciOut {
                     opt.name, props.default, props.min, props.max,
                 )?,
                 Err(e) => {
-                    self.info_string(format!("{}", e).as_str())?;
-                    panic!("{}", e)
+                    self.info_string(format!("{e}").as_str())?;
+                    panic!("{e}")
                 }
             },
             OptionType::Button | OptionType::Combo | OptionType::String => {

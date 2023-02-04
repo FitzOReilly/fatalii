@@ -22,7 +22,7 @@ impl UciMove {
                     Some(piece::Type::Rook) => s.push('r'),
                     Some(piece::Type::Queen) => s.push('q'),
                     None => {}
-                    Some(p) => panic!("Invalid promotion piece `{:?}` in move `{}`", p, m),
+                    Some(p) => panic!("Invalid promotion piece `{p:?}` in move `{m}`"),
                 }
                 s
             }

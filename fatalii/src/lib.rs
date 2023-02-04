@@ -42,7 +42,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         reader.read_line(&mut buffer)?;
         match parser.run_command(&buffer, &mut engine) {
             Ok(Some(ParserMessage::Quit)) => break,
-            Err(e) => eprintln!("{}", e),
+            Err(e) => eprintln!("{e}"),
             _ => {}
         }
         buffer.clear();

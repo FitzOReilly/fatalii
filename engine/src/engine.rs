@@ -25,7 +25,7 @@ impl fmt::Display for EngineError {
         let msg = match self {
             EngineError::SearchWithoutPosition => "Cannot search without a position".to_string(),
         };
-        write!(f, "Engine error: {}", msg)
+        write!(f, "Engine error: {msg}")
     }
 }
 
