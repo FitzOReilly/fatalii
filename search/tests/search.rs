@@ -1,6 +1,6 @@
 use crossbeam_channel::{unbounded, Receiver};
 use eval::complex::Complex;
-use eval::{Eval, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF};
+use eval::{Eval, ScoreVariant, BLACK_WIN, EQ_POSITION, NEG_INF, WHITE_WIN};
 use movegen::fen::Fen;
 use movegen::move_generator::MoveGenerator;
 use movegen::piece;
@@ -119,7 +119,7 @@ fn checkmate_white(search_algo: impl Search + Send + 'static, depth: usize) {
 
     let expected = SearchResult::new(
         depth,
-        CHECKMATE_WHITE,
+        BLACK_WIN + 1, // Mate in 1
         0,
         0,
         0,
@@ -148,7 +148,7 @@ fn checkmate_black(search_algo: impl Search + Send + 'static, depth: usize) {
 
     let expected = SearchResult::new(
         depth,
-        CHECKMATE_BLACK,
+        WHITE_WIN - 1, // Mate in 1
         0,
         0,
         0,
@@ -174,7 +174,7 @@ fn stalemate(search_algo: impl Search + Send + 'static) {
     let pos_history = PositionHistory::new(pos);
 
     let depth = 1;
-    let expected = SearchResult::new(depth, EQUAL_POSITION, 0, 0, 0, Move::NULL, MoveList::new());
+    let expected = SearchResult::new(depth, EQ_POSITION, 0, 0, 0, Move::NULL, MoveList::new());
 
     let mut tester = SearchTester::new(search_algo);
     let actual = tester.search(pos_history, depth);
@@ -196,7 +196,7 @@ fn search_quiescence(search_algo: impl Search + Send + 'static) {
     let mut move_list = MoveList::new();
     MoveGenerator::generate_moves(&mut move_list, pos_history.current_pos());
 
-    let mut max_score = NEGATIVE_INF;
+    let mut max_score = NEG_INF;
     for m in move_list.iter() {
         pos_history.do_move(*m);
         max_score = cmp::max(max_score, evaluator().eval(pos_history.current_pos()));
@@ -303,7 +303,7 @@ fn play_threefold_repetition_in_losing_position(search_algo: impl Search + Send 
     let mut tester = SearchTester::new(search_algo);
     let res = tester.search(pos_history, depth);
 
-    assert_eq!(EQUAL_POSITION, res.score());
+    assert_eq!(EQ_POSITION, res.score());
     assert_eq!(g3d3, res.best_move());
 }
 
@@ -331,7 +331,7 @@ fn avoid_threefold_repetition_in_winning_position(search_algo: impl Search + Sen
     let mut tester = SearchTester::new(search_algo);
     let res = tester.search(pos_history, depth);
 
-    assert_ne!(EQUAL_POSITION, res.score());
+    assert_ne!(EQ_POSITION, res.score());
     assert_ne!(b2c2, res.best_move());
 }
 
@@ -345,17 +345,17 @@ fn fifty_move_rule(search_algo: impl Search + Send + 'static) {
     let pos = Fen::str_to_pos(fen_draw).unwrap();
     let pos_history = PositionHistory::new(pos);
     let res = tester.search(pos_history, depth);
-    assert_eq!(EQUAL_POSITION, res.score());
+    assert_eq!(EQ_POSITION, res.score());
 
     let pos = Fen::str_to_pos(fen_stalemate_and_50_moves).unwrap();
     let pos_history = PositionHistory::new(pos);
     let res = tester.search(pos_history, depth);
-    assert_eq!(EQUAL_POSITION, res.score());
+    assert_eq!(EQ_POSITION, res.score());
 
     let pos = Fen::str_to_pos(fen_black_win).unwrap();
     let pos_history = PositionHistory::new(pos);
     let res = tester.search(pos_history, depth);
-    assert_eq!(CHECKMATE_WHITE, res.score());
+    assert!(eval::score::is_black_mating(res.score()));
 }
 
 fn underpromotions(search_algo: impl Search + Send + 'static) {
@@ -428,13 +428,130 @@ fn stalemate_and_threefold_repetition(search_algo: impl Search + Send + 'static)
         ("7k/5Q2/6pp/6q1/8/3rr3/8/7K w - - 0 1", 10), // 3-fold repetition
         ("7k/5Q2/6pp/8/8/6q1/3rr3/7K w - - 0 1", 10), // Stalemate or 3-fold repetition possible
     ];
-    let exp_score = EQUAL_POSITION;
+    let exp_score = EQ_POSITION;
 
     for (fen, depth) in test_positions_stalemate {
         let pos = Fen::str_to_pos(fen).unwrap();
         let pos_history = PositionHistory::new(pos.clone());
         let res = tester.search(pos_history, depth);
-        assert_eq!(exp_score, res.score(),);
+        assert_eq!(exp_score, res.score());
+    }
+}
+
+fn mate_in_x_no_capture_no_check(search_algo: impl Search + Send + 'static) {
+    let mut tester = SearchTester::new(search_algo);
+    let test_positions = [
+        // Mate
+        (
+            "8/8/8/8/8/6k1/8/5r1K w - - 4 3",
+            1,
+            ScoreVariant::Mate(Side::Black, 0),
+        ),
+        // Mate in 1
+        (
+            "8/8/8/8/8/6k1/5r2/7K b - - 3 2",
+            2,
+            ScoreVariant::Mate(Side::Black, -1),
+        ),
+        // Mate in 1
+        (
+            "8/8/8/8/8/6k1/5r2/6K1 w - - 2 2",
+            3,
+            ScoreVariant::Mate(Side::Black, -1),
+        ),
+        // Mate in 2
+        (
+            "8/8/8/8/8/5rk1/8/6K1 b - - 1 1",
+            4,
+            ScoreVariant::Mate(Side::Black, -2),
+        ),
+        // Mate in 2
+        (
+            "8/8/8/8/8/5rk1/8/7K w - - 0 1",
+            5,
+            ScoreVariant::Mate(Side::Black, -2),
+        ),
+    ];
+
+    for (fen, depth, exp_score) in test_positions {
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let pos_history = PositionHistory::new(pos.clone());
+        let res = tester.search(pos_history, depth);
+        assert_eq!(exp_score, ScoreVariant::from(res.score()));
+    }
+}
+
+fn mate_in_x_capture_and_check(search_algo: impl Search + Send + 'static) {
+    let mut tester = SearchTester::new(search_algo);
+    let test_positions = [
+        // Mate
+        (
+            "5R1k/6pp/8/8/8/8/8/7K b - - 0 3",
+            1,
+            ScoreVariant::Mate(Side::White, 0),
+        ),
+        // Mate in 1
+        (
+            "4Rr1k/6pp/8/8/8/8/8/7K w - - 1 3",
+            2,
+            ScoreVariant::Mate(Side::White, 1),
+        ),
+        // Mate in 1
+        (
+            "4R2k/6pp/8/8/8/8/5r2/7K b - - 0 2",
+            3,
+            ScoreVariant::Mate(Side::White, 1),
+        ),
+        // Mate in 2
+        (
+            "R3r2k/6pp/8/8/8/8/5r2/7K w - - 2 2",
+            4,
+            ScoreVariant::Mate(Side::White, 2),
+        ),
+        // Mate in 2
+        (
+            "R6k/6pp/8/8/8/8/4rr2/7K b - - 1 1",
+            5,
+            ScoreVariant::Mate(Side::White, 2),
+        ),
+        // Mate in 3
+        (
+            "7k/6pp/8/8/8/8/4rr2/R6K w - - 0 1",
+            6,
+            ScoreVariant::Mate(Side::White, 3),
+        ),
+    ];
+
+    for (fen, depth, exp_score) in test_positions {
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let pos_history = PositionHistory::new(pos.clone());
+        let res = tester.search(pos_history, depth);
+        assert_eq!(exp_score, ScoreVariant::from(res.score()));
+    }
+}
+
+fn mate_in_x_higher_depth(search_algo: impl Search + Send + 'static) {
+    let mut tester = SearchTester::new(search_algo);
+    let test_positions = [
+        // Mate in 4
+        (
+            "7Q/6P1/3k4/8/8/P4PK1/1P6/8 b - - 0 119",
+            8,
+            ScoreVariant::Mate(Side::White, 4),
+        ),
+        // Mate in 5
+        (
+            "8/2p5/4k3/8/P2B4/r7/6rP/3K4 b - - 6 51",
+            10,
+            ScoreVariant::Mate(Side::Black, -5),
+        ),
+    ];
+
+    for (fen, depth, exp_score) in test_positions {
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let pos_history = PositionHistory::new(pos.clone());
+        let res = tester.search(pos_history, depth);
+        assert_eq!(exp_score, ScoreVariant::from(res.score()));
     }
 }
 
@@ -513,6 +630,20 @@ fn negamax_avoid_threefold_repetition_in_winning_position() {
 fn negamax_fifty_move_rule() {
     let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
     fifty_move_rule(negamax);
+}
+
+#[test]
+#[ignore]
+fn negamax_mate_in_x_no_capture_no_check() {
+    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
+    mate_in_x_no_capture_no_check(negamax);
+}
+
+#[test]
+#[ignore]
+fn negamax_mate_in_x_capture_and_check() {
+    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
+    mate_in_x_capture_and_check(negamax);
 }
 
 #[test]
@@ -613,4 +744,23 @@ fn alpha_beta_underpromotions() {
 fn alpha_beta_stalemate_and_threefold_repetition() {
     let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     stalemate_and_threefold_repetition(alpha_beta);
+}
+
+#[test]
+fn alpha_beta_mate_in_x_no_capture_no_check() {
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
+    mate_in_x_no_capture_no_check(alpha_beta);
+}
+
+#[test]
+fn alpha_beta_mate_in_x_capture_and_check() {
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
+    mate_in_x_capture_and_check(alpha_beta);
+}
+
+#[test]
+#[ignore]
+fn alpha_beta_mate_in_x_higher_depth() {
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
+    mate_in_x_higher_depth(alpha_beta);
 }

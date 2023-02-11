@@ -7,3 +7,4 @@ pub mod uci_option;
 mod parser;
 mod uci_move;
 mod uci_out;
+mod uci_score;
