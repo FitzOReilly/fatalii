@@ -1,5 +1,4 @@
-use crate::eval::{Eval, Score};
-
+use crate::{Eval, Score};
 use movegen::bishop::Bishop;
 use movegen::bitboard::Bitboard;
 use movegen::king::King;

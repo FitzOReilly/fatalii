@@ -7,7 +7,7 @@ use crate::search_data::SearchData;
 use crate::time_manager::TimeManager;
 use crate::SearchOptions;
 use crossbeam_channel::{Receiver, Sender};
-use eval::{Eval, CHECKMATE_BLACK, CHECKMATE_WHITE, EQUAL_POSITION, NEGATIVE_INF};
+use eval::{Eval, BLACK_WIN, EQ_POSITION, NEG_INF, WHITE_WIN};
 use movegen::move_generator::MoveGenerator;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
@@ -98,7 +98,7 @@ impl Search for Negamax {
                     info_sender
                         .send(SearchInfo::DepthFinished(search_res))
                         .expect("Error sending SearchInfo");
-                    if let CHECKMATE_WHITE | CHECKMATE_BLACK = abs_negamax_res.score() {
+                    if let BLACK_WIN | WHITE_WIN = abs_negamax_res.score() {
                         break;
                     }
                 }
@@ -141,7 +141,7 @@ impl Negamax {
         }
 
         if search_data.pos_history().current_pos_repetitions() >= REPETITIONS_TO_DRAW {
-            let entry = NegamaxEntry::new(depth, EQUAL_POSITION, Move::NULL, search_data.age());
+            let entry = NegamaxEntry::new(depth, EQ_POSITION, Move::NULL, search_data.age());
             if depth > 0 {
                 search_data
                     .pv_table_mut()
@@ -152,12 +152,12 @@ impl Negamax {
 
         let pos = search_data.pos_history().current_pos();
         if pos.plies_since_pawn_move_or_capture() >= PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW {
-            let mut score = EQUAL_POSITION;
+            let mut score = EQ_POSITION;
             if pos.is_in_check(pos.side_to_move()) {
                 let mut move_list = MoveList::new();
                 MoveGenerator::generate_moves(&mut move_list, pos);
                 if move_list.is_empty() {
-                    score = CHECKMATE_WHITE;
+                    score = BLACK_WIN;
                 }
             }
             let entry = NegamaxEntry::new(depth, score, Move::NULL, search_data.age());
@@ -187,7 +187,7 @@ impl Negamax {
             }
         }
 
-        let mut best_score = NEGATIVE_INF;
+        let mut best_score = NEG_INF;
         let mut best_move = Move::NULL;
 
         match depth {
@@ -198,9 +198,9 @@ impl Negamax {
                 MoveGenerator::generate_moves(&mut move_list, pos);
                 if move_list.is_empty() {
                     let score = if pos.is_in_check(pos.side_to_move()) {
-                        CHECKMATE_WHITE
+                        BLACK_WIN
                     } else {
-                        EQUAL_POSITION
+                        EQ_POSITION
                     };
                     let node = NegamaxEntry::new(depth, score, Move::NULL, search_data.age());
                     self.update_table(pos_hash, node);
@@ -218,7 +218,7 @@ impl Negamax {
                         match opt_neg_res {
                             Some(neg_search_res) => {
                                 let search_result = -neg_search_res;
-                                let score = search_result.score();
+                                let score = eval::score::inc_mate_dist(search_result.score());
                                 if score > best_score {
                                     best_score = score;
                                     best_move = *m;
@@ -269,7 +269,7 @@ impl Negamax {
             search_data.increment_nodes(depth);
             search_data.pos_history_mut().do_move(*m);
             let search_result = -self.search_quiescence(search_data);
-            score = search_result.score();
+            score = eval::score::inc_mate_dist(search_result.score());
             search_data.pos_history_mut().undo_last_move();
 
             if score > best_score {

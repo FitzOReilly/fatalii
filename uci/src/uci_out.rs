@@ -1,5 +1,6 @@
 use crate::uci_move::UciMove;
 use crate::uci_option::{OptionType, UciOption, OPTIONS};
+use crate::uci_score::UciScore;
 use engine::{EngineOptions, EngineOut, Variant};
 use movegen::r#move::Move;
 use search::search::SearchResult;
@@ -46,9 +47,9 @@ impl EngineOut for UciOut {
                         .join(" ");
                     Ok(writeln!(
                         inner.writer,
-                        "info depth {} score cp {} nodes {} nps {} time {} hashfull {} pv {}",
+                        "info depth {} score {} nodes {} nps {} time {} hashfull {} pv {}",
                         res.depth(),
-                        res.score(),
+                        UciScore::from(res.score()),
                         res.nodes(),
                         res.nodes_per_second(),
                         res.time_ms(),

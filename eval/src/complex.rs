@@ -1,4 +1,4 @@
-use crate::eval::{Eval, Score};
+use crate::{Eval, Score};
 use movegen::bitboard::Bitboard;
 use movegen::file::File;
 use movegen::piece;
