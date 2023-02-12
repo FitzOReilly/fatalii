@@ -25,8 +25,14 @@ impl PvTable {
 
     pub fn pv_into_movelist(&self, depth: usize) -> MoveList {
         let mut res = MoveList::with_capacity(depth);
-        for m in self.pv(depth) {
-            res.push(*m);
+        for (i, m) in self.pv(depth).iter().enumerate() {
+            match m {
+                &Move::NULL => {
+                    res.truncate(i);
+                    break;
+                }
+                _ => res.push(*m),
+            }
         }
         res
     }
