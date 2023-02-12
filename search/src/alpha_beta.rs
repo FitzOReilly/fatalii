@@ -8,7 +8,7 @@ use crate::search_data::SearchData;
 use crate::time_manager::TimeManager;
 use crate::SearchOptions;
 use crossbeam_channel::{Receiver, Sender};
-use eval::{Eval, Score, BLACK_WIN, EQ_POSITION, NEG_INF, POS_INF};
+use eval::{Eval, Score, BLACK_WIN, EQ_POSITION, NEG_INF, POS_INF, WHITE_WIN};
 use movegen::move_generator::MoveGenerator;
 use movegen::piece;
 use movegen::position_history::PositionHistory;
@@ -351,10 +351,15 @@ impl AlphaBeta {
                                     pvs_full_window = false;
                                     score_type = ScoreType::Exact;
                                     best_move = m;
-                                    // println!("New best move: {m}");
-                                    search_data
-                                        .pv_table_mut()
-                                        .update_move_and_copy(depth, best_move);
+                                    if score == WHITE_WIN - 1 {
+                                        search_data
+                                            .pv_table_mut()
+                                            .update_move_and_truncate(depth, best_move);
+                                    } else {
+                                        search_data
+                                            .pv_table_mut()
+                                            .update_move_and_copy(depth, best_move);
+                                    }
                                 }
                             }
                             None => return None,

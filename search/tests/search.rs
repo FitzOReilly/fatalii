@@ -555,6 +555,27 @@ fn mate_in_x_higher_depth(search_algo: impl Search + Send + 'static) {
     }
 }
 
+fn pv_truncated_after_mate(search_algo: impl Search + Send + 'static) {
+    let mut tester = SearchTester::new(search_algo);
+    let test_positions = [
+        // Mate in 3
+        (
+            "r2N1b2/p2b1Bp1/n4p2/1p1p3R/3P2k1/P7/1PP2KPP/8 w - - 0 27",
+            8,
+            ScoreVariant::Mate(Side::White, 3),
+            5,
+        ),
+    ];
+
+    for (fen, depth, exp_score, pv_len) in test_positions {
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let pos_history = PositionHistory::new(pos.clone());
+        let res = tester.search(pos_history, depth);
+        assert_eq!(exp_score, ScoreVariant::from(res.score()));
+        assert_eq!(pv_len, res.principal_variation().len());
+    }
+}
+
 #[test]
 #[ignore]
 fn negamax_search_results_independent_of_transposition_table_size() {
@@ -763,4 +784,11 @@ fn alpha_beta_mate_in_x_capture_and_check() {
 fn alpha_beta_mate_in_x_higher_depth() {
     let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     mate_in_x_higher_depth(alpha_beta);
+}
+
+#[test]
+#[ignore]
+fn alpha_beta_pv_truncated_after_mate() {
+    let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
+    pv_truncated_after_mate(alpha_beta);
 }
