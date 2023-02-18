@@ -75,12 +75,12 @@ impl Complex {
 
     fn update(&mut self, pos: &Position) {
         for (piece_type, table, weight) in [
-            (piece::Type::Pawn, PST_PAWN, PAWN_WEIGHT.0),
-            (piece::Type::Knight, PST_KNIGHT, KNIGHT_WEIGHT.0),
-            (piece::Type::Bishop, PST_BISHOP, BISHOP_WEIGHT.0),
-            (piece::Type::Rook, PST_ROOK, ROOK_WEIGHT.0),
-            (piece::Type::Queen, PST_QUEEN, QUEEN_WEIGHT.0),
-            (piece::Type::King, PST_KING, KING_WEIGHT.0),
+            (piece::Type::Pawn, &PST_PAWN, PAWN_WEIGHT.0),
+            (piece::Type::Knight, &PST_KNIGHT, KNIGHT_WEIGHT.0),
+            (piece::Type::Bishop, &PST_BISHOP, BISHOP_WEIGHT.0),
+            (piece::Type::Rook, &PST_ROOK, ROOK_WEIGHT.0),
+            (piece::Type::Queen, &PST_QUEEN, QUEEN_WEIGHT.0),
+            (piece::Type::King, &PST_KING, KING_WEIGHT.0),
         ] {
             let old_white = self.current_pos.piece_occupancy(Side::White, piece_type);
             let new_white = pos.piece_occupancy(Side::White, piece_type);
