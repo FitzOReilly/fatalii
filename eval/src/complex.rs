@@ -1,3 +1,4 @@
+use crate::game_phase::GamePhase;
 use crate::{Eval, Score};
 use movegen::bitboard::Bitboard;
 use movegen::file::File;
@@ -6,7 +7,6 @@ use movegen::position::Position;
 use movegen::rank::Rank;
 use movegen::side::Side;
 use movegen::square::Square;
-use std::cmp;
 
 type PieceSquareTable = [(Score, Score); 64];
 
@@ -21,39 +21,28 @@ const PAWN_WEIGHT: (Score, Score) = (100, 120);
 // The side to move gets a small bonus
 const TEMPO_WEIGHT: (Score, Score) = (10, 10);
 
-// Interpolate between the opening and endgame score if the material is between
-// these 2 values. Otherwise use only one of the scores.
-const INTERPOLATE_MAX_MATERIAL: Score = 2
-    * (KING_WEIGHT.0
-        + QUEEN_WEIGHT.0
-        + 2 * ROOK_WEIGHT.0
-        + 2 * BISHOP_WEIGHT.0
-        + 2 * KNIGHT_WEIGHT.0
-        + 8 * PAWN_WEIGHT.0);
-const INTERPOLATE_MIN_MATERIAL: Score = 2 * KING_WEIGHT.0;
-
 #[derive(Debug, Clone)]
 pub struct Complex {
     current_pos: Position,
     opening_score: Score,
     endgame_score: Score,
-    total_material: Score,
+    game_phase: GamePhase,
 }
 
 impl Eval for Complex {
     fn eval(&mut self, pos: &Position) -> Score {
         self.update(pos);
-        let clamped_material = cmp::min(INTERPOLATE_MAX_MATERIAL, self.total_material);
-        let game_phase = clamped_material - INTERPOLATE_MIN_MATERIAL;
         let tempo_multiplier = 1 - 2 * (pos.side_to_move() as i16);
         let tempo_score_mg = tempo_multiplier * TEMPO_WEIGHT.0;
         let tempo_score_eg = tempo_multiplier * TEMPO_WEIGHT.1;
         let score_mg = self.opening_score + tempo_score_mg;
         let score_eg = self.endgame_score + tempo_score_eg;
-        let total_score = (game_phase as i64 * score_mg as i64
-            + (INTERPOLATE_MAX_MATERIAL - game_phase) as i64 * score_eg as i64)
-            / (INTERPOLATE_MAX_MATERIAL - INTERPOLATE_MIN_MATERIAL) as i64;
-        total_score as Score
+        let game_phase = self.game_phase.game_phase_clamped();
+        let tapered_score = (game_phase as i64 * score_mg as i64
+            + (GamePhase::MAX - game_phase) as i64 * score_eg as i64)
+            / GamePhase::MAX as i64;
+
+        tapered_score as Score
     }
 }
 
@@ -69,18 +58,18 @@ impl Complex {
             current_pos: Position::empty(),
             opening_score: 0,
             endgame_score: 0,
-            total_material: 0,
+            game_phase: Default::default(),
         }
     }
 
     fn update(&mut self, pos: &Position) {
-        for (piece_type, table, weight) in [
-            (piece::Type::Pawn, &PST_PAWN, PAWN_WEIGHT.0),
-            (piece::Type::Knight, &PST_KNIGHT, KNIGHT_WEIGHT.0),
-            (piece::Type::Bishop, &PST_BISHOP, BISHOP_WEIGHT.0),
-            (piece::Type::Rook, &PST_ROOK, ROOK_WEIGHT.0),
-            (piece::Type::Queen, &PST_QUEEN, QUEEN_WEIGHT.0),
-            (piece::Type::King, &PST_KING, KING_WEIGHT.0),
+        for (piece_type, table) in [
+            (piece::Type::Pawn, &PST_PAWN),
+            (piece::Type::Knight, &PST_KNIGHT),
+            (piece::Type::Bishop, &PST_BISHOP),
+            (piece::Type::Rook, &PST_ROOK),
+            (piece::Type::Queen, &PST_QUEEN),
+            (piece::Type::King, &PST_KING),
         ] {
             let old_white = self.current_pos.piece_occupancy(Side::White, piece_type);
             let new_white = pos.piece_occupancy(Side::White, piece_type);
@@ -90,13 +79,13 @@ impl Complex {
                 let square = white_remove.square_scan_forward_reset();
                 self.opening_score -= table[square.idx()].0;
                 self.endgame_score -= table[square.idx()].1;
-                self.total_material -= weight;
+                self.game_phase.remove_piece(piece_type);
             }
             while white_add != Bitboard::EMPTY {
                 let square = white_add.square_scan_forward_reset();
                 self.opening_score += table[square.idx()].0;
                 self.endgame_score += table[square.idx()].1;
-                self.total_material += weight;
+                self.game_phase.add_piece(piece_type);
             }
             let old_black = self.current_pos.piece_occupancy(Side::Black, piece_type);
             let new_black = pos.piece_occupancy(Side::Black, piece_type);
@@ -106,13 +95,13 @@ impl Complex {
                 let square = black_remove.square_scan_forward_reset();
                 self.opening_score += table[square.flip_vertical().idx()].0;
                 self.endgame_score += table[square.flip_vertical().idx()].1;
-                self.total_material -= weight;
+                self.game_phase.remove_piece(piece_type);
             }
             while black_add != Bitboard::EMPTY {
                 let square = black_add.square_scan_forward_reset();
                 self.opening_score -= table[square.flip_vertical().idx()].0;
                 self.endgame_score -= table[square.flip_vertical().idx()].1;
-                self.total_material += weight;
+                self.game_phase.add_piece(piece_type);
             }
         }
         self.current_pos = pos.clone();
