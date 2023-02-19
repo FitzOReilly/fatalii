@@ -1,6 +1,6 @@
 use std::cmp;
 
-use movegen::piece;
+use movegen::piece::{self, Piece};
 
 const KING_PHASE: usize = 0;
 const QUEEN_PHASE: usize = 4;
@@ -45,5 +45,24 @@ impl GamePhase {
             piece::Type::Queen => QUEEN_PHASE,
             piece::Type::King => KING_PHASE,
         };
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PieceCounts([usize; Piece::NUM_PIECES]);
+
+impl PieceCounts {
+    pub fn count(&self, p: Piece) -> usize {
+        self.0[p.idx()]
+    }
+
+    pub fn add(&mut self, p: Piece) {
+        debug_assert!(self.0[p.idx()] <= 9);
+        self.0[p.idx()] += 1;
+    }
+
+    pub fn remove(&mut self, p: Piece) {
+        debug_assert_ne!(0, self.0[p.idx()]);
+        self.0[p.idx()] -= 1;
     }
 }

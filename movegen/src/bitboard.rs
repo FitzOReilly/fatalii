@@ -31,6 +31,9 @@ impl Bitboard {
     pub const RANK_7: Self = Self(0x4040404040404040);
     pub const RANK_8: Self = Self(0x8080808080808080);
 
+    pub const LIGHT_SQUARES: Self = Self(0x55aa55aa55aa55aa);
+    pub const DARK_SQUARES: Self = Self(0xaa55aa55aa55aa55);
+
     pub const A1: Self = Self::from_square(Square::A1);
     pub const A2: Self = Self::from_square(Square::A2);
     pub const A3: Self = Self::from_square(Square::A3);
@@ -583,6 +586,69 @@ mod tests {
         assert_eq!(Bitboard::E5, Bitboard::from_square(Square::E5));
         assert_eq!(Bitboard::A8, Bitboard::from_square(Square::A8));
         assert_eq!(Bitboard::H8, Bitboard::from_square(Square::H8));
+    }
+
+    #[test]
+    fn light_and_dark_squares() {
+        assert_eq!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::A1);
+        assert_eq!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::A3);
+        assert_eq!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::A5);
+        assert_eq!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::A7);
+        assert_eq!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::C1);
+        assert_eq!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::E1);
+        assert_eq!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::G1);
+        assert_eq!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::B2);
+        assert_eq!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::C3);
+        assert_eq!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::D4);
+        assert_eq!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::E5);
+        assert_eq!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::F6);
+        assert_eq!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::G7);
+        assert_eq!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::H8);
+
+        assert_ne!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::A2);
+        assert_ne!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::A4);
+        assert_ne!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::A6);
+        assert_ne!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::A8);
+        assert_ne!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::B1);
+        assert_ne!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::D1);
+        assert_ne!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::F1);
+        assert_ne!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::H1);
+        assert_ne!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::B7);
+        assert_ne!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::C6);
+        assert_ne!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::D5);
+        assert_ne!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::E4);
+        assert_ne!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::F3);
+        assert_ne!(Bitboard::EMPTY, Bitboard::LIGHT_SQUARES & Bitboard::G2);
+
+        assert_ne!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::A1);
+        assert_ne!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::A3);
+        assert_ne!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::A5);
+        assert_ne!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::A7);
+        assert_ne!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::C1);
+        assert_ne!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::E1);
+        assert_ne!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::G1);
+        assert_ne!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::B2);
+        assert_ne!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::C3);
+        assert_ne!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::D4);
+        assert_ne!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::E5);
+        assert_ne!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::F6);
+        assert_ne!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::G7);
+        assert_ne!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::H8);
+
+        assert_eq!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::A2);
+        assert_eq!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::A4);
+        assert_eq!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::A6);
+        assert_eq!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::A8);
+        assert_eq!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::B1);
+        assert_eq!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::D1);
+        assert_eq!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::F1);
+        assert_eq!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::H1);
+        assert_eq!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::B7);
+        assert_eq!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::C6);
+        assert_eq!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::D5);
+        assert_eq!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::E4);
+        assert_eq!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::F3);
+        assert_eq!(Bitboard::EMPTY, Bitboard::DARK_SQUARES & Bitboard::G2);
     }
 
     #[test]

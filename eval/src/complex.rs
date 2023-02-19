@@ -1,8 +1,8 @@
-use crate::game_phase::GamePhase;
-use crate::{Eval, Score};
+use crate::game_phase::{GamePhase, PieceCounts};
+use crate::{Eval, Score, EQ_POSITION};
 use movegen::bitboard::Bitboard;
 use movegen::file::File;
-use movegen::piece;
+use movegen::piece::{self, Piece};
 use movegen::position::Position;
 use movegen::rank::Rank;
 use movegen::side::Side;
@@ -27,11 +27,17 @@ pub struct Complex {
     opening_score: Score,
     endgame_score: Score,
     game_phase: GamePhase,
+    piece_counts: PieceCounts,
 }
 
 impl Eval for Complex {
     fn eval(&mut self, pos: &Position) -> Score {
         self.update(pos);
+
+        if self.is_draw() {
+            return EQ_POSITION;
+        }
+
         let tempo_multiplier = 1 - 2 * (pos.side_to_move() as i16);
         let tempo_score_mg = tempo_multiplier * TEMPO_WEIGHT.0;
         let tempo_score_eg = tempo_multiplier * TEMPO_WEIGHT.1;
@@ -59,7 +65,70 @@ impl Complex {
             opening_score: 0,
             endgame_score: 0,
             game_phase: Default::default(),
+            piece_counts: Default::default(),
         }
+    }
+
+    // Check if a position is a draw. In positions where a mate is possible, but
+    // cannot be forced (e.g. KNNvK), this still returns true.
+    fn is_draw(&self) -> bool {
+        for p in [
+            Piece::WHITE_PAWN,
+            Piece::BLACK_PAWN,
+            Piece::WHITE_ROOK,
+            Piece::BLACK_ROOK,
+            Piece::WHITE_QUEEN,
+            Piece::BLACK_QUEEN,
+        ] {
+            if self.piece_counts.count(p) > 0 {
+                return false;
+            }
+        }
+
+        // Mate can be forced with more than 2 knights against a lone king
+        let white_knights_count = self.piece_counts.count(Piece::WHITE_KNIGHT);
+        if white_knights_count > 2 {
+            return false;
+        }
+        let black_knights_count = self.piece_counts.count(Piece::BLACK_KNIGHT);
+        if black_knights_count > 2 {
+            return false;
+        }
+
+        // Mate can be forced with bishop + knight against a lone king
+        let white_bishops_count = self.piece_counts.count(Piece::WHITE_BISHOP);
+        if white_knights_count > 0 && white_bishops_count > 0 {
+            return false;
+        }
+        let black_bishops_count = self.piece_counts.count(Piece::BLACK_BISHOP);
+        if black_knights_count > 0 && black_bishops_count > 0 {
+            return false;
+        }
+
+        // Mate can be forced with 2 bishops against a lone king, if the bishops
+        // are on different colors
+        if white_bishops_count > 1 {
+            let white_bishops = self
+                .current_pos
+                .piece_occupancy(Side::White, piece::Type::Bishop);
+            if white_bishops & Bitboard::LIGHT_SQUARES != Bitboard::EMPTY
+                && white_bishops & Bitboard::DARK_SQUARES != Bitboard::EMPTY
+            {
+                return false;
+            }
+        }
+        if black_bishops_count > 1 {
+            let black_bishops = self
+                .current_pos
+                .piece_occupancy(Side::Black, piece::Type::Bishop);
+            if black_bishops & Bitboard::LIGHT_SQUARES != Bitboard::EMPTY
+                && black_bishops & Bitboard::DARK_SQUARES != Bitboard::EMPTY
+            {
+                return false;
+            }
+        }
+
+        true
     }
 
     fn update(&mut self, pos: &Position) {
@@ -80,12 +149,15 @@ impl Complex {
                 self.opening_score -= table[square.idx()].0;
                 self.endgame_score -= table[square.idx()].1;
                 self.game_phase.remove_piece(piece_type);
+                self.piece_counts
+                    .remove(Piece::new(Side::White, piece_type));
             }
             while white_add != Bitboard::EMPTY {
                 let square = white_add.square_scan_forward_reset();
                 self.opening_score += table[square.idx()].0;
                 self.endgame_score += table[square.idx()].1;
                 self.game_phase.add_piece(piece_type);
+                self.piece_counts.add(Piece::new(Side::White, piece_type));
             }
             let old_black = self.current_pos.piece_occupancy(Side::Black, piece_type);
             let new_black = pos.piece_occupancy(Side::Black, piece_type);
@@ -96,12 +168,15 @@ impl Complex {
                 self.opening_score += table[square.flip_vertical().idx()].0;
                 self.endgame_score += table[square.flip_vertical().idx()].1;
                 self.game_phase.remove_piece(piece_type);
+                self.piece_counts
+                    .remove(Piece::new(Side::Black, piece_type));
             }
             while black_add != Bitboard::EMPTY {
                 let square = black_add.square_scan_forward_reset();
                 self.opening_score -= table[square.flip_vertical().idx()].0;
                 self.endgame_score -= table[square.flip_vertical().idx()].1;
                 self.game_phase.add_piece(piece_type);
+                self.piece_counts.add(Piece::new(Side::Black, piece_type));
             }
         }
         self.current_pos = pos.clone();
@@ -345,7 +420,11 @@ const PST_KING: PieceSquareTable = {
 
 #[cfg(test)]
 mod tests {
-    use movegen::square::Square;
+    use movegen::{fen::Fen, square::Square};
+
+    use crate::{Eval, EQ_POSITION};
+
+    use super::Complex;
 
     #[test]
     fn human_readable_to_file_rank() {
@@ -369,5 +448,45 @@ mod tests {
         assert_eq!(163, res[Square::H1.idx()]);
         assert_eq!(115, res[Square::H7.idx()]);
         assert_eq!(107, res[Square::H8.idx()]);
+    }
+
+    #[test]
+    fn draw_by_insufficient_material() {
+        let mut evaluator = Complex::new();
+
+        for draw in [
+            "7k/8/8/8/3K4/8/8/8 w - - 0 1",    // KvK
+            "7k/8/8/8/3KN3/8/8/8 w - - 0 1",   // KNvK
+            "7k/8/8/8/3KB3/8/8/8 w - - 0 1",   // KBvK
+            "7k/8/8/5B2/3KB3/8/8/8 w - - 0 1", // KBBvK, bishops on same color
+            "6bk/8/8/8/3KB3/8/8/8 w - - 0 1",  // KBvKB, bishops on same color
+            // In these positions, mate is possible, but cannot be forced
+            "7k/8/8/3N4/3KN3/8/8/8 w - - 0 1",   // KNNvK
+            "k7/b1KB4/8/8/8/8/8/8 w - - 0 1",    // KBvKB, bishops on different colors
+            "1n2k3/8/8/8/8/8/8/2B1K3 w - - 0 1", // KBvKN
+        ] {
+            let pos = Fen::str_to_pos(draw).unwrap();
+            assert_eq!(
+                EQ_POSITION,
+                evaluator.eval(&pos),
+                "\nPosition: {draw}\n{pos}"
+            );
+        }
+
+        for non_draw in [
+            "7k/8/8/8/3KQ3/8/8/8 w - - 0 1",      // KQvK
+            "7k/8/8/8/3KR3/8/8/8 w - - 0 1",      // KRvK
+            "7k/8/8/8/3KP3/8/8/8 w - - 0 1",      // KPvK
+            "7k/8/8/8/3KBB2/8/8/8 w - - 0 1",     // KBBvK, bishops on different colors
+            "7k/8/8/8/3KBN2/8/8/8 w - - 0 1",     // KBNvK
+            "4k3/8/8/8/8/8/8/1NN1K1N1 w - - 0 1", // KNNNvK
+        ] {
+            let pos = Fen::str_to_pos(non_draw).unwrap();
+            assert_ne!(
+                EQ_POSITION,
+                evaluator.eval(&pos),
+                "\nPosition: {non_draw}\n{pos}"
+            );
+        }
     }
 }
