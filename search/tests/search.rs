@@ -471,6 +471,34 @@ fn mate_in_x_no_capture_no_check(search_algo: impl Search + Send + 'static) {
             5,
             ScoreVariant::Mate(Side::Black, -2),
         ),
+        // Mate in 1, KBvKB with bishops on different colors. Make sure that
+        // this doesn't get evaluated as a draw by insufficient material.
+        (
+            "k7/b1KB4/8/8/8/8/8/8 w - - 0 1",
+            2,
+            ScoreVariant::Mate(Side::White, 1),
+        ),
+        // Mate in 1, KNNvK. Make sure that this doesn't get evaluated as a draw
+        // by insufficient material.
+        (
+            "k7/2K5/2N5/8/2N5/8/8/8 w - - 0 1",
+            2,
+            ScoreVariant::Mate(Side::White, 1),
+        ),
+        // Mate in 1, KBvKN. Make sure that this doesn't get evaluated as a draw
+        // by insufficient material.
+        (
+            "k7/n1K5/B7/8/8/8/8/8 w - - 0 1",
+            2,
+            ScoreVariant::Mate(Side::White, 1),
+        ),
+        // Mate in 1, KNvKB. Make sure that this doesn't get evaluated as a draw
+        // by insufficient material.
+        (
+            "k1K5/b7/8/1N6/8/8/8/8 w - - 0 1",
+            2,
+            ScoreVariant::Mate(Side::White, 1),
+        ),
     ];
 
     for (fen, depth, exp_score) in test_positions {
