@@ -1,7 +1,7 @@
 use crate::search::MAX_SEARCH_DEPTH;
 use eval::Score;
 use movegen::r#move::Move;
-use movegen::transposition_table::Prio;
+use movegen::transposition_table::TtEntry;
 use movegen::zobrist::Zobrist;
 use std::ops::Neg;
 use std::{cmp, mem};
@@ -38,7 +38,7 @@ impl Neg for AlphaBetaEntry {
     }
 }
 
-impl Prio for AlphaBetaEntry {
+impl TtEntry for AlphaBetaEntry {
     fn prio(&self, other: &Self, age: u8) -> cmp::Ordering {
         let halfmoves_since_self = ((age as u16 + 256 - self.age() as u16) % 256) as u8;
         let halfmoves_since_other = ((age as u16 + 256 - other.age() as u16) % 256) as u8;

@@ -3,7 +3,7 @@ use std::cmp;
 use movegen::move_generator::MoveGenerator;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::MoveList;
-use movegen::transposition_table::{Prio, TranspositionTable};
+use movegen::transposition_table::{TranspositionTable, TtEntry};
 use movegen::zobrist::Zobrist;
 
 #[derive(Clone, Copy, Debug)]
@@ -12,7 +12,7 @@ struct TableEntry {
     num_nodes: usize,
 }
 
-impl Prio for TableEntry {
+impl TtEntry for TableEntry {
     fn prio(&self, other: &Self, _age: u8) -> cmp::Ordering {
         self.depth.cmp(&other.depth).reverse()
     }
