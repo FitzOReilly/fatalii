@@ -1,6 +1,6 @@
 use std::{cmp, mem};
 
-pub trait Prio {
+pub trait TtEntry {
     fn prio(&self, other: &Self, age: u8) -> cmp::Ordering;
 
     fn age(&self) -> u8;
@@ -20,7 +20,7 @@ pub struct TranspositionTable<K, V> {
 impl<K, V> TranspositionTable<K, V>
 where
     K: Copy + Eq,
-    V: Copy + Prio,
+    V: Copy + TtEntry,
     u64: From<K>,
 {
     pub fn new(bytes: usize) -> TranspositionTable<K, V> {
@@ -153,7 +153,7 @@ mod tests {
     use crate::square::Square;
     use crate::zobrist::Zobrist;
 
-    impl Prio for u64 {
+    impl TtEntry for u64 {
         fn prio(&self, other: &Self, age: u8) -> cmp::Ordering {
             let halfmoves_since_self = ((age as u16 + 256 - self.age() as u16) % 256) as u8;
             let halfmoves_since_other = ((age as u16 + 256 - other.age() as u16) % 256) as u8;

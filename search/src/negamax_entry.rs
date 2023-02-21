@@ -1,6 +1,6 @@
 use crate::search::MAX_SEARCH_DEPTH;
 use eval::Score;
-use movegen::{r#move::Move, transposition_table::Prio};
+use movegen::{r#move::Move, transposition_table::TtEntry};
 use std::{cmp, ops::Neg};
 
 #[derive(Clone, Copy, Debug)]
@@ -44,7 +44,7 @@ impl Neg for NegamaxEntry {
     }
 }
 
-impl Prio for NegamaxEntry {
+impl TtEntry for NegamaxEntry {
     fn prio(&self, other: &Self, age: u8) -> cmp::Ordering {
         let halfmoves_since_self = ((age as u16 + 256 - self.age() as u16) % 256) as u8;
         let halfmoves_since_other = ((age as u16 + 256 - other.age() as u16) % 256) as u8;
