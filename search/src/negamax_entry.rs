@@ -22,10 +22,6 @@ impl NegamaxEntry {
         }
     }
 
-    pub fn depth(&self) -> usize {
-        self.depth as usize
-    }
-
     pub fn score(&self) -> Score {
         self.score
     }
@@ -45,6 +41,14 @@ impl Neg for NegamaxEntry {
 }
 
 impl TtEntry for NegamaxEntry {
+    fn depth(&self) -> usize {
+        self.depth as usize
+    }
+
+    fn age(&self) -> u8 {
+        self.age
+    }
+
     fn prio(&self, other: &Self, age: u8) -> cmp::Ordering {
         let halfmoves_since_self = ((age as u16 + 256 - self.age() as u16) % 256) as u8;
         let halfmoves_since_other = ((age as u16 + 256 - other.age() as u16) % 256) as u8;
@@ -53,9 +57,5 @@ impl TtEntry for NegamaxEntry {
             cmp::Ordering::Equal => self.depth().cmp(&other.depth()).reverse(),
             cmp::Ordering::Greater => cmp::Ordering::Greater,
         }
-    }
-
-    fn age(&self) -> u8 {
-        self.age
     }
 }

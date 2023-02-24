@@ -12,7 +12,7 @@ use movegen::move_generator::MoveGenerator;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
-use movegen::transposition_table::TranspositionTable;
+use movegen::transposition_table::{TranspositionTable, TtEntry};
 use movegen::zobrist::Zobrist;
 use std::cmp;
 use std::time::Instant;

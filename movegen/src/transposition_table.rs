@@ -1,12 +1,15 @@
 use std::{cmp, mem};
 
 pub trait TtEntry {
-    fn prio(&self, other: &Self, age: u8) -> cmp::Ordering;
+    fn depth(&self) -> usize;
 
     fn age(&self) -> u8;
+
+    fn prio(&self, other: &Self, age: u8) -> cmp::Ordering;
 }
 
-const ENTRIES_PER_BUCKET: usize = 2;
+const ENTRIES_PER_BUCKET: usize = 4;
+const MAX_MATCHING_KEYS_PER_BUCKET: usize = 4;
 
 type Bucket<K, V> = [Option<(K, V)>; ENTRIES_PER_BUCKET];
 
@@ -83,23 +86,56 @@ where
         false
     }
 
+    // Return entry with matching key and the greatest depth
     pub fn get(&self, k: &K) -> Option<&V> {
         let index = self.key_to_index(k);
+        let mut most_relevant: Option<&V> = None;
         for entry in &self.buckets[index] {
             match entry {
-                Some(ref e) if e.0 == *k => return Some(&e.1),
+                Some(ref e) if e.0 == *k => match most_relevant {
+                    Some(mr) if e.1.depth() > mr.depth() => most_relevant = Some(&e.1),
+                    None => most_relevant = Some(&e.1),
+                    _ => {}
+                },
                 _ => {}
             }
         }
-        None
+        most_relevant
+    }
+
+    // Return entry with matching key and depth. If the depth doesn't match,
+    // return entry with greatest depth.
+    pub fn get_depth(&self, k: &K, depth: usize) -> Option<&V> {
+        let index = self.key_to_index(k);
+        let mut most_relevant: Option<&V> = None;
+        for entry in &self.buckets[index] {
+            match entry {
+                Some(ref e) if e.0 == *k => {
+                    if e.1.depth() == depth {
+                        return Some(&e.1);
+                    }
+                    match most_relevant {
+                        Some(mr) => {
+                            if e.1.depth() > mr.depth() {
+                                most_relevant = Some(&e.1)
+                            }
+                        }
+                        None => most_relevant = Some(&e.1),
+                    }
+                }
+                _ => {}
+            }
+        }
+        most_relevant
     }
 
     // Inserts a value into the table
     //
     // Replacement scheme (the new entry is always inserted):
-    // 1. Entry with the same hash value (even if there are None entries)
-    // 2. None entry
-    // 3. Least important entry (i.e. highest prio)
+    // 1. Entry with the same hash value and depth (even if there are None entries)
+    // 2. Entry with the same hash value if the bucket contains the maximum number of matching keys
+    // 3. None entry
+    // 4. Least important entry (i.e. highest prio)
     //
     // Note:
     // std::collections::HashMap::insert returns Option<V>
@@ -107,30 +143,54 @@ where
     // different from k. Only the indexes must be equal.
     pub fn insert(&mut self, k: K, value: V) -> Option<(K, V)> {
         let index = self.key_to_index(&k);
-        let mut replaced_idx = 0;
+
+        let mut least_relevant = 0;
+        let mut least_relevant_matching_key = 0;
+        let mut matching_key_count = 0;
 
         for (i, entry) in self.buckets[index].iter().enumerate() {
             match entry {
-                Some(e) if e.0 != k => {
-                    if replaced_idx != i {
-                        let replaced = &self.buckets[index][replaced_idx]
+                Some(e) => {
+                    if e.0 == k {
+                        if e.1.depth() == value.depth() {
+                            least_relevant = least_relevant_matching_key;
+                            break;
+                        }
+                        matching_key_count += 1;
+                        if least_relevant_matching_key != i {
+                            let replaced_matching_key = &self.buckets[index]
+                                [least_relevant_matching_key]
+                                .expect("Expected Some(_) value to be replaced");
+                            match replaced_matching_key.1.prio(&e.1, value.age()) {
+                                cmp::Ordering::Less | cmp::Ordering::Equal => {
+                                    least_relevant_matching_key = i
+                                }
+                                cmp::Ordering::Greater => {}
+                            }
+                        }
+                        if matching_key_count == MAX_MATCHING_KEYS_PER_BUCKET {
+                            least_relevant = least_relevant_matching_key;
+                            break;
+                        }
+                    }
+                    if least_relevant != i {
+                        let replaced = &self.buckets[index][least_relevant]
                             .expect("Expected Some(_) value to be replaced");
                         match replaced.1.prio(&e.1, value.age()) {
-                            cmp::Ordering::Less | cmp::Ordering::Equal => replaced_idx = i,
+                            cmp::Ordering::Less | cmp::Ordering::Equal => least_relevant = i,
                             cmp::Ordering::Greater => {}
                         }
                     }
                 }
                 _ => {
-                    // Entry is None or its key matches the inserted value's key
-                    // => replace it
-                    replaced_idx = i;
+                    // Entry is None => replace it
+                    least_relevant = i;
                     break;
                 }
             }
         }
-        let replaced = self.buckets[index][replaced_idx];
-        self.buckets[index][replaced_idx] = Some((k, value));
+        let replaced = self.buckets[index][least_relevant];
+        self.buckets[index][least_relevant] = Some((k, value));
         self.len += replaced.is_none() as usize;
         replaced
     }
@@ -154,6 +214,14 @@ mod tests {
     use crate::zobrist::Zobrist;
 
     impl TtEntry for u64 {
+        fn depth(&self) -> usize {
+            *self as usize
+        }
+
+        fn age(&self) -> u8 {
+            (self % 256) as u8
+        }
+
         fn prio(&self, other: &Self, age: u8) -> cmp::Ordering {
             let halfmoves_since_self = ((age as u16 + 256 - self.age() as u16) % 256) as u8;
             let halfmoves_since_other = ((age as u16 + 256 - other.age() as u16) % 256) as u8;
@@ -162,10 +230,6 @@ mod tests {
                 cmp::Ordering::Equal => self.cmp(&other).reverse(),
                 cmp::Ordering::Greater => cmp::Ordering::Greater,
             }
-        }
-
-        fn age(&self) -> u8 {
-            (self % 256) as u8
         }
     }
 
@@ -303,9 +367,9 @@ mod tests {
         let hash = pos_history.current_pos_hash();
         assert_eq!(true, tt.contains_key(&hash));
         assert_eq!(Some(&0), tt.get(&hash));
-        let old_entry = tt.insert(hash, 2);
+        let old_entry = tt.insert(hash, 0);
         assert_eq!(Some((hash, 0)), old_entry);
         assert_eq!(true, tt.contains_key(&hash));
-        assert_eq!(Some(&2), tt.get(&hash));
+        assert_eq!(Some(&0), tt.get(&hash));
     }
 }
