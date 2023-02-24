@@ -14,7 +14,7 @@ use movegen::piece;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
-use movegen::transposition_table::TranspositionTable;
+use movegen::transposition_table::{TranspositionTable, TtEntry};
 use movegen::zobrist::Zobrist;
 use std::cmp;
 use std::time::Instant;
@@ -541,7 +541,7 @@ impl AlphaBeta {
     }
 
     fn lookup_table_entry(&self, pos_hash: Zobrist, depth: usize) -> Option<&AlphaBetaEntry> {
-        match self.transpos_table.get(&pos_hash) {
+        match self.transpos_table.get_depth(&pos_hash, depth) {
             Some(entry) if entry.depth() == depth => Some(entry),
             _ => None,
         }

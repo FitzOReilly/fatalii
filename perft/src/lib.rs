@@ -13,12 +13,16 @@ struct TableEntry {
 }
 
 impl TtEntry for TableEntry {
-    fn prio(&self, other: &Self, _age: u8) -> cmp::Ordering {
-        self.depth.cmp(&other.depth).reverse()
+    fn depth(&self) -> usize {
+        self.depth
     }
 
     fn age(&self) -> u8 {
         0
+    }
+
+    fn prio(&self, other: &Self, _age: u8) -> cmp::Ordering {
+        self.depth.cmp(&other.depth).reverse()
     }
 }
 

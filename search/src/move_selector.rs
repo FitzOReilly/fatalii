@@ -44,7 +44,7 @@ impl MoveSelector {
         }
 
         if self.stage == Stage::Hash {
-            if let Some(m) = Self::select_hash_move(search_data, transpos_table, move_list) {
+            if let Some(m) = Self::select_hash_move(search_data, transpos_table, depth, move_list) {
                 return Some(m);
             }
             self.stage = Stage::QueenPromoCaptures;
@@ -107,8 +107,10 @@ impl MoveSelector {
         transpos_table: &mut AlphaBetaTable,
         move_list: &mut MoveList,
     ) -> Option<Move> {
+        let depth = 0;
+
         if self.stage == Stage::PrincipalVariation || self.stage == Stage::Hash {
-            if let Some(m) = Self::select_hash_move(search_data, transpos_table, move_list) {
+            if let Some(m) = Self::select_hash_move(search_data, transpos_table, depth, move_list) {
                 return Some(m);
             }
             self.stage = Stage::QueenPromoCaptures;
@@ -160,9 +162,12 @@ impl MoveSelector {
     fn select_hash_move(
         search_data: &mut SearchData,
         transpos_table: &AlphaBetaTable,
+        depth: usize,
         move_list: &mut MoveList,
     ) -> Option<Move> {
-        if let Some(entry) = transpos_table.get(&search_data.pos_history().current_pos_hash()) {
+        if let Some(entry) =
+            transpos_table.get_depth(&search_data.pos_history().current_pos_hash(), depth)
+        {
             if let Some(idx) = move_list.iter().position(|&x| x == entry.best_move()) {
                 return Some(move_list.swap_remove(idx));
             }

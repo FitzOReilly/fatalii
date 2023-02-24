@@ -39,6 +39,14 @@ impl Neg for AlphaBetaEntry {
 }
 
 impl TtEntry for AlphaBetaEntry {
+    fn depth(&self) -> usize {
+        self.depth as usize
+    }
+
+    fn age(&self) -> u8 {
+        self.age
+    }
+
     fn prio(&self, other: &Self, age: u8) -> cmp::Ordering {
         let halfmoves_since_self = ((age as u16 + 256 - self.age() as u16) % 256) as u8;
         let halfmoves_since_other = ((age as u16 + 256 - other.age() as u16) % 256) as u8;
@@ -47,10 +55,6 @@ impl TtEntry for AlphaBetaEntry {
             cmp::Ordering::Equal => self.depth().cmp(&other.depth()).reverse(),
             cmp::Ordering::Greater => cmp::Ordering::Greater,
         }
-    }
-
-    fn age(&self) -> u8 {
-        self.age
     }
 }
 
@@ -72,10 +76,6 @@ impl AlphaBetaEntry {
             best_move,
             age,
         }
-    }
-
-    pub fn depth(&self) -> usize {
-        self.depth as usize
     }
 
     pub fn score(&self) -> Score {
