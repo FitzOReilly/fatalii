@@ -34,7 +34,9 @@ impl Eval for Complex {
     fn eval(&mut self, pos: &Position) -> Score {
         self.update(pos);
 
-        if self.is_draw() {
+        let white_mating_material = self.has_mating_material(Side::White);
+        let black_mating_material = self.has_mating_material(Side::Black);
+        if !white_mating_material && !black_mating_material {
             return EQ_POSITION;
         }
 
@@ -44,11 +46,17 @@ impl Eval for Complex {
         let score_mg = self.opening_score + tempo_score_mg;
         let score_eg = self.endgame_score + tempo_score_eg;
         let game_phase = self.game_phase.game_phase_clamped();
-        let tapered_score = (game_phase as i64 * score_mg as i64
+        let tapered_score = ((game_phase as i64 * score_mg as i64
             + (GamePhase::MAX - game_phase) as i64 * score_eg as i64)
-            / GamePhase::MAX as i64;
+            / GamePhase::MAX as i64) as Score;
 
-        tapered_score as Score
+        if !white_mating_material {
+            std::cmp::min(EQ_POSITION, tapered_score)
+        } else if !black_mating_material {
+            std::cmp::max(EQ_POSITION, tapered_score)
+        } else {
+            tapered_score
+        }
     }
 }
 
@@ -69,66 +77,44 @@ impl Complex {
         }
     }
 
-    // Check if a position is a draw. In positions where a mate is possible, but
-    // cannot be forced (e.g. KNNvK), this still returns true.
-    fn is_draw(&self) -> bool {
+    // Check if one side has enough material to checkmate the opponent. In
+    // positions where a mate is possible, but cannot be forced (e.g. KNNvK),
+    // this still returns true.
+    fn has_mating_material(&self, s: Side) -> bool {
         for p in [
-            Piece::WHITE_PAWN,
-            Piece::BLACK_PAWN,
-            Piece::WHITE_ROOK,
-            Piece::BLACK_ROOK,
-            Piece::WHITE_QUEEN,
-            Piece::BLACK_QUEEN,
+            Piece::new(s, piece::Type::Pawn),
+            Piece::new(s, piece::Type::Rook),
+            Piece::new(s, piece::Type::Queen),
         ] {
             if self.piece_counts.count(p) > 0 {
-                return false;
+                return true;
             }
         }
 
         // Mate can be forced with more than 2 knights against a lone king
-        let white_knights_count = self.piece_counts.count(Piece::WHITE_KNIGHT);
-        if white_knights_count > 2 {
-            return false;
-        }
-        let black_knights_count = self.piece_counts.count(Piece::BLACK_KNIGHT);
-        if black_knights_count > 2 {
-            return false;
+        let knight_count = self.piece_counts.count(Piece::new(s, piece::Type::Knight));
+        if knight_count > 2 {
+            return true;
         }
 
         // Mate can be forced with bishop + knight against a lone king
-        let white_bishops_count = self.piece_counts.count(Piece::WHITE_BISHOP);
-        if white_knights_count > 0 && white_bishops_count > 0 {
-            return false;
-        }
-        let black_bishops_count = self.piece_counts.count(Piece::BLACK_BISHOP);
-        if black_knights_count > 0 && black_bishops_count > 0 {
-            return false;
+        let bishop_count = self.piece_counts.count(Piece::new(s, piece::Type::Bishop));
+        if knight_count > 0 && bishop_count > 0 {
+            return true;
         }
 
         // Mate can be forced with 2 bishops against a lone king, if the bishops
         // are on different colors
-        if white_bishops_count > 1 {
-            let white_bishops = self
-                .current_pos
-                .piece_occupancy(Side::White, piece::Type::Bishop);
-            if white_bishops & Bitboard::LIGHT_SQUARES != Bitboard::EMPTY
-                && white_bishops & Bitboard::DARK_SQUARES != Bitboard::EMPTY
+        if bishop_count > 1 {
+            let bishop = self.current_pos.piece_occupancy(s, piece::Type::Bishop);
+            if bishop & Bitboard::LIGHT_SQUARES != Bitboard::EMPTY
+                && bishop & Bitboard::DARK_SQUARES != Bitboard::EMPTY
             {
-                return false;
-            }
-        }
-        if black_bishops_count > 1 {
-            let black_bishops = self
-                .current_pos
-                .piece_occupancy(Side::Black, piece::Type::Bishop);
-            if black_bishops & Bitboard::LIGHT_SQUARES != Bitboard::EMPTY
-                && black_bishops & Bitboard::DARK_SQUARES != Bitboard::EMPTY
-            {
-                return false;
+                return true;
             }
         }
 
-        true
+        false
     }
 
     fn update(&mut self, pos: &Position) {
@@ -464,6 +450,9 @@ mod tests {
             "7k/8/8/3N4/3KN3/8/8/8 w - - 0 1",   // KNNvK
             "k7/b1KB4/8/8/8/8/8/8 w - - 0 1",    // KBvKB, bishops on different colors
             "1n2k3/8/8/8/8/8/8/2B1K3 w - - 0 1", // KBvKN
+            // The opponent has enough mating material, we don't, so just take the pawn and draw
+            "7k/4B3/5p2/5K2/8/8/8/8 w - - 4 102", // KBvKP
+            "8/6b1/4k3/8/3P4/4K3/8/8 b - - 0 1",  // KBvKP
         ] {
             let pos = Fen::str_to_pos(draw).unwrap();
             assert_eq!(
