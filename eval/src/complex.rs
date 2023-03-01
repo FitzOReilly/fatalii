@@ -79,7 +79,7 @@ impl Complex {
 
     // Check if one side has enough material to checkmate the opponent. In
     // positions where a mate is possible, but cannot be forced (e.g. KNNvK),
-    // this still returns true.
+    // this still returns false.
     fn has_mating_material(&self, s: Side) -> bool {
         for p in [
             Piece::new(s, piece::Type::Pawn),
