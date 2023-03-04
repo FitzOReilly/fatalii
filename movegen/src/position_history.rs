@@ -104,6 +104,14 @@ impl PositionHistory {
         self.rep_tracker.current_pos_repetitions()
     }
 
+    pub fn gives_check(&mut self, m: Move) -> bool {
+        self.do_move(m);
+        let pos = self.current_pos();
+        let res = pos.is_in_check(pos.side_to_move());
+        self.undo_last_move();
+        res
+    }
+
     fn do_null_move(&mut self) {
         self.moves.push(Move::NULL);
         self.irreversible_props.push(IrreversibleProperties::new(

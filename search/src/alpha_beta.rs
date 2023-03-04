@@ -253,8 +253,8 @@ impl AlphaBeta {
                         search_data.pos_history_mut().undo_last_move();
                     }
 
-                    let mut futility_pruning = false;
                     // Futility pruning
+                    let mut futility_pruning = false;
                     let pos = search_data.pos_history().current_pos();
                     if depth == 1 && !pos.is_in_check(pos.side_to_move()) {
                         search_data.increment_eval_calls();
@@ -283,7 +283,11 @@ impl AlphaBeta {
                         depth,
                         &mut move_list,
                     ) {
-                        if futility_pruning && !m.is_capture() && !m.is_promotion() {
+                        if futility_pruning
+                            && !m.is_capture()
+                            && !m.is_promotion()
+                            && !search_data.pos_history_mut().gives_check(m)
+                        {
                             continue;
                         }
 
