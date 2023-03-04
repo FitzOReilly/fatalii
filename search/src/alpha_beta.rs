@@ -64,7 +64,7 @@ impl Search for AlphaBeta {
             pos_history.current_pos().side_to_move(),
             &search_options,
         );
-        let soft_time_limit = cmp::min(
+        let mut soft_time_limit = cmp::min(
             hard_time_limit,
             TimeManager::calc_movetime_soft_limit(
                 pos_history.current_pos().side_to_move(),
@@ -116,7 +116,13 @@ impl Search for AlphaBeta {
                     if eval::score::is_mating(score)
                         && eval::score::mate_dist(score).unsigned_abs() as usize <= d
                     {
-                        break;
+                        if let Some(ref mut limit) = soft_time_limit {
+                            // A mate has been found. Don't abort the search immediately, because we
+                            // might have pruned away a shorter mate. Instead lower the search time.
+                            // This also makes sure that we continue searching if there is no time
+                            // limit given.
+                            *limit = *limit * 3 / 4;
+                        }
                     }
                 }
                 None => break,

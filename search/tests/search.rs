@@ -558,7 +558,7 @@ fn mate_in_x_capture_and_check(search_algo: impl Search + Send + 'static) {
     }
 }
 
-fn mate_in_x_higher_depth(search_algo: impl Search + Send + 'static) {
+fn mate_in_x_various_depths(search_algo: impl Search + Send + 'static) {
     let mut tester = SearchTester::new(search_algo);
     let test_positions = [
         // Mate in 4
@@ -572,6 +572,12 @@ fn mate_in_x_higher_depth(search_algo: impl Search + Send + 'static) {
             "8/2p5/4k3/8/P2B4/r7/6rP/3K4 b - - 6 51",
             10,
             ScoreVariant::Mate(Side::Black, -5),
+        ),
+        // Mate in 2, higher depth may be necessary to find it due to pruning
+        (
+            "1r6/3N1p1r/2Rp4/1k1P2pp/R7/PP4P1/7P/6K1 w - - 3 41",
+            6,
+            ScoreVariant::Mate(Side::White, 2),
         ),
     ];
 
@@ -809,9 +815,9 @@ fn alpha_beta_mate_in_x_capture_and_check() {
 
 #[test]
 #[ignore]
-fn alpha_beta_mate_in_x_higher_depth() {
+fn alpha_beta_mate_in_x_various_depths() {
     let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
-    mate_in_x_higher_depth(alpha_beta);
+    mate_in_x_various_depths(alpha_beta);
 }
 
 #[test]

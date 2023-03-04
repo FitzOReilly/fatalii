@@ -675,8 +675,8 @@ fn mate_in_one_white_to_move() {
         )
         .is_ok());
     std::thread::sleep(Duration::from_millis(20));
-    assert!(p.run_command("go movetime 800\n", &mut engine).is_ok());
-    std::thread::sleep(Duration::from_millis(810));
+    assert!(p.run_command("go movetime 100\n", &mut engine).is_ok());
+    std::thread::sleep(Duration::from_millis(200));
 
     let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
     println!("{}", out_str);
@@ -707,8 +707,8 @@ fn mate_in_one_black_to_move() {
         )
         .is_ok());
     std::thread::sleep(Duration::from_millis(20));
-    assert!(p.run_command("go movetime 800\n", &mut engine).is_ok());
-    std::thread::sleep(Duration::from_millis(810));
+    assert!(p.run_command("go movetime 100\n", &mut engine).is_ok());
+    std::thread::sleep(Duration::from_millis(200));
 
     let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
     println!("{}", out_str);
