@@ -3,27 +3,26 @@
 
 UCI compliant chess engine
 
+## Play online
 Challenge me on Lichess: https://lichess.org/@/FataliiBot
 
 ## Usage
 Fatalii supports the UCI protocol (universal chess interface), so it can be used with a UCI compatible GUI.
 Some choices are [Cute Chess](https://cutechess.com/), [Arena](http://www.playwitharena.de/) or
-[Lucas Chess](https://lucaschess.pythonanywhere.com/) among others.
+[Lucas Chess](https://lucaschess.pythonanywhere.com/).
 
 ## UCI options
-- Hash \
+- `Hash` \
   The size of the hash table in MB
-- Move Overhead \
+- `Move Overhead` \
   Subtract this value from the movetime to compensate for network delays or GUI overheads
-- UCI_Chess960 \
+- `UCI_Chess960` \
   Enable Chess960 if this is set to true
 
 ## Building from source
-To compile the engine, you need to have [Rust](https://www.rust-lang.org/) installed. Then clone the repo
+To compile the engine, you need a [Rust](https://www.rust-lang.org/) compiler. Then clone the repo
 ```
-git clone git@github.com:FitzOReilly/fatalii.git
-# or, if you prefer https:
-# git clone https://github.com/FitzOReilly/fatalii.git
+git clone https://github.com/FitzOReilly/fatalii.git
 ```
 and build the engine:
 ```
@@ -32,11 +31,15 @@ cargo build --profile release-lto
 ```
 The binary will be in `target/release-lto/fatalii`.
 
-## Supported features
-- Chess960
+## Supported variants
+Fatalii supports both standard chess and Chess960 (a.k.a. Fischer Random Chess).
+
+## Features
 - Bitboards using file rank mapping
-- Evaluation currently solely based on piece square tables
-- Alpha-Beta search
+- Evaluation
+  - Piece square tables
+  - Tempo
+- Search
   - Iterative deepening
   - Principal variation search
   - Quiescence search
@@ -44,13 +47,23 @@ The binary will be in `target/release-lto/fatalii`.
     - Principal variation move
     - Hash move
     - Queen promotions
-    - Most valuable victim - least valueable attacker (MVV-LVA)
+    - Most valuable victim - least valuable attacker (MVV-LVA)
     - Killer heuristic
     - History heuristic
     - Underpromotions last
-- Transposition table with Zobrist hashing
-- Detect draws by 3-fold repetition
-- Detect draws by 50 move rule
+  - Pruning
+    - Alpha-Beta pruning
+    - Null move pruning
+    - Futility pruning
+    - Reverse futility pruning
+- Transposition table
+  - Zobrist hashing
+  - 4 entries per bucket
+  - Replacement scheme based on entry age and depth
+- Draw detection
+  - 3-fold repetition
+  - 50 move rule
+  - Insufficient material
 
 ## Thanks to
 - The [Chess Programming Wiki](https://www.chessprogramming.org). It has been
