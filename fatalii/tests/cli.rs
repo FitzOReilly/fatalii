@@ -1,10 +1,10 @@
 use assert_matches::assert_matches;
-use rexpect::{errors::Result, process::wait::WaitStatus, spawn};
+use rexpect::{error::Error, process::wait::WaitStatus, spawn};
 use std::{thread, time::Duration};
 
 #[test]
 #[ignore]
-fn test_cli() -> Result<()> {
+fn test_cli() -> Result<(), Error> {
     let _ = spawn("cargo build --release", Some(120000))?;
 
     uci_commands()?;
@@ -16,7 +16,7 @@ fn test_cli() -> Result<()> {
     Ok(())
 }
 
-fn uci_commands() -> Result<()> {
+fn uci_commands() -> Result<(), Error> {
     let mut p = spawn("cargo run --release", Some(10000))?;
 
     p.send_line("uci")?;
@@ -55,7 +55,7 @@ fn uci_commands() -> Result<()> {
     Ok(())
 }
 
-fn quit_while_timer_running() -> Result<()> {
+fn quit_while_timer_running() -> Result<(), Error> {
     let mut p = spawn("cargo run --release", Some(10000))?;
 
     p.send_line("uci")?;
@@ -71,7 +71,7 @@ fn quit_while_timer_running() -> Result<()> {
     Ok(())
 }
 
-fn go_all_options() -> Result<()> {
+fn go_all_options() -> Result<(), Error> {
     let mut p = spawn("cargo run --release", Some(10000))?;
 
     p.send_line("uci")?;
@@ -106,7 +106,7 @@ fn go_all_options() -> Result<()> {
     Ok(())
 }
 
-fn chess_960() -> Result<()> {
+fn chess_960() -> Result<(), Error> {
     let mut p = spawn("cargo run --release", Some(30000))?;
 
     p.send_line("setoption name UCI_Chess960 value true")?;
@@ -126,7 +126,7 @@ fn chess_960() -> Result<()> {
     Ok(())
 }
 
-fn stress() -> Result<()> {
+fn stress() -> Result<(), Error> {
     let mut p = spawn("cargo run --release", Some(10000))?;
 
     p.send_line("uci")?;
