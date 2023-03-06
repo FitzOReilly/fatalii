@@ -8,59 +8,45 @@ use crate::rank::Rank;
 use crate::side::Side;
 use crate::square::Square;
 use std::cmp::Ordering;
-use std::error::Error;
-use std::fmt;
 use std::fmt::Write;
 use std::str;
 
 pub struct Fen;
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum FenError {
+    #[error("Invalid FEN string: `{0}`: {1}")]
     InvalidFenString(String, Box<FenError>),
+    #[error("Too few parts")]
     TooFewParts,
+    #[error("Too many parts")]
     TooManyParts,
+    #[error("Too few ranks")]
     TooFewRanks,
+    #[error("Too many ranks")]
     TooManyRanks,
+    #[error("Too few squares in rank {0}")]
     TooFewSquares(Rank),
+    #[error("Too many squares in rank {0}")]
     TooManySquares(Rank),
+    #[error("{0}")]
     InvalidPiece(String),
+    #[error("Invalid side to move")]
     InvalidSideToMove,
+    #[error("Duplicate castling rights")]
     DuplicateCastlingRights,
+    #[error("Wrong castling right order")]
     WrongCastlingRightOrder,
+    #[error("Invalid castling rights")]
     InvalidCastlingRights,
+    #[error("Invalid en passant square")]
     InvalidEnPassantSquare,
+    #[error("Invalid plies since last pawn move or capture")]
     InvalidPliesSincePawnMoveOrCapture,
+    #[error("Invalid move count")]
     InvalidMoveCount,
+    #[error("Missing king")]
     MissingKing,
-}
-
-impl Error for FenError {}
-
-impl fmt::Display for FenError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let msg = match self {
-            FenError::InvalidFenString(s, e) => format!("Invalid FEN string: `{s}`: {e}"),
-            FenError::TooFewParts => "Too few parts".to_string(),
-            FenError::TooManyParts => "Too many parts".to_string(),
-            FenError::TooFewRanks => "Too few ranks".to_string(),
-            FenError::TooManyRanks => "Too many ranks".to_string(),
-            FenError::TooFewSquares(r) => format!("Too few squares in rank {r}"),
-            FenError::TooManySquares(r) => format!("Too many squares in rank {r}"),
-            FenError::InvalidPiece(p) => p.to_string(),
-            FenError::InvalidSideToMove => "Invalid side to move".to_string(),
-            FenError::DuplicateCastlingRights => "Duplicate castling rights".to_string(),
-            FenError::WrongCastlingRightOrder => "Wrong castling right order".to_string(),
-            FenError::InvalidCastlingRights => "Invalid castling rights".to_string(),
-            FenError::InvalidEnPassantSquare => "Invalid en passant square".to_string(),
-            FenError::InvalidPliesSincePawnMoveOrCapture => {
-                "Invalid plies since last pawn move or capture".to_string()
-            }
-            FenError::InvalidMoveCount => "Invalid move count".to_string(),
-            FenError::MissingKing => "Missing king".to_string(),
-        };
-        write!(f, "{msg}")
-    }
 }
 
 impl Fen {

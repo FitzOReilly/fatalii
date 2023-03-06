@@ -8,25 +8,13 @@ use movegen::side::Side;
 use search::search::{Search, SearchInfo};
 use search::searcher::Searcher;
 use search::SearchOptions;
-use std::error::Error;
-use std::fmt;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum EngineError {
+    #[error("Engine error: Cannot search without a position")]
     SearchWithoutPosition,
-}
-
-impl Error for EngineError {}
-
-impl fmt::Display for EngineError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let msg = match self {
-            EngineError::SearchWithoutPosition => "Cannot search without a position".to_string(),
-        };
-        write!(f, "Engine error: {msg}")
-    }
 }
 
 pub struct Engine {

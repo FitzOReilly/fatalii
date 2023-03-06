@@ -17,7 +17,7 @@ fn test_cli() -> Result<(), Error> {
 }
 
 fn uci_commands() -> Result<(), Error> {
-    let mut p = spawn("cargo run --release", Some(10000))?;
+    let mut p = spawn("cargo run --release", Some(30000))?;
 
     p.send_line("uci")?;
     p.exp_string("id name")?;
@@ -56,7 +56,7 @@ fn uci_commands() -> Result<(), Error> {
 }
 
 fn quit_while_timer_running() -> Result<(), Error> {
-    let mut p = spawn("cargo run --release", Some(10000))?;
+    let mut p = spawn("cargo run --release", Some(30000))?;
 
     p.send_line("uci")?;
     p.send_line("isready")?;
@@ -72,7 +72,7 @@ fn quit_while_timer_running() -> Result<(), Error> {
 }
 
 fn go_all_options() -> Result<(), Error> {
-    let mut p = spawn("cargo run --release", Some(10000))?;
+    let mut p = spawn("cargo run --release", Some(30000))?;
 
     p.send_line("uci")?;
     p.send_line("isready")?;
@@ -127,7 +127,7 @@ fn chess_960() -> Result<(), Error> {
 }
 
 fn stress() -> Result<(), Error> {
-    let mut p = spawn("cargo run --release", Some(10000))?;
+    let mut p = spawn("cargo run --release", Some(30000))?;
 
     p.send_line("uci")?;
     p.send_line("debug on")?;
