@@ -2,7 +2,6 @@ use crate::UciOut;
 use engine::Engine;
 use std::collections::HashMap;
 use std::error::Error;
-use std::fmt;
 
 type UciInputHandler =
     dyn Fn(&mut UciOut, &str, &mut Engine) -> Result<Option<ParserMessage>, Box<dyn Error>>;
@@ -17,22 +16,12 @@ pub struct Parser {
     uci_out: UciOut,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum UciError {
+    #[error("Uci error: Invalid argument `{0}`")]
     InvalidArgument(String),
+    #[error("Uci error: Unknown command `{0}`")]
     UnknownCommand(String),
-}
-
-impl Error for UciError {}
-
-impl fmt::Display for UciError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let msg = match self {
-            UciError::InvalidArgument(s) => format!("Invalid argument `{s}`"),
-            UciError::UnknownCommand(s) => format!("Unknown command `{s}`"),
-        };
-        write!(f, "Uci error: {msg}")
-    }
 }
 
 impl Parser {
