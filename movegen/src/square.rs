@@ -158,8 +158,12 @@ impl Square {
         Self(self.0 - 9)
     }
 
-    pub fn flip_vertical(self) -> Square {
+    pub const fn flip_vertical(self) -> Square {
         Self(self.0 ^ 0x7)
+    }
+
+    pub const fn mirror_horizontal(self) -> Square {
+        Self(self.0 ^ 0x38)
     }
 }
 
@@ -311,6 +315,18 @@ mod tests {
         assert_eq!(Square::G8, Square::flip_vertical(Square::G1));
         assert_eq!(Square::H7, Square::flip_vertical(Square::H2));
         assert_eq!(Square::H1, Square::flip_vertical(Square::H8));
+    }
+
+    #[test]
+    fn mirror_horizontal() {
+        assert_eq!(Square::H1, Square::mirror_horizontal(Square::A1));
+        assert_eq!(Square::H7, Square::mirror_horizontal(Square::A7));
+        assert_eq!(Square::G8, Square::mirror_horizontal(Square::B8));
+        assert_eq!(Square::E5, Square::mirror_horizontal(Square::D5));
+        assert_eq!(Square::D4, Square::mirror_horizontal(Square::E4));
+        assert_eq!(Square::B1, Square::mirror_horizontal(Square::G1));
+        assert_eq!(Square::A2, Square::mirror_horizontal(Square::H2));
+        assert_eq!(Square::A8, Square::mirror_horizontal(Square::H8));
     }
 
     #[test]
