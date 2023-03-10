@@ -7,3 +7,4 @@ pub mod material_mobility;
 pub mod score;
 
 mod game_phase;
+mod score_pair;

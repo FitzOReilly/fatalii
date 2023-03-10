@@ -1,4 +1,5 @@
 use crate::game_phase::{GamePhase, PieceCounts};
+use crate::score_pair::ScorePair;
 use crate::{Eval, Score, EQ_POSITION};
 use movegen::bitboard::Bitboard;
 use movegen::file::File;
@@ -8,24 +9,23 @@ use movegen::rank::Rank;
 use movegen::side::Side;
 use movegen::square::Square;
 
-type PieceSquareTable = [(Score, Score); 64];
+type PieceSquareTable = [ScorePair; 64];
 
 // (opening, endgame)
-const KING_WEIGHT: (Score, Score) = (0, 0);
-const QUEEN_WEIGHT: (Score, Score) = (900, 910);
-const ROOK_WEIGHT: (Score, Score) = (500, 520);
-const BISHOP_WEIGHT: (Score, Score) = (330, 310);
-const KNIGHT_WEIGHT: (Score, Score) = (320, 300);
-const PAWN_WEIGHT: (Score, Score) = (100, 120);
+const KING_WEIGHT: ScorePair = ScorePair(0, 0);
+const QUEEN_WEIGHT: ScorePair = ScorePair(900, 910);
+const ROOK_WEIGHT: ScorePair = ScorePair(500, 520);
+const BISHOP_WEIGHT: ScorePair = ScorePair(330, 310);
+const KNIGHT_WEIGHT: ScorePair = ScorePair(320, 300);
+const PAWN_WEIGHT: ScorePair = ScorePair(100, 120);
 
 // The side to move gets a small bonus
-const TEMPO_WEIGHT: (Score, Score) = (10, 10);
+const TEMPO_WEIGHT: ScorePair = ScorePair(10, 10);
 
 #[derive(Debug, Clone)]
 pub struct Complex {
     current_pos: Position,
-    opening_score: Score,
-    endgame_score: Score,
+    scores_mg_eg: ScorePair,
     game_phase: GamePhase,
     piece_counts: PieceCounts,
 }
@@ -41,13 +41,11 @@ impl Eval for Complex {
         }
 
         let tempo_multiplier = 1 - 2 * (pos.side_to_move() as i16);
-        let tempo_score_mg = tempo_multiplier * TEMPO_WEIGHT.0;
-        let tempo_score_eg = tempo_multiplier * TEMPO_WEIGHT.1;
-        let score_mg = self.opening_score + tempo_score_mg;
-        let score_eg = self.endgame_score + tempo_score_eg;
+        let tempo_score = tempo_multiplier * TEMPO_WEIGHT;
+        let scores = self.scores_mg_eg + tempo_score;
         let game_phase = self.game_phase.game_phase_clamped();
-        let tapered_score = ((game_phase as i64 * score_mg as i64
-            + (GamePhase::MAX - game_phase) as i64 * score_eg as i64)
+        let tapered_score = ((game_phase as i64 * scores.0 as i64
+            + (GamePhase::MAX - game_phase) as i64 * scores.1 as i64)
             / GamePhase::MAX as i64) as Score;
 
         if !white_mating_material {
@@ -70,8 +68,7 @@ impl Complex {
     pub fn new() -> Self {
         Complex {
             current_pos: Position::empty(),
-            opening_score: 0,
-            endgame_score: 0,
+            scores_mg_eg: ScorePair(0, 0),
             game_phase: Default::default(),
             piece_counts: Default::default(),
         }
@@ -132,16 +129,14 @@ impl Complex {
             let mut white_add = new_white & !old_white;
             while white_remove != Bitboard::EMPTY {
                 let square = white_remove.square_scan_forward_reset();
-                self.opening_score -= table[square.idx()].0;
-                self.endgame_score -= table[square.idx()].1;
+                self.scores_mg_eg -= table[square.idx()];
                 self.game_phase.remove_piece(piece_type);
                 self.piece_counts
                     .remove(Piece::new(Side::White, piece_type));
             }
             while white_add != Bitboard::EMPTY {
                 let square = white_add.square_scan_forward_reset();
-                self.opening_score += table[square.idx()].0;
-                self.endgame_score += table[square.idx()].1;
+                self.scores_mg_eg += table[square.idx()];
                 self.game_phase.add_piece(piece_type);
                 self.piece_counts.add(Piece::new(Side::White, piece_type));
             }
@@ -151,16 +146,14 @@ impl Complex {
             let mut black_add = new_black & !old_black;
             while black_remove != Bitboard::EMPTY {
                 let square_flipped = black_remove.square_scan_forward_reset().flip_vertical();
-                self.opening_score += table[square_flipped.idx()].0;
-                self.endgame_score += table[square_flipped.idx()].1;
+                self.scores_mg_eg += table[square_flipped.idx()];
                 self.game_phase.remove_piece(piece_type);
                 self.piece_counts
                     .remove(Piece::new(Side::Black, piece_type));
             }
             while black_add != Bitboard::EMPTY {
                 let square_flipped = black_add.square_scan_forward_reset().flip_vertical();
-                self.opening_score -= table[square_flipped.idx()].0;
-                self.endgame_score -= table[square_flipped.idx()].1;
+                self.scores_mg_eg -= table[square_flipped.idx()];
                 self.game_phase.add_piece(piece_type);
                 self.piece_counts.add(Piece::new(Side::Black, piece_type));
             }
@@ -188,8 +181,8 @@ const fn human_readable_to_file_rank(piece_value: Score, pst: [Score; 32]) -> [S
 // We only define values for the queenside (left side) and mirror them to the
 // kingside (right side) so that we end up with symmetrical PSTs.
 
-#[rustfmt::skip]
 const PST_PAWN: PieceSquareTable = {
+    #[rustfmt::skip]
     let mg = human_readable_to_file_rank(
         PAWN_WEIGHT.0,
         [
@@ -203,6 +196,7 @@ const PST_PAWN: PieceSquareTable = {
               0,   0,   0,   0,
         ],
     );
+    #[rustfmt::skip]
     let eg = human_readable_to_file_rank(
         PAWN_WEIGHT.1,
         [
@@ -216,17 +210,17 @@ const PST_PAWN: PieceSquareTable = {
               0,   0,   0,   0,
         ],
     );
-    let mut table = [(0, 0); 64];
+    let mut table = [ScorePair(0, 0); 64];
     let mut idx = 0;
     while idx < 64 {
-        table[idx] = (mg[idx], eg[idx]);
+        table[idx] = ScorePair(mg[idx], eg[idx]);
         idx += 1;
     }
     table
 };
 
-#[rustfmt::skip]
 const PST_KNIGHT: PieceSquareTable = {
+    #[rustfmt::skip]
     let mg = human_readable_to_file_rank(
         KNIGHT_WEIGHT.0,
         [
@@ -240,6 +234,7 @@ const PST_KNIGHT: PieceSquareTable = {
             -40, -25, -20, -20,
         ],
     );
+    #[rustfmt::skip]
     let eg = human_readable_to_file_rank(
         KNIGHT_WEIGHT.1,
         [
@@ -253,17 +248,17 @@ const PST_KNIGHT: PieceSquareTable = {
             -40, -25, -20, -20,
         ],
     );
-    let mut table = [(0, 0); 64];
+    let mut table = [ScorePair(0, 0); 64];
     let mut idx = 0;
     while idx < 64 {
-        table[idx] = (mg[idx], eg[idx]);
+        table[idx] = ScorePair(mg[idx], eg[idx]);
         idx += 1;
     }
     table
 };
 
-#[rustfmt::skip]
 const PST_BISHOP: PieceSquareTable = {
+    #[rustfmt::skip]
     let mg = human_readable_to_file_rank(
         BISHOP_WEIGHT.0,
         [
@@ -277,6 +272,7 @@ const PST_BISHOP: PieceSquareTable = {
             -20, -10, -10, -10,
         ],
     );
+    #[rustfmt::skip]
     let eg = human_readable_to_file_rank(
         BISHOP_WEIGHT.1,
         [
@@ -290,17 +286,17 @@ const PST_BISHOP: PieceSquareTable = {
             -10,  -5,  -5,  -5,
         ],
     );
-    let mut table = [(0, 0); 64];
+    let mut table = [ScorePair(0, 0); 64];
     let mut idx = 0;
     while idx < 64 {
-        table[idx] = (mg[idx], eg[idx]);
+        table[idx] = ScorePair(mg[idx], eg[idx]);
         idx += 1;
     }
     table
 };
 
-#[rustfmt::skip]
 const PST_ROOK: PieceSquareTable = {
+    #[rustfmt::skip]
     let mg = human_readable_to_file_rank(
         ROOK_WEIGHT.0,
         [
@@ -314,6 +310,7 @@ const PST_ROOK: PieceSquareTable = {
             -10,  -5,   5,  10,
         ],
     );
+    #[rustfmt::skip]
     let eg = human_readable_to_file_rank(
         ROOK_WEIGHT.1,
         [
@@ -327,17 +324,17 @@ const PST_ROOK: PieceSquareTable = {
             -10,  -5,  -5,  -5,
         ],
     );
-    let mut table = [(0, 0); 64];
+    let mut table = [ScorePair(0, 0); 64];
     let mut idx = 0;
     while idx < 64 {
-        table[idx] = (mg[idx], eg[idx]);
+        table[idx] = ScorePair(mg[idx], eg[idx]);
         idx += 1;
     }
     table
 };
 
-#[rustfmt::skip]
 const PST_QUEEN: PieceSquareTable = {
+    #[rustfmt::skip]
     let mg = human_readable_to_file_rank(
         QUEEN_WEIGHT.0,
         [
@@ -351,6 +348,7 @@ const PST_QUEEN: PieceSquareTable = {
             -20, -10, -10,  -5,
         ],
     );
+    #[rustfmt::skip]
     let eg = human_readable_to_file_rank(
         QUEEN_WEIGHT.1,
         [
@@ -364,17 +362,17 @@ const PST_QUEEN: PieceSquareTable = {
              -5,  -5,  -5,  -5,
         ],
     );
-    let mut table = [(0, 0); 64];
+    let mut table = [ScorePair(0, 0); 64];
     let mut idx = 0;
     while idx < 64 {
-        table[idx] = (mg[idx], eg[idx]);
+        table[idx] = ScorePair(mg[idx], eg[idx]);
         idx += 1;
     }
     table
 };
 
-#[rustfmt::skip]
 const PST_KING: PieceSquareTable = {
+    #[rustfmt::skip]
     let mg = human_readable_to_file_rank(
         KING_WEIGHT.0,
         [
@@ -388,6 +386,7 @@ const PST_KING: PieceSquareTable = {
              20,  30,  -5,  -5,
         ],
     );
+    #[rustfmt::skip]
     let eg = human_readable_to_file_rank(
         KING_WEIGHT.1,
         [
@@ -401,10 +400,10 @@ const PST_KING: PieceSquareTable = {
             -50, -35, -25, -20,
         ],
     );
-    let mut table = [(0, 0); 64];
+    let mut table = [ScorePair(0, 0); 64];
     let mut idx = 0;
     while idx < 64 {
-        table[idx] = (mg[idx], eg[idx]);
+        table[idx] = ScorePair(mg[idx], eg[idx]);
         idx += 1;
     }
     table
