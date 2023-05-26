@@ -81,6 +81,46 @@ impl Pawn {
             (single_push_targets & Bitboard::RANK_6).south_one_if_rank_1_empty() & empty;
         (single_push_targets, double_push_targets)
     }
+
+    pub fn front_fill(pawns: Bitboard, side_to_move: Side) -> Bitboard {
+        match side_to_move {
+            Side::White => pawns.north_fill(),
+            Side::Black => pawns.south_fill(),
+        }
+    }
+
+    pub fn rear_fill(pawns: Bitboard, side_to_move: Side) -> Bitboard {
+        match side_to_move {
+            Side::White => pawns.south_fill(),
+            Side::Black => pawns.north_fill(),
+        }
+    }
+
+    pub fn front_span(pawns: Bitboard, side_to_move: Side) -> Bitboard {
+        match side_to_move {
+            Side::White => pawns.north_span(),
+            Side::Black => pawns.south_span(),
+        }
+    }
+
+    pub fn rear_span(pawns: Bitboard, side_to_move: Side) -> Bitboard {
+        match side_to_move {
+            Side::White => pawns.south_span(),
+            Side::Black => pawns.north_span(),
+        }
+    }
+
+    pub fn east_front_attack_span(pawns: Bitboard, side_to_move: Side) -> Bitboard {
+        Pawn::front_fill(Self::east_attack_targets(pawns, side_to_move), side_to_move)
+    }
+
+    pub fn west_front_attack_span(pawns: Bitboard, side_to_move: Side) -> Bitboard {
+        Pawn::front_fill(Self::west_attack_targets(pawns, side_to_move), side_to_move)
+    }
+
+    pub fn front_attack_span(pawns: Bitboard, side_to_move: Side) -> Bitboard {
+        Pawn::front_fill(Self::attack_targets(pawns, side_to_move), side_to_move)
+    }
 }
 
 #[cfg(test)]
@@ -451,5 +491,62 @@ mod tests {
     fn promotion_rank() {
         assert_eq!(Bitboard::RANK_8, Pawn::promotion_rank(Side::White));
         assert_eq!(Bitboard::RANK_1, Pawn::promotion_rank(Side::Black));
+    }
+
+    #[test]
+    fn front_attack_spans() {
+        let pawn = Bitboard::D4 | Bitboard::E5;
+        let exp_white_east = Bitboard::E5
+            | Bitboard::E6
+            | Bitboard::E7
+            | Bitboard::E8
+            | Bitboard::F6
+            | Bitboard::F7
+            | Bitboard::F8;
+        let exp_white_west = Bitboard::C5
+            | Bitboard::C6
+            | Bitboard::C7
+            | Bitboard::C8
+            | Bitboard::D6
+            | Bitboard::D7
+            | Bitboard::D8;
+        let exp_black_east = Bitboard::E3
+            | Bitboard::E2
+            | Bitboard::E1
+            | Bitboard::F4
+            | Bitboard::F3
+            | Bitboard::F2
+            | Bitboard::F1;
+        let exp_black_west = Bitboard::C3
+            | Bitboard::C2
+            | Bitboard::C1
+            | Bitboard::D4
+            | Bitboard::D3
+            | Bitboard::D2
+            | Bitboard::D1;
+        assert_eq!(
+            exp_white_east,
+            Pawn::east_front_attack_span(pawn, Side::White)
+        );
+        assert_eq!(
+            exp_white_west,
+            Pawn::west_front_attack_span(pawn, Side::White)
+        );
+        assert_eq!(
+            exp_white_east | exp_white_west,
+            Pawn::front_attack_span(pawn, Side::White)
+        );
+        assert_eq!(
+            exp_black_east,
+            Pawn::east_front_attack_span(pawn, Side::Black)
+        );
+        assert_eq!(
+            exp_black_west,
+            Pawn::west_front_attack_span(pawn, Side::Black)
+        );
+        assert_eq!(
+            exp_black_east | exp_black_west,
+            Pawn::front_attack_span(pawn, Side::Black)
+        );
     }
 }
