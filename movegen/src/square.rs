@@ -165,6 +165,14 @@ impl Square {
     pub const fn mirror_horizontal(self) -> Square {
         Self(self.0 ^ 0x38)
     }
+
+    pub const fn fold_to_queenside(self) -> Square {
+        if self.0 < 32 {
+            self
+        } else {
+            self.mirror_horizontal()
+        }
+    }
 }
 
 impl fmt::Display for Square {
@@ -327,6 +335,18 @@ mod tests {
         assert_eq!(Square::B1, Square::mirror_horizontal(Square::G1));
         assert_eq!(Square::A2, Square::mirror_horizontal(Square::H2));
         assert_eq!(Square::A8, Square::mirror_horizontal(Square::H8));
+    }
+
+    #[test]
+    fn fold_to_queenside() {
+        assert_eq!(Square::A1, Square::fold_to_queenside(Square::A1));
+        assert_eq!(Square::A7, Square::fold_to_queenside(Square::A7));
+        assert_eq!(Square::B8, Square::fold_to_queenside(Square::B8));
+        assert_eq!(Square::D5, Square::fold_to_queenside(Square::D5));
+        assert_eq!(Square::D4, Square::fold_to_queenside(Square::E4));
+        assert_eq!(Square::B1, Square::fold_to_queenside(Square::G1));
+        assert_eq!(Square::A2, Square::fold_to_queenside(Square::H2));
+        assert_eq!(Square::A8, Square::fold_to_queenside(Square::H8));
     }
 
     #[test]
