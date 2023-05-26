@@ -205,6 +205,36 @@ impl Fen {
             )
     }
 
+    // For FEN strings without halfmove clock and move count.
+    // Use default values halfmove clock = 0, move count = 1.
+    pub fn shortened_str_to_pos(fen: &str) -> Result<Position, FenError> {
+        let mut pos = Position::empty();
+        let mut iter_fen = fen.split_whitespace();
+        iter_fen
+            .next()
+            .map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_pieces(&mut pos, fen)
+            })
+            .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_side_to_move(&mut pos, fen)
+            }))
+            .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_castling_rights(&mut pos, fen)
+            }))
+            .and(iter_fen.next().map_or(Err(FenError::TooFewParts), |fen| {
+                Self::str_to_pos_en_passant_square(&mut pos, fen)
+            }))
+            .and(
+                iter_fen
+                    .next()
+                    .map_or(Ok(()), |_| Err(FenError::TooManyParts)),
+            )
+            .map_or_else(
+                |e| Err(FenError::InvalidFenString(fen.to_string(), Box::new(e))),
+                |_| Ok(pos),
+            )
+    }
+
     pub fn str_to_pos_chess_960(fen: &str) -> Result<Position, FenError> {
         let mut pos = Position::empty();
         let mut iter_fen = fen.split_whitespace();
@@ -630,6 +660,16 @@ mod tests {
             "\nExpected Position as FEN: {}\nActual Position as FEN:   {}\n",
             fen,
             Fen::pos_to_str(&Fen::str_to_pos(&fen).unwrap())
+        );
+    }
+
+    #[test]
+    fn shortened_str_to_pos() {
+        let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        let shortened_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+        assert_eq!(
+            Fen::str_to_pos(fen).unwrap(),
+            Fen::shortened_str_to_pos(shortened_fen).unwrap(),
         );
     }
 

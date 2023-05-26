@@ -27,7 +27,7 @@ git clone https://github.com/FitzOReilly/fatalii.git
 and build the engine:
 ```
 cd fatalii
-cargo build --profile release-lto
+cargo build --profile release-lto --bin fatalii
 ```
 The binary will be in `target/release-lto/fatalii`.
 

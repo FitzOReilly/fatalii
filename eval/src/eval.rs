@@ -11,3 +11,7 @@ pub trait Eval {
         }
     }
 }
+
+pub trait HasMatingMaterial {
+    fn has_mating_material(&self, s: Side) -> bool;
+}

@@ -1,3 +1,4 @@
+use crate::eval::HasMatingMaterial;
 use crate::game_phase::{GamePhase, PieceCounts};
 use crate::params;
 use crate::score_pair::ScorePair;
@@ -43,22 +44,7 @@ impl Eval for Complex {
     }
 }
 
-impl Default for Complex {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Complex {
-    pub fn new() -> Self {
-        Self {
-            current_pos: Position::empty(),
-            pst_scores: ScorePair(0, 0),
-            game_phase: Default::default(),
-            piece_counts: Default::default(),
-        }
-    }
-
+impl HasMatingMaterial for Complex {
     // Check if one side has enough material to checkmate the opponent. In
     // positions where a mate is possible, but cannot be forced (e.g. KNNvK),
     // this still returns false.
@@ -97,6 +83,23 @@ impl Complex {
         }
 
         false
+    }
+}
+
+impl Default for Complex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Complex {
+    pub fn new() -> Self {
+        Self {
+            current_pos: Position::empty(),
+            pst_scores: ScorePair(0, 0),
+            game_phase: Default::default(),
+            piece_counts: Default::default(),
+        }
     }
 
     fn update(&mut self, pos: &Position) {

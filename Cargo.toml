@@ -9,5 +9,6 @@ members = [
     "fatalii",
     "movegen",
     "search",
+    "tuner",
     "uci",
 ]
