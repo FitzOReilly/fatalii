@@ -12,13 +12,18 @@ const NUM_PST_FEATURES: usize = 2 * NUM_PIECES * PST_SIZE;
 const NUM_TEMPO_FEATURES: usize = 2;
 const NUM_PASSED_PAWN_FEATURES: usize = 2;
 const NUM_ISOLATED_PAWN_FEATURES: usize = 2;
-pub const NUM_FEATURES: usize =
-    NUM_PST_FEATURES + NUM_TEMPO_FEATURES + NUM_PASSED_PAWN_FEATURES + NUM_ISOLATED_PAWN_FEATURES;
+const NUM_BACKWARD_PAWN_FEATURES: usize = 2;
+pub const NUM_FEATURES: usize = NUM_PST_FEATURES
+    + NUM_TEMPO_FEATURES
+    + NUM_PASSED_PAWN_FEATURES
+    + NUM_ISOLATED_PAWN_FEATURES
+    + NUM_BACKWARD_PAWN_FEATURES;
 
 pub const START_IDX_PST: usize = 0;
 pub const START_IDX_TEMPO: usize = START_IDX_PST + NUM_PST_FEATURES;
 pub const START_IDX_PASSED_PAWN: usize = START_IDX_TEMPO + NUM_TEMPO_FEATURES;
 pub const START_IDX_ISOLATED_PAWN: usize = START_IDX_PASSED_PAWN + NUM_PASSED_PAWN_FEATURES;
+pub const START_IDX_BACKWARD_PAWN: usize = START_IDX_ISOLATED_PAWN + NUM_ISOLATED_PAWN_FEATURES;
 
 #[derive(Debug, Clone)]
 pub struct PositionFeatures {
@@ -116,4 +121,7 @@ fn extract_pawn_structure(features: &mut CooMatrix<FeatureType>, pos: &Position)
     let isolated_pawn_count = PawnStructure::isolated_pawn_count(white_pawns, black_pawns).into();
     features.push(0, START_IDX_ISOLATED_PAWN, isolated_pawn_count);
     features.push(0, START_IDX_ISOLATED_PAWN + 1, isolated_pawn_count);
+    let backward_pawn_count = PawnStructure::backward_pawn_count(white_pawns, black_pawns).into();
+    features.push(0, START_IDX_BACKWARD_PAWN, backward_pawn_count);
+    features.push(0, START_IDX_BACKWARD_PAWN + 1, backward_pawn_count);
 }

@@ -49,7 +49,9 @@ impl PawnStructure {
                 Self::passed_pawn_count(white_pawns, black_pawns) as i16 * params::PASSED_PAWN;
             let isolated_pawn_score =
                 Self::isolated_pawn_count(white_pawns, black_pawns) as i16 * params::ISOLATED_PAWN;
-            self.scores = passed_pawn_score + isolated_pawn_score;
+            let backward_pawn_score =
+                Self::backward_pawn_count(white_pawns, black_pawns) as i16 * params::BACKWARD_PAWN;
+            self.scores = passed_pawn_score + isolated_pawn_score + backward_pawn_score;
             self.current_pos = pos.clone();
         }
     }
@@ -62,6 +64,11 @@ impl PawnStructure {
     pub fn isolated_pawn_count(white_pawns: Bitboard, black_pawns: Bitboard) -> i8 {
         Self::isolated_pawn_count_one_side(white_pawns)
             - Self::isolated_pawn_count_one_side(black_pawns)
+    }
+
+    pub fn backward_pawn_count(white_pawns: Bitboard, black_pawns: Bitboard) -> i8 {
+        Self::backward_pawn_count_one_side(white_pawns, black_pawns, Side::White)
+            - Self::backward_pawn_count_one_side(black_pawns, white_pawns, Side::Black)
     }
 
     fn passed_pawn_count_one_side(
@@ -107,5 +114,18 @@ impl PawnStructure {
         let pawn_file = Bitboard::from_square(pawn).file_fill();
         let adjacent_files = pawn_file.east_one() | pawn_file.west_one();
         adjacent_files & own_pawns == Bitboard::EMPTY
+    }
+
+    fn backward_pawn_count_one_side(
+        own_pawns: Bitboard,
+        opp_pawns: Bitboard,
+        side_to_move: Side,
+    ) -> i8 {
+        let own_pawn_stops = Pawn::push_targets(own_pawns, Bitboard::EMPTY, side_to_move).0;
+        let own_front_attack_span = Pawn::front_attack_span(own_pawns, side_to_move);
+        let opp_attack_targets = Pawn::attack_targets(opp_pawns, !side_to_move);
+        let backward_pawn_targets = own_pawn_stops & !own_front_attack_span & opp_attack_targets;
+        let backward_pawns = Pawn::single_push_origins(backward_pawn_targets, side_to_move);
+        backward_pawns.pop_count() as i8
     }
 }

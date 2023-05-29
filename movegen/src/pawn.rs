@@ -46,6 +46,10 @@ impl Pawn {
             | Self::west_attack_targets(pawns, side_to_move)
     }
 
+    pub fn single_push_origins(pawns: Bitboard, side_to_move: Side) -> Bitboard {
+        [Bitboard::south_one, Bitboard::north_one][side_to_move as usize](pawns)
+    }
+
     pub fn push_origin(target: Square, side_to_move: Side) -> Square {
         [Square::south_one, Square::north_one][side_to_move as usize](target)
     }
@@ -442,6 +446,18 @@ mod tests {
         assert_eq!(
             Bitboard::FILE_H & !Bitboard::H1 & !Bitboard::H8,
             Pawn::west_attack_origins(black_pawns, Side::Black)
+        );
+    }
+
+    #[test]
+    fn single_push_origins() {
+        assert_eq!(
+            Bitboard::D3 | Bitboard::E4,
+            Pawn::single_push_origins(Bitboard::D4 | Bitboard::E5, Side::White)
+        );
+        assert_eq!(
+            Bitboard::D6 | Bitboard::E5,
+            Pawn::single_push_origins(Bitboard::D5 | Bitboard::E4, Side::Black)
         );
     }
 
