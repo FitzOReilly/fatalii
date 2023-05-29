@@ -2,7 +2,8 @@ use eval::params;
 use nalgebra::SVector;
 
 use crate::position_features::{
-    EvalType, PositionFeatures, NUM_FEATURES, PST_SIZE, START_IDX_PST, START_IDX_TEMPO,
+    EvalType, PositionFeatures, NUM_FEATURES, PST_SIZE, START_IDX_PASSED_PAWN, START_IDX_PST,
+    START_IDX_TEMPO,
 };
 
 type Weight = f64;
@@ -64,6 +65,9 @@ pub fn initialize_weights() -> WeightVector {
 
     weights[START_IDX_TEMPO] = params::TEMPO.0.into();
     weights[START_IDX_TEMPO + 1] = params::TEMPO.1.into();
+
+    weights[START_IDX_PASSED_PAWN] = params::PASSED_PAWN.0.into();
+    weights[START_IDX_PASSED_PAWN + 1] = params::PASSED_PAWN.1.into();
 
     weights
 }

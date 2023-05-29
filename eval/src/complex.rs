@@ -1,6 +1,7 @@
 use crate::eval::HasMatingMaterial;
 use crate::game_phase::{GamePhase, PieceCounts};
 use crate::params;
+use crate::pawn_structure::PawnStructure;
 use crate::score_pair::ScorePair;
 use crate::{Eval, Score, EQ_POSITION};
 use movegen::bitboard::Bitboard;
@@ -11,9 +12,10 @@ use movegen::side::Side;
 #[derive(Debug, Clone)]
 pub struct Complex {
     current_pos: Position,
-    pst_scores: ScorePair,
     game_phase: GamePhase,
     piece_counts: PieceCounts,
+    pst_scores: ScorePair,
+    pawn_structure: PawnStructure,
 }
 
 impl Eval for Complex {
@@ -28,7 +30,9 @@ impl Eval for Complex {
 
         let tempo_multiplier = 1 - 2 * (pos.side_to_move() as i16);
         let tempo_scores = tempo_multiplier * params::TEMPO;
-        let scores = self.pst_scores + tempo_scores;
+        self.pawn_structure.update(pos);
+        let pawn_scores = self.pawn_structure.scores();
+        let scores = self.pst_scores + tempo_scores + pawn_scores;
         let game_phase = self.game_phase.game_phase_clamped();
         let tapered_score = ((game_phase as i64 * scores.0 as i64
             + (GamePhase::MAX - game_phase) as i64 * scores.1 as i64)
@@ -41,6 +45,12 @@ impl Eval for Complex {
         } else {
             tapered_score
         }
+    }
+}
+
+impl Default for Complex {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -86,19 +96,14 @@ impl HasMatingMaterial for Complex {
     }
 }
 
-impl Default for Complex {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Complex {
     pub fn new() -> Self {
         Self {
             current_pos: Position::empty(),
-            pst_scores: ScorePair(0, 0),
             game_phase: Default::default(),
             piece_counts: Default::default(),
+            pst_scores: ScorePair(0, 0),
+            pawn_structure: PawnStructure::new(),
         }
     }
 

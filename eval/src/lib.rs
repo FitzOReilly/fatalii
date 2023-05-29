@@ -6,6 +6,7 @@ pub mod complex;
 pub mod eval;
 pub mod material_mobility;
 pub mod params;
+pub mod pawn_structure;
 pub mod score;
 pub mod score_pair;
 
