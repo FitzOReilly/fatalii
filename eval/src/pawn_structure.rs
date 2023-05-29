@@ -47,7 +47,9 @@ impl PawnStructure {
             let black_pawns = pos.piece_occupancy(Side::Black, piece::Type::Pawn);
             let passed_pawn_score =
                 Self::passed_pawn_count(white_pawns, black_pawns) as i16 * params::PASSED_PAWN;
-            self.scores = passed_pawn_score;
+            let isolated_pawn_score =
+                Self::isolated_pawn_count(white_pawns, black_pawns) as i16 * params::ISOLATED_PAWN;
+            self.scores = passed_pawn_score + isolated_pawn_score;
             self.current_pos = pos.clone();
         }
     }
@@ -55,6 +57,11 @@ impl PawnStructure {
     pub fn passed_pawn_count(white_pawns: Bitboard, black_pawns: Bitboard) -> i8 {
         Self::passed_pawn_count_one_side(white_pawns, black_pawns, Side::White)
             - Self::passed_pawn_count_one_side(black_pawns, white_pawns, Side::Black)
+    }
+
+    pub fn isolated_pawn_count(white_pawns: Bitboard, black_pawns: Bitboard) -> i8 {
+        Self::isolated_pawn_count_one_side(white_pawns)
+            - Self::isolated_pawn_count_one_side(black_pawns)
     }
 
     fn passed_pawn_count_one_side(
@@ -84,5 +91,21 @@ impl PawnStructure {
         let pawn_bb = Bitboard::from_square(pawn);
         Pawn::front_span(pawn_bb, side_to_move) & (all_pawns) == Bitboard::EMPTY
             && Pawn::front_fill(pawn_bb, side_to_move) & opp_pawn_attack_targets == Bitboard::EMPTY
+    }
+
+    fn isolated_pawn_count_one_side(own_pawns: Bitboard) -> i8 {
+        let mut isolated_count = 0;
+        let mut own_pawns_mut = own_pawns;
+        while own_pawns_mut != Bitboard::EMPTY {
+            let pawn = own_pawns_mut.square_scan_forward_reset();
+            isolated_count += Self::is_isolated(own_pawns, pawn) as i8;
+        }
+        isolated_count
+    }
+
+    fn is_isolated(own_pawns: Bitboard, pawn: Square) -> bool {
+        let pawn_file = Bitboard::from_square(pawn).file_fill();
+        let adjacent_files = pawn_file.east_one() | pawn_file.west_one();
+        adjacent_files & own_pawns == Bitboard::EMPTY
     }
 }

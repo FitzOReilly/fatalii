@@ -4,7 +4,9 @@ use eval::{score_pair::ScorePair, Score};
 
 use crate::{
     feature_evaluator::WeightVector,
-    position_features::{PST_SIZE, START_IDX_PASSED_PAWN, START_IDX_PST, START_IDX_TEMPO},
+    position_features::{
+        PST_SIZE, START_IDX_ISOLATED_PAWN, START_IDX_PASSED_PAWN, START_IDX_PST, START_IDX_TEMPO,
+    },
 };
 
 #[derive(Debug)]
@@ -17,6 +19,7 @@ pub struct EvalParams {
     pst_king: [ScorePair; 32],
     tempo: ScorePair,
     passed_pawn: ScorePair,
+    isolated_pawn: ScorePair,
 }
 
 impl Default for EvalParams {
@@ -30,6 +33,7 @@ impl Default for EvalParams {
             pst_king: [ScorePair(0, 0); 32],
             tempo: ScorePair(0, 0),
             passed_pawn: ScorePair(0, 0),
+            isolated_pawn: ScorePair(0, 0),
         }
     }
 }
@@ -59,6 +63,8 @@ impl From<&WeightVector> for EvalParams {
 
         eval_params.passed_pawn.0 = weights[START_IDX_PASSED_PAWN].round() as Score;
         eval_params.passed_pawn.1 = weights[START_IDX_PASSED_PAWN + 1].round() as Score;
+        eval_params.isolated_pawn.0 = weights[START_IDX_ISOLATED_PAWN].round() as Score;
+        eval_params.isolated_pawn.1 = weights[START_IDX_ISOLATED_PAWN + 1].round() as Score;
 
         eval_params
     }
@@ -75,6 +81,11 @@ impl Display for EvalParams {
             f,
             "pub const PASSED_PAWN: ScorePair = ScorePair({}, {});",
             self.passed_pawn.0, self.passed_pawn.1
+        )?;
+        writeln!(
+            f,
+            "pub const ISOLATED_PAWN: ScorePair = ScorePair({}, {});",
+            self.isolated_pawn.0, self.isolated_pawn.1
         )?;
 
         for (pst, piece) in [
