@@ -1,4 +1,4 @@
-use eval::GamePhase;
+use eval::{pawn_structure::PawnStructure, GamePhase};
 use movegen::{bitboard::Bitboard, piece, position::Position, side::Side};
 use nalgebra_sparse::{CooMatrix, CsrMatrix};
 
@@ -10,10 +10,12 @@ pub const PST_SIZE: usize = 32;
 const NUM_PIECES: usize = 6;
 const NUM_PST_FEATURES: usize = 2 * NUM_PIECES * PST_SIZE;
 const NUM_TEMPO_FEATURES: usize = 2;
-pub const NUM_FEATURES: usize = NUM_PST_FEATURES + NUM_TEMPO_FEATURES;
+const NUM_PAWN_FEATURES: usize = 2;
+pub const NUM_FEATURES: usize = NUM_PST_FEATURES + NUM_TEMPO_FEATURES + NUM_PAWN_FEATURES;
 
 pub const START_IDX_PST: usize = 0;
-pub const START_IDX_TEMPO: usize = NUM_PST_FEATURES;
+pub const START_IDX_TEMPO: usize = START_IDX_PST + NUM_PST_FEATURES;
+pub const START_IDX_PASSED_PAWN: usize = START_IDX_TEMPO + NUM_TEMPO_FEATURES;
 
 #[derive(Debug, Clone)]
 pub struct PositionFeatures {
@@ -39,6 +41,7 @@ impl From<&Position> for PositionFeatures {
         let mut features = CooMatrix::new(1, NUM_FEATURES);
         let game_phase = extract_psts(&mut features, pos);
         extract_tempo(&mut features, pos);
+        extract_pawn_structure(&mut features, pos);
 
         let mg_phase = 1.0 - game_phase;
         let eg_phase = game_phase;
@@ -99,4 +102,12 @@ fn extract_tempo(features: &mut CooMatrix<FeatureType>, pos: &Position) {
     };
     features.push(0, START_IDX_TEMPO, val);
     features.push(0, START_IDX_TEMPO + 1, val);
+}
+
+fn extract_pawn_structure(features: &mut CooMatrix<FeatureType>, pos: &Position) {
+    let white_pawns = pos.piece_occupancy(Side::White, piece::Type::Pawn);
+    let black_pawns = pos.piece_occupancy(Side::Black, piece::Type::Pawn);
+    let passed_pawn_count = PawnStructure::passed_pawn_count(white_pawns, black_pawns).into();
+    features.push(0, START_IDX_PASSED_PAWN, passed_pawn_count);
+    features.push(0, START_IDX_PASSED_PAWN + 1, passed_pawn_count);
 }
