@@ -1,5 +1,6 @@
 use crate::eval::HasMatingMaterial;
 use crate::game_phase::{GamePhase, PieceCounts};
+use crate::mobility::Mobility;
 use crate::params;
 use crate::pawn_structure::PawnStructure;
 use crate::score_pair::ScorePair;
@@ -16,6 +17,7 @@ pub struct Complex {
     piece_counts: PieceCounts,
     pst_scores: ScorePair,
     pawn_structure: PawnStructure,
+    mobility: Mobility,
 }
 
 impl Eval for Complex {
@@ -32,7 +34,8 @@ impl Eval for Complex {
         let tempo_scores = tempo_multiplier * params::TEMPO;
         self.pawn_structure.update(pos);
         let pawn_scores = self.pawn_structure.scores();
-        let scores = self.pst_scores + tempo_scores + pawn_scores;
+        let mobility_scores = self.mobility.scores(pos);
+        let scores = self.pst_scores + tempo_scores + pawn_scores + mobility_scores;
         let game_phase = self.game_phase.game_phase_clamped();
         let tapered_score = ((game_phase as i64 * scores.0 as i64
             + (GamePhase::MAX - game_phase) as i64 * scores.1 as i64)
@@ -104,6 +107,7 @@ impl Complex {
             piece_counts: Default::default(),
             pst_scores: ScorePair(0, 0),
             pawn_structure: PawnStructure::new(),
+            mobility: Mobility::default(),
         }
     }
 
