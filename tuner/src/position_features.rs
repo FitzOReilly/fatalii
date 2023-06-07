@@ -1,4 +1,4 @@
-use eval::{pawn_structure::PawnStructure, GamePhase};
+use eval::{mobility::Mobility, params::MOB_LEN, pawn_structure::PawnStructure, GamePhase};
 use movegen::{bitboard::Bitboard, piece, position::Position, side::Side};
 use nalgebra_sparse::{CooMatrix, CsrMatrix};
 
@@ -13,17 +13,20 @@ const NUM_TEMPO_FEATURES: usize = 2;
 const NUM_PASSED_PAWN_FEATURES: usize = 2;
 const NUM_ISOLATED_PAWN_FEATURES: usize = 2;
 const NUM_BACKWARD_PAWN_FEATURES: usize = 2;
+const NUM_MOBILITY_FEATURES: usize = 2 * MOB_LEN;
 pub const NUM_FEATURES: usize = NUM_PST_FEATURES
     + NUM_TEMPO_FEATURES
     + NUM_PASSED_PAWN_FEATURES
     + NUM_ISOLATED_PAWN_FEATURES
-    + NUM_BACKWARD_PAWN_FEATURES;
+    + NUM_BACKWARD_PAWN_FEATURES
+    + NUM_MOBILITY_FEATURES;
 
 pub const START_IDX_PST: usize = 0;
 pub const START_IDX_TEMPO: usize = START_IDX_PST + NUM_PST_FEATURES;
 pub const START_IDX_PASSED_PAWN: usize = START_IDX_TEMPO + NUM_TEMPO_FEATURES;
 pub const START_IDX_ISOLATED_PAWN: usize = START_IDX_PASSED_PAWN + NUM_PASSED_PAWN_FEATURES;
 pub const START_IDX_BACKWARD_PAWN: usize = START_IDX_ISOLATED_PAWN + NUM_ISOLATED_PAWN_FEATURES;
+pub const START_IDX_MOBILITY: usize = START_IDX_BACKWARD_PAWN + NUM_BACKWARD_PAWN_FEATURES;
 
 #[derive(Debug, Clone)]
 pub struct PositionFeatures {
@@ -50,6 +53,7 @@ impl From<&Position> for PositionFeatures {
         let game_phase = extract_psts(&mut features, pos);
         extract_tempo(&mut features, pos);
         extract_pawn_structure(&mut features, pos);
+        extract_mobility(&mut features, pos);
 
         let mg_phase = 1.0 - game_phase;
         let eg_phase = game_phase;
@@ -124,4 +128,37 @@ fn extract_pawn_structure(features: &mut CooMatrix<FeatureType>, pos: &Position)
     let backward_pawn_count = PawnStructure::backward_pawn_count(white_pawns, black_pawns).into();
     features.push(0, START_IDX_BACKWARD_PAWN, backward_pawn_count);
     features.push(0, START_IDX_BACKWARD_PAWN + 1, backward_pawn_count);
+}
+
+fn extract_mobility(features: &mut CooMatrix<FeatureType>, pos: &Position) {
+    let mob_counts = Mobility::mobility_counts(pos);
+    let mut idx = START_IDX_MOBILITY;
+    for c in mob_counts.knight_mob {
+        if c != 0 {
+            features.push(0, idx, c.into());
+            features.push(0, idx + 1, c.into());
+        }
+        idx += 2;
+    }
+    for c in mob_counts.bishop_mob {
+        if c != 0 {
+            features.push(0, idx, c.into());
+            features.push(0, idx + 1, c.into());
+        }
+        idx += 2;
+    }
+    for c in mob_counts.rook_mob {
+        if c != 0 {
+            features.push(0, idx, c.into());
+            features.push(0, idx + 1, c.into());
+        }
+        idx += 2;
+    }
+    for c in mob_counts.queen_mob {
+        if c != 0 {
+            features.push(0, idx, c.into());
+            features.push(0, idx + 1, c.into());
+        }
+        idx += 2;
+    }
 }

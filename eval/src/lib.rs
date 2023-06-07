@@ -5,6 +5,7 @@ pub use crate::score::{Score, ScoreVariant, BLACK_WIN, EQ_POSITION, NEG_INF, POS
 pub mod complex;
 pub mod eval;
 pub mod material_mobility;
+pub mod mobility;
 pub mod params;
 pub mod pawn_structure;
 pub mod score;

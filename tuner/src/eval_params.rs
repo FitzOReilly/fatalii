@@ -1,12 +1,16 @@
 use std::fmt::Display;
 
-use eval::{score_pair::ScorePair, Score};
+use eval::{
+    params::{BISHOP_MOB_LEN, KNIGHT_MOB_LEN, MOB_LEN, QUEEN_MOB_LEN, ROOK_MOB_LEN},
+    score_pair::ScorePair,
+    Score,
+};
 
 use crate::{
     feature_evaluator::WeightVector,
     position_features::{
-        PST_SIZE, START_IDX_BACKWARD_PAWN, START_IDX_ISOLATED_PAWN, START_IDX_PASSED_PAWN,
-        START_IDX_PST, START_IDX_TEMPO,
+        PST_SIZE, START_IDX_BACKWARD_PAWN, START_IDX_ISOLATED_PAWN, START_IDX_MOBILITY,
+        START_IDX_PASSED_PAWN, START_IDX_PST, START_IDX_TEMPO,
     },
 };
 
@@ -22,6 +26,7 @@ pub struct EvalParams {
     passed_pawn: ScorePair,
     isolated_pawn: ScorePair,
     backward_pawn: ScorePair,
+    mobility: [ScorePair; MOB_LEN],
 }
 
 impl Default for EvalParams {
@@ -37,6 +42,7 @@ impl Default for EvalParams {
             passed_pawn: ScorePair(0, 0),
             isolated_pawn: ScorePair(0, 0),
             backward_pawn: ScorePair(0, 0),
+            mobility: [ScorePair(0, 0); MOB_LEN],
         }
     }
 }
@@ -71,6 +77,12 @@ impl From<&WeightVector> for EvalParams {
         eval_params.backward_pawn.0 = weights[START_IDX_BACKWARD_PAWN].round() as Score;
         eval_params.backward_pawn.1 = weights[START_IDX_BACKWARD_PAWN + 1].round() as Score;
 
+        for idx in 0..MOB_LEN {
+            let offset = START_IDX_MOBILITY + 2 * idx;
+            eval_params.mobility[idx].0 = weights[offset].round() as Score;
+            eval_params.mobility[idx].1 = weights[offset + 1].round() as Score;
+        }
+
         eval_params
     }
 }
@@ -97,6 +109,8 @@ impl Display for EvalParams {
             "pub const BACKWARD_PAWN: ScorePair = ScorePair({}, {});",
             self.backward_pawn.0, self.backward_pawn.1
         )?;
+
+        self.fmt_mob(f)?;
 
         for (pst, piece) in [
             (self.pst_pawn, "PAWN"),
@@ -143,6 +157,141 @@ const PST_{piece}_MG_EG: ([Score; 32], [Score; 32]) = (
 "
             )?;
         }
+
+        Ok(())
+    }
+}
+
+impl EvalParams {
+    fn fmt_mob(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut offset = 0;
+
+        // Knights
+        write!(
+            f,
+            "\
+const MOBILITY_KNIGHT_MG_EG: ([Score; KNIGHT_MOB_LEN], [Score; KNIGHT_MOB_LEN]) = (
+    [
+"
+        )?;
+        write!(f, "       ")?;
+        for idx in 0..KNIGHT_MOB_LEN {
+            write!(f, " {},", self.mobility[offset + idx].0)?;
+        }
+        writeln!(f)?;
+        write!(
+            f,
+            "    ],
+    [
+"
+        )?;
+        write!(f, "       ")?;
+        for idx in 0..KNIGHT_MOB_LEN {
+            write!(f, " {},", self.mobility[offset + idx].1)?;
+        }
+        writeln!(f)?;
+        write!(
+            f,
+            "    ],
+);
+"
+        )?;
+        offset += KNIGHT_MOB_LEN;
+
+        // Bishops
+        write!(
+            f,
+            "\
+const MOBILITY_BISHOP_MG_EG: ([Score; BISHOP_MOB_LEN], [Score; BISHOP_MOB_LEN]) = (
+    [
+"
+        )?;
+        write!(f, "       ")?;
+        for idx in 0..BISHOP_MOB_LEN {
+            write!(f, " {},", self.mobility[offset + idx].0)?;
+        }
+        writeln!(f)?;
+        write!(
+            f,
+            "    ],
+    [
+"
+        )?;
+        write!(f, "       ")?;
+        for idx in 0..BISHOP_MOB_LEN {
+            write!(f, " {},", self.mobility[offset + idx].1)?;
+        }
+        writeln!(f)?;
+        write!(
+            f,
+            "    ],
+);
+"
+        )?;
+        offset += BISHOP_MOB_LEN;
+
+        // Rooks
+        write!(
+            f,
+            "\
+const MOBILITY_ROOK_MG_EG: ([Score; ROOK_MOB_LEN], [Score; ROOK_MOB_LEN]) = (
+    [
+"
+        )?;
+        write!(f, "       ")?;
+        for idx in 0..ROOK_MOB_LEN {
+            write!(f, " {},", self.mobility[offset + idx].0)?;
+        }
+        writeln!(f)?;
+        write!(
+            f,
+            "    ],
+    [
+"
+        )?;
+        write!(f, "       ")?;
+        for idx in 0..ROOK_MOB_LEN {
+            write!(f, " {},", self.mobility[offset + idx].1)?;
+        }
+        writeln!(f)?;
+        write!(
+            f,
+            "    ],
+);
+"
+        )?;
+        offset += ROOK_MOB_LEN;
+
+        // Queens
+        write!(
+            f,
+            "\
+const MOBILITY_QUEEN_MG_EG: ([Score; QUEEN_MOB_LEN], [Score; QUEEN_MOB_LEN]) = (
+    [
+"
+        )?;
+        write!(f, "       ")?;
+        for idx in 0..QUEEN_MOB_LEN {
+            write!(f, " {},", self.mobility[offset + idx].0)?;
+        }
+        writeln!(f)?;
+        write!(
+            f,
+            "    ],
+    [
+"
+        )?;
+        write!(f, "       ")?;
+        for idx in 0..QUEEN_MOB_LEN {
+            write!(f, " {},", self.mobility[offset + idx].1)?;
+        }
+        writeln!(f)?;
+        write!(
+            f,
+            "    ],
+);
+"
+        )?;
 
         Ok(())
     }
