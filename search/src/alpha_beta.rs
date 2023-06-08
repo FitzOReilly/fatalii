@@ -345,7 +345,7 @@ impl AlphaBeta {
                                         search_data.age(),
                                     );
                                     self.update_table(pos_hash, node);
-                                    if !m.is_capture() && !search_data.contains_killer(depth, m) {
+                                    if !m.is_capture() {
                                         search_data.insert_killer(depth, m);
                                         let p = search_data
                                             .pos_history()
