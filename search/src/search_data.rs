@@ -133,16 +133,15 @@ impl<'a> SearchData<'a> {
         &self.killers[len - depth]
     }
 
-    pub fn contains_killer(&self, depth: usize, m: Move) -> bool {
-        let len = self.killers.len();
-        debug_assert!(len >= depth);
-        self.killers[len - depth].contains(&Some(m))
-    }
-
     pub fn insert_killer(&mut self, depth: usize, m: Move) {
         let len = self.killers.len();
         debug_assert!(len >= depth);
-        for idx in (0..NUM_KILLERS - 2).rev() {
+        // If m is already in the list of killers, move it to the front
+        let max_idx = match self.killers[len - depth].iter().position(|&k| k == Some(m)) {
+            Some(p) => p,
+            None => NUM_KILLERS - 1,
+        };
+        for idx in (0..max_idx).rev() {
             self.killers[len - depth][idx + 1] = self.killers[len - depth][idx];
         }
         self.killers[len - depth][0] = Some(m);
