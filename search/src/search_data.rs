@@ -5,7 +5,6 @@ use crate::node_counter::NodeCounter;
 use crate::pv_table::PvTable;
 use crate::search::{SearchCommand, SearchInfo};
 use crossbeam_channel::{Receiver, Sender, TryRecvError};
-use movegen::piece::Piece;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
 use movegen::square::Square;
@@ -147,12 +146,12 @@ impl<'a> SearchData<'a> {
         self.killers[len - depth][0] = Some(m);
     }
 
-    pub fn prioritize_history(&mut self, p: Piece, to: Square, depth: usize) {
-        self.history_table.prioritize(p, to, depth)
+    pub fn prioritize_history(&mut self, from: Square, to: Square, depth: usize) {
+        self.history_table.prioritize(from, to, depth)
     }
 
-    pub fn history_priority(&self, p: Piece, to: Square) -> u32 {
-        self.history_table.priority(p, to)
+    pub fn history_priority(&self, from: Square, to: Square) -> u32 {
+        self.history_table.priority(from, to)
     }
 
     pub fn increase_search_depth(&mut self) {

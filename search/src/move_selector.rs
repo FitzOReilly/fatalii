@@ -348,14 +348,7 @@ impl MoveSelector {
             .iter()
             .enumerate()
             .filter(|&(_, x)| !x.is_promotion())
-            .max_by_key(|&(_, x)| {
-                let p = search_data
-                    .pos_history()
-                    .current_pos()
-                    .piece_at(x.origin())
-                    .expect("Expected a piece at move origin");
-                search_data.history_priority(p, x.target())
-            })
+            .max_by_key(|&(_, x)| search_data.history_priority(x.origin(), x.target()))
         {
             debug_assert_eq!(m, move_list[idx]);
             let next_move = move_list.swap_remove(idx);
