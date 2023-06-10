@@ -1,8 +1,10 @@
 use crate::alpha_beta::AlphaBetaTable;
+use crate::alpha_beta_entry::AlphaBetaEntry;
 use crate::search_data::SearchData;
 use movegen::piece;
 use movegen::position::Position;
 use movegen::r#move::{Move, MoveList};
+use movegen::transposition_table::ENTRIES_PER_BUCKET;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -20,12 +22,16 @@ enum Stage {
 
 pub struct MoveSelector {
     stage: Stage,
+    hash_entries: [Option<AlphaBetaEntry>; ENTRIES_PER_BUCKET],
+    hash_entry_idx: usize,
 }
 
 impl MoveSelector {
     pub fn new() -> Self {
         MoveSelector {
             stage: Stage::PrincipalVariation,
+            hash_entries: [None; ENTRIES_PER_BUCKET],
+            hash_entry_idx: 0,
         }
     }
 
@@ -48,7 +54,7 @@ impl MoveSelector {
         }
 
         if self.stage == Stage::Hash {
-            if let Some(m) = Self::select_hash_move(search_data, transpos_table, depth, move_list) {
+            if let Some(m) = self.select_hash_move(search_data, transpos_table, move_list) {
                 return Some(m);
             }
             self.stage = Stage::QueenPromoCaptures;
@@ -111,10 +117,8 @@ impl MoveSelector {
         transpos_table: &mut AlphaBetaTable,
         move_list: &mut MoveList,
     ) -> Option<Move> {
-        let depth = 0;
-
         if self.stage == Stage::PrincipalVariation || self.stage == Stage::Hash {
-            if let Some(m) = Self::select_hash_move(search_data, transpos_table, depth, move_list) {
+            if let Some(m) = self.select_hash_move(search_data, transpos_table, move_list) {
                 return Some(m);
             }
             self.stage = Stage::QueenPromoCaptures;
@@ -164,14 +168,17 @@ impl MoveSelector {
     }
 
     fn select_hash_move(
+        &mut self,
         search_data: &mut SearchData,
         transpos_table: &AlphaBetaTable,
-        depth: usize,
         move_list: &mut MoveList,
     ) -> Option<Move> {
-        if let Some(entry) =
-            transpos_table.get_depth(&search_data.pos_history().current_pos_hash(), depth)
-        {
+        if self.hash_entry_idx == 0 {
+            self.hash_entries =
+                transpos_table.get_all(&search_data.pos_history().current_pos_hash());
+        }
+        for entry in self.hash_entries[self.hash_entry_idx..].iter().flatten() {
+            self.hash_entry_idx += 1;
             if let Some(idx) = move_list.iter().position(|&x| x == entry.best_move()) {
                 return Some(move_list.swap_remove(idx));
             }

@@ -8,7 +8,7 @@ pub trait TtEntry {
     fn prio(&self, other: &Self, age: u8) -> cmp::Ordering;
 }
 
-const ENTRIES_PER_BUCKET: usize = 4;
+pub const ENTRIES_PER_BUCKET: usize = 4;
 const MAX_MATCHING_KEYS_PER_BUCKET: usize = 4;
 
 type Bucket<K, V> = [Option<(K, V)>; ENTRIES_PER_BUCKET];
@@ -127,6 +127,24 @@ where
             }
         }
         most_relevant
+    }
+
+    pub fn get_all(&self, k: &K) -> [Option<V>; ENTRIES_PER_BUCKET] {
+        let index = self.key_to_index(k);
+        let mut entries = [None; ENTRIES_PER_BUCKET];
+        let mut entry_idx = 0;
+        for entry in &self.buckets[index] {
+            match entry {
+                Some(ref e) if e.0 == *k => {
+                    entries[entry_idx] = Some(e.1);
+                    entry_idx += 1;
+                }
+                _ => {}
+            }
+        }
+        entries[0..entry_idx]
+            .sort_by_key(|e| cmp::Reverse(e.expect("Expected Some(_) entry, got None").depth()));
+        entries
     }
 
     // Inserts a value into the table
