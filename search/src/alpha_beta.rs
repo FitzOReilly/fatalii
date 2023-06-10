@@ -80,6 +80,10 @@ impl Search for AlphaBeta {
             search_options.nodes,
         );
 
+        let mut root_moves = MoveList::new();
+        MoveGenerator::generate_moves(&mut root_moves, search_data.pos_history().current_pos());
+        search_data.set_root_moves(root_moves);
+
         for d in 1..=search_options.depth.unwrap_or(MAX_SEARCH_DEPTH) {
             search_data.increase_search_depth();
 
@@ -179,6 +183,11 @@ impl AlphaBeta {
                 match (bounded.score_type(), depth) {
                     (ScoreType::Exact, 0) => return Some(bounded),
                     (ScoreType::Exact, 1) => {
+                        // Root move ordering: move the new best move to the front
+                        if depth == search_data.search_depth() {
+                            let candidates = search_data.root_moves_mut();
+                            candidates.move_to_front(bounded.best_move());
+                        }
                         search_data
                             .pv_table_mut()
                             .update_move_and_truncate(depth, bounded.best_move());
@@ -354,6 +363,7 @@ impl AlphaBeta {
                                             .expect("Expected a piece at move origin");
                                         search_data.prioritize_history(p, m.target(), depth);
                                     }
+
                                     return Some(node);
                                 }
                                 if score > alpha {
@@ -369,6 +379,11 @@ impl AlphaBeta {
                                         search_data
                                             .pv_table_mut()
                                             .update_move_and_copy(depth, best_move);
+                                    }
+                                    // Root move ordering: move the new best move to the front
+                                    if depth == search_data.search_depth() {
+                                        let candidates = search_data.root_moves_mut();
+                                        candidates.move_to_front(best_move);
                                     }
                                 }
                             }
