@@ -36,6 +36,10 @@ impl MoveSelector {
         depth: usize,
         move_list: &mut MoveList,
     ) -> Option<Move> {
+        if search_data.search_depth() > 1 && depth == search_data.search_depth() {
+            return Self::select_root_move(search_data);
+        }
+
         if self.stage == Stage::PrincipalVariation {
             if let Some(m) = Self::select_pv_move(search_data, depth, move_list) {
                 return Some(m);
@@ -360,6 +364,22 @@ impl MoveSelector {
             debug_assert_eq!(m, move_list[idx]);
             let next_move = move_list.swap_remove(idx);
             return Some(next_move);
+        }
+
+        None
+    }
+
+    fn select_root_move(search_data: &mut SearchData) -> Option<Move> {
+        if search_data.root_moves().current_idx == 0 {
+            search_data.decrease_pv_depth();
+        }
+        let candidates = search_data.root_moves_mut();
+        let moves = &candidates.move_list;
+        let idx = &mut candidates.current_idx;
+        if idx < &mut moves.len() {
+            let m = moves[*idx];
+            *idx += 1;
+            return Some(m);
         }
 
         None

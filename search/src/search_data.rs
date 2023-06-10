@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
 use crate::history_table::HistoryTable;
+use crate::move_candidates::MoveCandidates;
 use crate::node_counter::NodeCounter;
 use crate::pv_table::PvTable;
 use crate::search::{SearchCommand, SearchInfo};
@@ -28,6 +29,7 @@ pub struct SearchData<'a> {
     node_counter: NodeCounter,
     killers: Vec<Killers>,
     history_table: HistoryTable,
+    move_candidates: MoveCandidates,
 }
 
 impl<'a> SearchData<'a> {
@@ -54,6 +56,7 @@ impl<'a> SearchData<'a> {
             node_counter: NodeCounter::new(),
             killers: Vec::new(),
             history_table: HistoryTable::new(),
+            move_candidates: MoveCandidates::default(),
         }
     }
 
@@ -159,6 +162,7 @@ impl<'a> SearchData<'a> {
         self.pv_depth = self.search_depth;
         self.search_depth += 1;
         self.killers.push([None; NUM_KILLERS]);
+        self.root_moves_mut().current_idx = 0;
     }
 
     pub fn decrease_pv_depth(&mut self) {
@@ -181,5 +185,20 @@ impl<'a> SearchData<'a> {
 
     pub fn increment_eval_calls(&mut self) {
         self.node_counter.increment_eval_calls(self.search_depth());
+    }
+
+    pub fn set_root_moves(&mut self, root_moves: MoveList) {
+        self.move_candidates = MoveCandidates {
+            move_list: root_moves,
+            ..Default::default()
+        };
+    }
+
+    pub fn root_moves(&self) -> &MoveCandidates {
+        &self.move_candidates
+    }
+
+    pub fn root_moves_mut(&mut self) -> &mut MoveCandidates {
+        &mut self.move_candidates
     }
 }
