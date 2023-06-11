@@ -1,4 +1,5 @@
 use crate::alpha_beta_entry::{AlphaBetaEntry, ScoreType};
+use crate::aspiration_window::AspirationWindow;
 use crate::move_selector::MoveSelector;
 use crate::search::{
     Search, SearchCommand, SearchInfo, SearchResult, MAX_SEARCH_DEPTH,
@@ -8,7 +9,7 @@ use crate::search_data::SearchData;
 use crate::time_manager::TimeManager;
 use crate::SearchOptions;
 use crossbeam_channel::{Receiver, Sender};
-use eval::{Eval, Score, BLACK_WIN, EQ_POSITION, NEG_INF, POS_INF, WHITE_WIN};
+use eval::{Eval, Score, BLACK_WIN, EQ_POSITION, WHITE_WIN};
 use movegen::move_generator::MoveGenerator;
 use movegen::piece;
 use movegen::position_history::PositionHistory;
@@ -83,6 +84,7 @@ impl Search for AlphaBeta {
         let mut root_moves = MoveList::new();
         MoveGenerator::generate_moves(&mut root_moves, search_data.pos_history().current_pos());
         search_data.set_root_moves(root_moves);
+        let mut aw = AspirationWindow::infinite();
 
         for d in 1..=search_options.depth.unwrap_or(MAX_SEARCH_DEPTH) {
             search_data.increase_search_depth();
@@ -98,38 +100,61 @@ impl Search for AlphaBeta {
                 }
             }
 
-            match self.search_recursive(&mut search_data, d, NEG_INF, POS_INF) {
-                Some(rel_alpha_beta_res) => {
-                    let abs_alpha_beta_res =
-                        match search_data.pos_history().current_pos().side_to_move() {
-                            Side::White => rel_alpha_beta_res,
-                            Side::Black => -rel_alpha_beta_res,
-                        };
-                    debug_assert_eq!(ScoreType::Exact, abs_alpha_beta_res.score_type());
-                    let search_res = SearchResult::new(
-                        d,
-                        abs_alpha_beta_res.score(),
-                        search_data.node_counter().sum_nodes(),
-                        start_time.elapsed().as_micros() as u64,
-                        self.transpos_table.load_factor_permille(),
-                        abs_alpha_beta_res.best_move(),
-                        search_data.pv_owned(d),
-                    );
-                    search_data.send_info(SearchInfo::DepthFinished(search_res));
-                    let score = abs_alpha_beta_res.score();
-                    if eval::score::is_mating(score)
-                        && eval::score::mate_dist(score).unsigned_abs() as usize <= d
-                    {
-                        if let Some(ref mut limit) = soft_time_limit {
-                            // A mate has been found. Don't abort the search immediately, because we
-                            // might have pruned away a shorter mate. Instead lower the search time.
-                            // This also makes sure that we continue searching if there is no time
-                            // limit given.
-                            *limit = *limit * 3 / 4;
+            let mut stop_search = false;
+            loop {
+                match self.search_recursive(&mut search_data, d, aw.alpha(), aw.beta()) {
+                    Some(rel_alpha_beta_res) => {
+                        if rel_alpha_beta_res.score() <= aw.alpha() {
+                            // Fail low
+                            search_data.reset_current_search_depth();
+                            aw.widen_down();
+                            continue;
                         }
+                        if rel_alpha_beta_res.score() >= aw.beta() {
+                            // Fail high
+                            search_data.reset_current_search_depth();
+                            aw.widen_up();
+                            continue;
+                        }
+                        aw = AspirationWindow::new(rel_alpha_beta_res.score());
+                        let abs_alpha_beta_res =
+                            match search_data.pos_history().current_pos().side_to_move() {
+                                Side::White => rel_alpha_beta_res,
+                                Side::Black => -rel_alpha_beta_res,
+                            };
+                        debug_assert_eq!(ScoreType::Exact, abs_alpha_beta_res.score_type());
+                        let search_res = SearchResult::new(
+                            d,
+                            abs_alpha_beta_res.score(),
+                            search_data.node_counter().sum_nodes(),
+                            start_time.elapsed().as_micros() as u64,
+                            self.transpos_table.load_factor_permille(),
+                            abs_alpha_beta_res.best_move(),
+                            search_data.pv_owned(d),
+                        );
+                        search_data.send_info(SearchInfo::DepthFinished(search_res));
+                        let score = abs_alpha_beta_res.score();
+                        if eval::score::is_mating(score)
+                            && eval::score::mate_dist(score).unsigned_abs() as usize <= d
+                        {
+                            if let Some(ref mut limit) = soft_time_limit {
+                                // A mate has been found. Don't abort the search immediately, because we
+                                // might have pruned away a shorter mate. Instead lower the search time.
+                                // This also makes sure that we continue searching if there is no time
+                                // limit given.
+                                *limit = *limit * 3 / 4;
+                            }
+                        }
+                        break;
+                    }
+                    None => {
+                        stop_search = true;
+                        break;
                     }
                 }
-                None => break,
+            }
+            if stop_search {
+                break;
             }
         }
         info_sender
@@ -183,20 +208,25 @@ impl AlphaBeta {
                 match (bounded.score_type(), depth) {
                     (ScoreType::Exact, 0) => return Some(bounded),
                     (ScoreType::Exact, 1) => {
+                        search_data
+                            .pv_table_mut()
+                            .update_move_and_truncate(depth, bounded.best_move());
                         // Root move ordering: move the new best move to the front
                         if depth == search_data.search_depth() {
                             let candidates = search_data.root_moves_mut();
                             candidates.move_to_front(bounded.best_move());
                         }
-                        search_data
-                            .pv_table_mut()
-                            .update_move_and_truncate(depth, bounded.best_move());
                         return Some(bounded);
                     }
                     (ScoreType::Exact, _) => {
                         // For greater depths, we need to keep searching in order to obtain the PV
                     }
-                    _ => return Some(bounded),
+                    _ => {
+                        // We're not in a PV node, but it might be in the previous search depth's PV.
+                        // So we make sure to remove it.
+                        search_data.end_pv();
+                        return Some(bounded);
+                    }
                 }
             }
         }

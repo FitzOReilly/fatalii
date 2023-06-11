@@ -1,6 +1,6 @@
 use movegen::{piece::Piece, square::Square};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HistoryTable {
     table: [u32; Piece::NUM_PIECES * Square::NUM_SQUARES],
 }

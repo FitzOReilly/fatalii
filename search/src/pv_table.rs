@@ -1,7 +1,7 @@
 use movegen::r#move::{Move, MoveList};
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PvTable {
     table: Vec<Move>,
     indices: Vec<usize>,

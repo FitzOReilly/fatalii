@@ -15,6 +15,7 @@ pub type Killers = [Option<Move>; NUM_KILLERS];
 
 const NUM_KILLERS: usize = 2;
 
+#[derive(Debug, Clone)]
 pub struct SearchData<'a> {
     command_receiver: &'a Receiver<SearchCommand>,
     info_sender: &'a Sender<SearchInfo>,
@@ -26,6 +27,7 @@ pub struct SearchData<'a> {
     search_depth: usize,
     pv_depth: usize,
     pv_table: PvTable,
+    prev_pv_table: PvTable,
     node_counter: NodeCounter,
     killers: Vec<Killers>,
     history_table: HistoryTable,
@@ -53,6 +55,7 @@ impl<'a> SearchData<'a> {
             search_depth: 0,
             pv_depth: 0,
             pv_table: PvTable::new(),
+            prev_pv_table: PvTable::new(),
             node_counter: NodeCounter::new(),
             killers: Vec::new(),
             history_table: HistoryTable::new(),
@@ -158,8 +161,21 @@ impl<'a> SearchData<'a> {
         self.history_table.priority(p, to)
     }
 
+    pub fn reset_current_search_depth(&mut self) {
+        // This method will be called if we fail low/high, i.e. we didn't find the best move inside
+        // the aspiration window. At depth 1, we search with an infinite window, so this method
+        // should only be called at search depths > 1.
+        debug_assert!(self.search_depth() > 1);
+        self.pv_table = self.prev_pv_table.clone();
+        self.pv_depth = self.search_depth() - 1;
+        let pv_move = self.pv(self.search_depth() - 1)[0];
+        self.move_candidates.move_to_front(pv_move);
+        self.root_moves_mut().current_idx = 0;
+    }
+
     pub fn increase_search_depth(&mut self) {
-        self.pv_depth = self.search_depth;
+        self.prev_pv_table = self.pv_table.clone();
+        self.pv_depth = self.search_depth();
         self.search_depth += 1;
         self.killers.push([None; NUM_KILLERS]);
         self.root_moves_mut().current_idx = 0;
