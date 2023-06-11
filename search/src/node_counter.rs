@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NodeCounter {
     node_counts: Vec<Vec<(u64, u64)>>,
     eval_count: Vec<u64>,

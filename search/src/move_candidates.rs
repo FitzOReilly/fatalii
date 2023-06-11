@@ -1,6 +1,6 @@
 use movegen::r#move::{Move, MoveList};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct MoveCandidates {
     pub move_list: MoveList,
     pub current_idx: usize,
