@@ -1,4 +1,6 @@
-use eval::{mobility::Mobility, params::MOB_LEN, pawn_structure::PawnStructure, GamePhase};
+use eval::{
+    complex::Complex, mobility::Mobility, params::MOB_LEN, pawn_structure::PawnStructure, GamePhase,
+};
 use movegen::{bitboard::Bitboard, piece, position::Position, side::Side};
 use nalgebra_sparse::{CooMatrix, CsrMatrix};
 
@@ -14,12 +16,14 @@ const NUM_PASSED_PAWN_FEATURES: usize = 2;
 const NUM_ISOLATED_PAWN_FEATURES: usize = 2;
 const NUM_BACKWARD_PAWN_FEATURES: usize = 2;
 const NUM_MOBILITY_FEATURES: usize = 2 * MOB_LEN;
+const NUM_BISHOP_PAIR_FEATURES: usize = 2;
 pub const NUM_FEATURES: usize = NUM_PST_FEATURES
     + NUM_TEMPO_FEATURES
     + NUM_PASSED_PAWN_FEATURES
     + NUM_ISOLATED_PAWN_FEATURES
     + NUM_BACKWARD_PAWN_FEATURES
-    + NUM_MOBILITY_FEATURES;
+    + NUM_MOBILITY_FEATURES
+    + NUM_BISHOP_PAIR_FEATURES;
 
 pub const START_IDX_PST: usize = 0;
 pub const START_IDX_TEMPO: usize = START_IDX_PST + NUM_PST_FEATURES;
@@ -27,6 +31,7 @@ pub const START_IDX_PASSED_PAWN: usize = START_IDX_TEMPO + NUM_TEMPO_FEATURES;
 pub const START_IDX_ISOLATED_PAWN: usize = START_IDX_PASSED_PAWN + NUM_PASSED_PAWN_FEATURES;
 pub const START_IDX_BACKWARD_PAWN: usize = START_IDX_ISOLATED_PAWN + NUM_ISOLATED_PAWN_FEATURES;
 pub const START_IDX_MOBILITY: usize = START_IDX_BACKWARD_PAWN + NUM_BACKWARD_PAWN_FEATURES;
+pub const START_IDX_BISHOP_PAIR: usize = START_IDX_MOBILITY + NUM_MOBILITY_FEATURES;
 
 #[derive(Debug, Clone)]
 pub struct PositionFeatures {
@@ -54,6 +59,7 @@ impl From<&Position> for PositionFeatures {
         extract_tempo(&mut features, pos);
         extract_pawn_structure(&mut features, pos);
         extract_mobility(&mut features, pos);
+        extract_bishop_pair(&mut features, pos);
 
         let mg_phase = 1.0 - game_phase;
         let eg_phase = game_phase;
@@ -161,4 +167,10 @@ fn extract_mobility(features: &mut CooMatrix<FeatureType>, pos: &Position) {
         }
         idx += 2;
     }
+}
+
+fn extract_bishop_pair(features: &mut CooMatrix<FeatureType>, pos: &Position) {
+    let multiplier = Complex::bishop_pair_factor(pos).into();
+    features.push(0, START_IDX_BISHOP_PAIR, multiplier);
+    features.push(0, START_IDX_BISHOP_PAIR + 1, multiplier);
 }

@@ -316,6 +316,12 @@ impl Position {
             != self.side_occupancy(side)
     }
 
+    pub fn has_bishop_pair(&self, side: Side) -> bool {
+        let bishops = self.piece_occupancy(side, piece::Type::Bishop);
+        bishops & Bitboard::LIGHT_SQUARES != Bitboard::EMPTY
+            && bishops & Bitboard::DARK_SQUARES != Bitboard::EMPTY
+    }
+
     fn set_castling_squares(&mut self) {
         self.castling_squares = CastlingSquares::new(
             self.queenside_castling_file(),
@@ -699,6 +705,34 @@ mod tests {
         pos_black_queen.set_piece_at(Square::D8, Some(piece::Piece::BLACK_QUEEN));
         assert_eq!(false, pos_black_queen.has_minor_or_major_piece(Side::White));
         assert_eq!(true, pos_black_queen.has_minor_or_major_piece(Side::Black));
+    }
+
+    #[test]
+    fn has_bishop_pair() {
+        let pos = Position::initial();
+        assert_eq!(true, pos.has_bishop_pair(Side::White));
+        assert_eq!(true, pos.has_bishop_pair(Side::Black));
+
+        let mut pos = Position::empty();
+        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
+        assert_eq!(false, pos.has_bishop_pair(Side::White));
+        assert_eq!(false, pos.has_bishop_pair(Side::Black));
+
+        pos.set_piece_at(Square::A1, Some(piece::Piece::WHITE_BISHOP));
+        pos.set_piece_at(Square::A8, Some(piece::Piece::BLACK_BISHOP));
+        assert_eq!(false, pos.has_bishop_pair(Side::White));
+        assert_eq!(false, pos.has_bishop_pair(Side::Black));
+
+        pos.set_piece_at(Square::H1, Some(piece::Piece::WHITE_BISHOP));
+        pos.set_piece_at(Square::H8, Some(piece::Piece::BLACK_BISHOP));
+        assert_eq!(true, pos.has_bishop_pair(Side::White));
+        assert_eq!(true, pos.has_bishop_pair(Side::Black));
+
+        pos.set_piece_at(Square::A1, None);
+        pos.set_piece_at(Square::A8, None);
+        assert_eq!(false, pos.has_bishop_pair(Side::White));
+        assert_eq!(false, pos.has_bishop_pair(Side::Black));
     }
 
     #[test]
