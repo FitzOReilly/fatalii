@@ -35,7 +35,9 @@ impl Eval for Complex {
         self.pawn_structure.update(pos);
         let pawn_scores = self.pawn_structure.scores();
         let mobility_scores = self.mobility.scores(pos);
-        let scores = self.pst_scores + tempo_scores + pawn_scores + mobility_scores;
+        let bishop_pair_scores = Self::bishop_pair_factor(pos) * params::BISHOP_PAIR;
+        let scores =
+            self.pst_scores + tempo_scores + pawn_scores + mobility_scores + bishop_pair_scores;
         let game_phase = self.game_phase.game_phase_clamped();
         let tapered_score = ((game_phase as i64 * scores.0 as i64
             + (GamePhase::MAX - game_phase) as i64 * scores.1 as i64)
@@ -86,13 +88,8 @@ impl HasMatingMaterial for Complex {
 
         // Mate can be forced with 2 bishops against a lone king, if the bishops
         // are on different colors
-        if bishop_count > 1 {
-            let bishop = self.current_pos.piece_occupancy(s, piece::Type::Bishop);
-            if bishop & Bitboard::LIGHT_SQUARES != Bitboard::EMPTY
-                && bishop & Bitboard::DARK_SQUARES != Bitboard::EMPTY
-            {
-                return true;
-            }
+        if self.current_pos.has_bishop_pair(s) {
+            return true;
         }
 
         false
@@ -156,6 +153,10 @@ impl Complex {
             }
         }
         self.current_pos = pos.clone();
+    }
+
+    pub fn bishop_pair_factor(pos: &Position) -> Score {
+        pos.has_bishop_pair(Side::White) as Score - pos.has_bishop_pair(Side::Black) as Score
     }
 }
 

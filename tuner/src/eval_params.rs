@@ -9,8 +9,8 @@ use eval::{
 use crate::{
     feature_evaluator::WeightVector,
     position_features::{
-        PST_SIZE, START_IDX_BACKWARD_PAWN, START_IDX_ISOLATED_PAWN, START_IDX_MOBILITY,
-        START_IDX_PASSED_PAWN, START_IDX_PST, START_IDX_TEMPO,
+        PST_SIZE, START_IDX_BACKWARD_PAWN, START_IDX_BISHOP_PAIR, START_IDX_ISOLATED_PAWN,
+        START_IDX_MOBILITY, START_IDX_PASSED_PAWN, START_IDX_PST, START_IDX_TEMPO,
     },
 };
 
@@ -27,6 +27,7 @@ pub struct EvalParams {
     isolated_pawn: ScorePair,
     backward_pawn: ScorePair,
     mobility: [ScorePair; MOB_LEN],
+    bishop_pair: ScorePair,
 }
 
 impl Default for EvalParams {
@@ -43,6 +44,7 @@ impl Default for EvalParams {
             isolated_pawn: ScorePair(0, 0),
             backward_pawn: ScorePair(0, 0),
             mobility: [ScorePair(0, 0); MOB_LEN],
+            bishop_pair: ScorePair(0, 0),
         }
     }
 }
@@ -83,6 +85,9 @@ impl From<&WeightVector> for EvalParams {
             eval_params.mobility[idx].1 = weights[offset + 1].round() as Score;
         }
 
+        eval_params.bishop_pair.0 = weights[START_IDX_BISHOP_PAIR].round() as Score;
+        eval_params.bishop_pair.1 = weights[START_IDX_BISHOP_PAIR + 1].round() as Score;
+
         eval_params
     }
 }
@@ -108,6 +113,12 @@ impl Display for EvalParams {
             f,
             "pub const BACKWARD_PAWN: ScorePair = ScorePair({}, {});",
             self.backward_pawn.0, self.backward_pawn.1
+        )?;
+
+        writeln!(
+            f,
+            "pub const BISHOP_PAIR: ScorePair = ScorePair({}, {});",
+            self.bishop_pair.0, self.bishop_pair.1
         )?;
 
         self.fmt_mob(f)?;
