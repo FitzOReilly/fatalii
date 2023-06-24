@@ -51,7 +51,10 @@ impl PawnStructure {
                 Self::isolated_pawn_count(white_pawns, black_pawns) as i16 * params::ISOLATED_PAWN;
             let backward_pawn_score =
                 Self::backward_pawn_count(white_pawns, black_pawns) as i16 * params::BACKWARD_PAWN;
-            self.scores = passed_pawn_score + isolated_pawn_score + backward_pawn_score;
+            let doubled_pawn_score =
+                Self::doubled_pawn_count(white_pawns, black_pawns) as i16 * params::DOUBLED_PAWN;
+            self.scores =
+                passed_pawn_score + isolated_pawn_score + backward_pawn_score + doubled_pawn_score;
             self.current_pos = pos.clone();
         }
     }
@@ -69,6 +72,26 @@ impl PawnStructure {
     pub fn backward_pawn_count(white_pawns: Bitboard, black_pawns: Bitboard) -> i8 {
         Self::backward_pawn_count_one_side(white_pawns, black_pawns, Side::White)
             - Self::backward_pawn_count_one_side(black_pawns, white_pawns, Side::Black)
+    }
+
+    pub fn doubled_pawn_count(white_pawns: Bitboard, black_pawns: Bitboard) -> i8 {
+        let mut doubled_pawn_count = 0;
+        for file in [
+            Bitboard::FILE_A,
+            Bitboard::FILE_B,
+            Bitboard::FILE_C,
+            Bitboard::FILE_D,
+            Bitboard::FILE_E,
+            Bitboard::FILE_F,
+            Bitboard::FILE_G,
+            Bitboard::FILE_H,
+        ] {
+            let white_pawns_on_file = (white_pawns & file).pop_count() as i8;
+            doubled_pawn_count += std::cmp::max(0, white_pawns_on_file - 1);
+            let black_pawns_on_file = (black_pawns & file).pop_count() as i8;
+            doubled_pawn_count -= std::cmp::max(0, black_pawns_on_file - 1);
+        }
+        doubled_pawn_count
     }
 
     fn passed_pawn_count_one_side(

@@ -15,6 +15,7 @@ const NUM_TEMPO_FEATURES: usize = 2;
 const NUM_PASSED_PAWN_FEATURES: usize = 2;
 const NUM_ISOLATED_PAWN_FEATURES: usize = 2;
 const NUM_BACKWARD_PAWN_FEATURES: usize = 2;
+const NUM_DOUBLED_PAWN_FEATURES: usize = 2;
 const NUM_MOBILITY_FEATURES: usize = 2 * MOB_LEN;
 const NUM_BISHOP_PAIR_FEATURES: usize = 2;
 pub const NUM_FEATURES: usize = NUM_PST_FEATURES
@@ -22,6 +23,7 @@ pub const NUM_FEATURES: usize = NUM_PST_FEATURES
     + NUM_PASSED_PAWN_FEATURES
     + NUM_ISOLATED_PAWN_FEATURES
     + NUM_BACKWARD_PAWN_FEATURES
+    + NUM_DOUBLED_PAWN_FEATURES
     + NUM_MOBILITY_FEATURES
     + NUM_BISHOP_PAIR_FEATURES;
 
@@ -30,7 +32,8 @@ pub const START_IDX_TEMPO: usize = START_IDX_PST + NUM_PST_FEATURES;
 pub const START_IDX_PASSED_PAWN: usize = START_IDX_TEMPO + NUM_TEMPO_FEATURES;
 pub const START_IDX_ISOLATED_PAWN: usize = START_IDX_PASSED_PAWN + NUM_PASSED_PAWN_FEATURES;
 pub const START_IDX_BACKWARD_PAWN: usize = START_IDX_ISOLATED_PAWN + NUM_ISOLATED_PAWN_FEATURES;
-pub const START_IDX_MOBILITY: usize = START_IDX_BACKWARD_PAWN + NUM_BACKWARD_PAWN_FEATURES;
+pub const START_IDX_DOUBLED_PAWN: usize = START_IDX_BACKWARD_PAWN + NUM_BACKWARD_PAWN_FEATURES;
+pub const START_IDX_MOBILITY: usize = START_IDX_DOUBLED_PAWN + NUM_DOUBLED_PAWN_FEATURES;
 pub const START_IDX_BISHOP_PAIR: usize = START_IDX_MOBILITY + NUM_MOBILITY_FEATURES;
 
 #[derive(Debug, Clone)]
@@ -134,6 +137,9 @@ fn extract_pawn_structure(features: &mut CooMatrix<FeatureType>, pos: &Position)
     let backward_pawn_count = PawnStructure::backward_pawn_count(white_pawns, black_pawns).into();
     features.push(0, START_IDX_BACKWARD_PAWN, backward_pawn_count);
     features.push(0, START_IDX_BACKWARD_PAWN + 1, backward_pawn_count);
+    let doubled_pawn_count = PawnStructure::doubled_pawn_count(white_pawns, black_pawns).into();
+    features.push(0, START_IDX_DOUBLED_PAWN, doubled_pawn_count);
+    features.push(0, START_IDX_DOUBLED_PAWN + 1, doubled_pawn_count);
 }
 
 fn extract_mobility(features: &mut CooMatrix<FeatureType>, pos: &Position) {
