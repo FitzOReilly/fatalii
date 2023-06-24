@@ -3,8 +3,8 @@ use nalgebra::SVector;
 
 use crate::position_features::{
     EvalType, PositionFeatures, NUM_FEATURES, PST_SIZE, START_IDX_BACKWARD_PAWN,
-    START_IDX_BISHOP_PAIR, START_IDX_ISOLATED_PAWN, START_IDX_MOBILITY, START_IDX_PASSED_PAWN,
-    START_IDX_PST, START_IDX_TEMPO,
+    START_IDX_BISHOP_PAIR, START_IDX_DOUBLED_PAWN, START_IDX_ISOLATED_PAWN, START_IDX_MOBILITY,
+    START_IDX_PASSED_PAWN, START_IDX_PST, START_IDX_TEMPO,
 };
 
 type Weight = f64;
@@ -73,6 +73,8 @@ pub fn initialize_weights() -> WeightVector {
     weights[START_IDX_ISOLATED_PAWN + 1] = params::ISOLATED_PAWN.1.into();
     weights[START_IDX_BACKWARD_PAWN] = params::BACKWARD_PAWN.0.into();
     weights[START_IDX_BACKWARD_PAWN + 1] = params::BACKWARD_PAWN.1.into();
+    weights[START_IDX_DOUBLED_PAWN] = params::DOUBLED_PAWN.0.into();
+    weights[START_IDX_DOUBLED_PAWN + 1] = params::DOUBLED_PAWN.1.into();
 
     initialize_mobility(&mut weights);
 
