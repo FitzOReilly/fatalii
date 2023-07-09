@@ -80,8 +80,11 @@ pub trait MoveGeneratorTemplate {
         Self::generate_castles(move_list, attacks_to_king);
     }
 
-    fn generate_captures(move_list: &mut MoveList, attacks_to_king: &AttacksTo) {
+    fn generate_moves_quiescence(move_list: &mut MoveList, attacks_to_king: &AttacksTo) {
         Self::generate_pawn_captures(move_list, attacks_to_king);
+        Self::generate_pawn_pushes(move_list, attacks_to_king);
+        // Ignore underpromotions
+        move_list.retain(|m| m.is_capture() || m.promotion_piece() == Some(piece::Type::Queen));
         Self::generate_knight_captures(move_list, attacks_to_king);
         Self::generate_sliding_piece_captures(
             move_list,

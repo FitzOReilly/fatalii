@@ -128,6 +128,13 @@ impl MoveSelector {
             if let Some(m) = Self::select_queen_promo_capture(move_list) {
                 return Some(m);
             }
+            self.stage = Stage::QueenPromos;
+        }
+
+        if self.stage == Stage::QueenPromos {
+            if let Some(m) = Self::select_queen_promo(move_list) {
+                return Some(m);
+            }
             self.stage = Stage::MvvLva;
         }
 
