@@ -71,6 +71,10 @@ impl PositionHistory {
         self.pos_hash
     }
 
+    pub fn last_move(&self) -> Option<&Move> {
+        self.moves.last()
+    }
+
     pub fn do_move(&mut self, m: Move) {
         debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
         match m {

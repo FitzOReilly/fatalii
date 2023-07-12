@@ -11,6 +11,7 @@ use crate::SearchOptions;
 use crossbeam_channel::{Receiver, Sender};
 use eval::{Eval, Score, BLACK_WIN, EQ_POSITION, WHITE_WIN};
 use movegen::move_generator::MoveGenerator;
+use movegen::piece::{self, Piece};
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
@@ -313,6 +314,19 @@ impl AlphaBeta {
                         }
                     }
 
+                    let last_move = search_data.pos_history().last_move().copied();
+                    let last_moved_piece = match last_move {
+                        Some(lm) => {
+                            let pos = search_data.pos_history().current_pos();
+                            if lm.is_promotion() {
+                                let s = !pos.side_to_move();
+                                Some(Piece::new(s, piece::Type::Pawn))
+                            } else {
+                                pos.piece_at(lm.target())
+                            }
+                        }
+                        None => None,
+                    };
                     let mut pvs_full_window = true;
                     let mut move_selector = MoveSelector::new();
                     while let Some(m) = move_selector.select_next_move(
@@ -385,6 +399,9 @@ impl AlphaBeta {
                                     self.update_table(pos_hash, node);
                                     if !m.is_capture() {
                                         search_data.insert_killer(depth, m);
+                                        if let (Some(p), Some(lm)) = (last_moved_piece, last_move) {
+                                            search_data.update_counter(p, lm.target(), m);
+                                        }
                                         let p = search_data
                                             .pos_history()
                                             .current_pos()

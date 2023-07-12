@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+use crate::counter_table::CounterTable;
 use crate::history_table::HistoryTable;
 use crate::move_candidates::MoveCandidates;
 use crate::node_counter::NodeCounter;
@@ -30,6 +31,7 @@ pub struct SearchData<'a> {
     prev_pv_table: PvTable,
     node_counter: NodeCounter,
     killers: Vec<Killers>,
+    counter_table: CounterTable,
     history_table: HistoryTable,
     move_candidates: MoveCandidates,
 }
@@ -58,6 +60,7 @@ impl<'a> SearchData<'a> {
             prev_pv_table: PvTable::new(),
             node_counter: NodeCounter::new(),
             killers: Vec::new(),
+            counter_table: CounterTable::new(),
             history_table: HistoryTable::new(),
             move_candidates: MoveCandidates::default(),
         }
@@ -153,8 +156,16 @@ impl<'a> SearchData<'a> {
         self.killers[len - depth][0] = Some(m);
     }
 
+    pub fn update_counter(&mut self, p: Piece, to: Square, m: Move) {
+        self.counter_table.update(p, to, m);
+    }
+
+    pub fn counter(&self, p: Piece, to: Square) -> Move {
+        self.counter_table.counter(p, to)
+    }
+
     pub fn prioritize_history(&mut self, p: Piece, to: Square, depth: usize) {
-        self.history_table.prioritize(p, to, depth)
+        self.history_table.prioritize(p, to, depth);
     }
 
     pub fn history_priority(&self, p: Piece, to: Square) -> u32 {
