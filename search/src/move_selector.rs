@@ -1,7 +1,7 @@
 use crate::alpha_beta::AlphaBetaTable;
 use crate::alpha_beta_entry::AlphaBetaEntry;
 use crate::search_data::SearchData;
-use movegen::piece;
+use movegen::piece::{self, Piece};
 use movegen::position::Position;
 use movegen::r#move::{Move, MoveList};
 use movegen::transposition_table::ENTRIES_PER_BUCKET;
@@ -15,6 +15,7 @@ enum Stage {
     QueenPromos,
     MvvLva,
     Killers,
+    Counters,
     History,
     UnderPromoCaptures,
     UnderPromos,
@@ -83,6 +84,13 @@ impl MoveSelector {
 
         if self.stage == Stage::Killers {
             if let Some(m) = Self::select_killer(search_data, depth, move_list) {
+                return Some(m);
+            }
+            self.stage = Stage::Counters;
+        }
+
+        if self.stage == Stage::Counters {
+            if let Some(m) = Self::select_counter(search_data, move_list) {
                 return Some(m);
             }
             self.stage = Stage::History;
@@ -357,6 +365,29 @@ impl MoveSelector {
             if let Some(idx) = move_list.iter().position(|x| x == k) {
                 let next_move = move_list.swap_remove(idx);
                 return Some(next_move);
+            }
+        }
+
+        None
+    }
+
+    fn select_counter(search_data: &mut SearchData, move_list: &mut MoveList) -> Option<Move> {
+        if let Some(last_move) = search_data.pos_history().last_move() {
+            if *last_move != Move::NULL {
+                let pos = search_data.pos_history().current_pos();
+                let p = if last_move.is_promotion() {
+                    let s = !pos.side_to_move();
+                    Piece::new(s, piece::Type::Pawn)
+                } else {
+                    pos.piece_at(last_move.target())
+                        .expect("Expected a piece at move target")
+                };
+                let counter = search_data.counter(p, last_move.target());
+                if counter != Move::NULL {
+                    if let Some(idx) = move_list.iter().position(|&x| x == counter) {
+                        return Some(move_list.swap_remove(idx));
+                    }
+                }
             }
         }
 
