@@ -61,17 +61,13 @@ impl Search for AlphaBeta {
         info_sender: &Sender<SearchInfo>,
     ) {
         let start_time = Instant::now();
-        let hard_time_limit = TimeManager::calc_movetime_hard_limit(
-            pos_history.current_pos().side_to_move(),
-            &search_options,
-        );
+        let side_to_move = pos_history.current_pos().side_to_move();
+        let hard_time_limit = TimeManager::calc_movetime_hard_limit(side_to_move, &search_options);
         let mut soft_time_limit = cmp::min(
             hard_time_limit,
-            TimeManager::calc_movetime_soft_limit(
-                pos_history.current_pos().side_to_move(),
-                &search_options,
-            ),
+            TimeManager::calc_movetime_soft_limit(side_to_move, &search_options),
         );
+        let has_time_limit = soft_time_limit.is_some();
         let mut search_data = SearchData::new(
             command_receiver,
             info_sender,
@@ -133,6 +129,11 @@ impl Search for AlphaBeta {
                             search_data.pv_owned(d),
                         );
                         search_data.send_info(SearchInfo::DepthFinished(search_res));
+                        if has_time_limit && search_data.root_moves().move_list.len() == 1 {
+                            // Move is forced, stop search after depth 1
+                            stop_search = true;
+                            break;
+                        }
                         let score = abs_alpha_beta_res.score();
                         if eval::score::is_mating(score)
                             && eval::score::mate_dist(score).unsigned_abs() as usize <= d

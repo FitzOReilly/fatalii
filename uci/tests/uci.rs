@@ -772,6 +772,62 @@ fn threefold_repetition(search_algo: impl Search + Send + 'static) {
 }
 
 #[test]
+fn search_stopped_after_depth_1_if_move_is_forced() {
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_SIZE);
+    let mut test_writer = TestBuffer::new();
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
+    let mut p = Parser::new(uci_out);
+
+    p.register_command(String::from("position"), Box::new(position::run_command));
+    p.register_command(String::from("go"), Box::new(go::run_command));
+    p.register_command(String::from("stop"), Box::new(stop::run_command));
+    p.register_command(
+        String::from("ucinewgame"),
+        Box::new(ucinewgame::run_command),
+    );
+
+    let fen_white_to_move = "7R/8/8/8/8/8/2k5/K5r1 w - - 0 1";
+    let fen_black_to_move = "r1bQkb1r/ppp2ppp/2p2n2/8/4P3/8/PPP2PPP/RNB1KB1R b KQkq - 0 6";
+    for (fen, go_option, contains_depth_2) in [
+        (fen_white_to_move, "depth 4", true),
+        (fen_white_to_move, "nodes 5000", true),
+        (fen_white_to_move, "movetime 100", true),
+        (fen_white_to_move, "infinite", true),
+        (fen_white_to_move, "wtime 10000", false),
+        (fen_white_to_move, "btime 10000", true),
+        (fen_black_to_move, "depth 4", true),
+        (fen_black_to_move, "nodes 5000", true),
+        (fen_black_to_move, "movetime 100", true),
+        (fen_black_to_move, "infinite", true),
+        (fen_black_to_move, "wtime 10000", true),
+        (fen_black_to_move, "btime 10000", false),
+    ] {
+        assert!(p.run_command("ucinewgame\n", &mut engine).is_ok());
+        assert!(p
+            .run_command(&format!("position fen {fen}\n"), &mut engine)
+            .is_ok());
+        std::thread::sleep(Duration::from_millis(20));
+        assert!(p
+            .run_command(&format!("go {}\n", go_option), &mut engine)
+            .is_ok());
+        std::thread::sleep(Duration::from_millis(200));
+
+        assert!(p.run_command("stop\n", &mut engine).is_ok());
+        std::thread::sleep(Duration::from_millis(20));
+
+        let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
+        println!("{}", out_str);
+        assert_eq!(contains_depth_2, out_str.contains("depth 2"));
+    }
+}
+
+#[test]
 #[ignore]
 fn stress() {
     let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_SIZE);

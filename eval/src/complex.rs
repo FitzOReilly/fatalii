@@ -104,7 +104,7 @@ impl Complex {
             piece_counts: Default::default(),
             pst_scores: ScorePair(0, 0),
             pawn_structure: PawnStructure::new(),
-            mobility: Mobility::default(),
+            mobility: Mobility,
         }
     }
 
