@@ -10,7 +10,7 @@ eval = { path = "../eval" }
 movegen = { path = "../movegen" }
 
 [dev-dependencies]
-criterion = "0.4"
+criterion = "0.5.1"
 
 [[bench]]
 name = "bench_search"
