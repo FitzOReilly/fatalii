@@ -11,7 +11,7 @@ use crate::side::Side;
 use crate::square::Square;
 use crate::zobrist::Zobrist;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct IrreversibleProperties {
     en_passant_square: Bitboard,
     castling_rights: CastlingRights,

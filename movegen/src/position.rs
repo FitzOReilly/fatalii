@@ -17,14 +17,15 @@ use std::fmt;
 use std::str;
 
 bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct CastlingRights: u8 {
         const WHITE_KINGSIDE = 0b00000001;
         const WHITE_QUEENSIDE = 0b00000010;
         const BLACK_KINGSIDE = 0b00000100;
         const BLACK_QUEENSIDE = 0b00001000;
 
-        const WHITE_BOTH = Self::WHITE_KINGSIDE.bits | Self::WHITE_QUEENSIDE.bits;
-        const BLACK_BOTH = Self::BLACK_KINGSIDE.bits | Self::BLACK_QUEENSIDE.bits;
+        const WHITE_BOTH = Self::WHITE_KINGSIDE.bits() | Self::WHITE_QUEENSIDE.bits();
+        const BLACK_BOTH = Self::BLACK_KINGSIDE.bits() | Self::BLACK_QUEENSIDE.bits();
     }
 }
 

@@ -12,3 +12,4 @@ members = [
     "tuner",
     "uci",
 ]
+resolver = "2"
