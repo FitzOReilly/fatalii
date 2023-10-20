@@ -171,7 +171,7 @@ where
                 Some(e) => {
                     if e.0 == k {
                         if e.1.depth() == value.depth() {
-                            least_relevant = least_relevant_matching_key;
+                            least_relevant = i;
                             break;
                         }
                         matching_key_count += 1;
@@ -389,5 +389,25 @@ mod tests {
         assert_eq!(Some((hash, 0)), old_entry);
         assert_eq!(true, tt.contains_key(&hash));
         assert_eq!(Some(&0), tt.get(&hash));
+    }
+
+    #[test]
+    fn replace_correct_entry() {
+        let capacity = 8 * ENTRIES_PER_BUCKET;
+        let entry_size = mem::size_of::<Option<(u64, u64)>>();
+        let mut tt = TranspositionTable::<u64, u64>::new(capacity * entry_size);
+        assert!(tt.is_empty());
+
+        let replaced = tt.insert(0, 0);
+        assert_eq!(None, replaced);
+        let replaced = tt.insert(0, 1);
+        assert_eq!(None, replaced);
+        assert_eq!(2, tt.len());
+
+        let replaced = tt.insert(0, 0);
+        assert_eq!(Some((0, 0)), replaced);
+        let replaced = tt.insert(0, 1);
+        assert_eq!(Some((0, 1)), replaced);
+        assert_eq!(2, tt.len());
     }
 }
