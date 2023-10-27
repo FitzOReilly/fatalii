@@ -78,7 +78,7 @@ impl Search for AlphaBeta {
 
         let mut root_moves = MoveList::new();
         MoveGenerator::generate_moves(&mut root_moves, search_data.current_pos());
-        search_data.set_root_moves(root_moves);
+        search_data.set_root_moves(&root_moves);
         let mut aw = AspirationWindow::infinite();
 
         for d in 1..=search_options.depth.unwrap_or(MAX_SEARCH_DEPTH) {
@@ -236,17 +236,26 @@ impl AlphaBeta {
 
         let mut pvs_full_window = true;
         let mut move_selector = MoveSelector::new();
+
+        let mut prev_node_count = search_data.node_counter().sum_nodes();
         while let Some(m) = move_selector.select_next_move(
             search_data,
             &mut self.transpos_table,
             depth,
             &mut move_list,
         ) {
+            debug_assert!(if depth == search_data.search_depth() {
+                prev_node_count == search_data.node_counter().sum_nodes()
+            } else {
+                true
+            });
+
             if futility_pruning
                 && !m.is_capture()
                 && !m.is_promotion()
                 && !search_data.pos_history_mut().gives_check(m)
             {
+                debug_assert_ne!(depth, search_data.search_depth());
                 continue;
             }
 
@@ -299,9 +308,13 @@ impl AlphaBeta {
                 }
                 // Root move ordering: move the new best move to the front
                 if depth == search_data.search_depth() {
-                    let candidates = search_data.root_moves_mut();
-                    candidates.move_to_front(best_move);
+                    search_data.move_to_front(best_move);
                 }
+            }
+            if depth == search_data.search_depth() {
+                let node_count = search_data.node_counter().sum_nodes();
+                search_data.set_subtree_size(m, node_count - prev_node_count);
+                prev_node_count = node_count;
             }
         }
         let node = AlphaBetaEntry::new(depth, alpha, score_type, best_move, search_data.age());
@@ -622,8 +635,7 @@ impl AlphaBeta {
                             .update_move_and_truncate(depth, bounded.best_move());
                         // Root move ordering: move the new best move to the front
                         if depth == search_data.search_depth() {
-                            let candidates = search_data.root_moves_mut();
-                            candidates.move_to_front(bounded.best_move());
+                            search_data.move_to_front(bounded.best_move());
                         }
                         return Some(bounded);
                     }
