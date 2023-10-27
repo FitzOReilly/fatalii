@@ -35,7 +35,7 @@ pub struct SearchData<'a> {
     killers: Vec<Killers>,
     counter_table: CounterTable,
     history_table: HistoryTable,
-    move_candidates: MoveCandidates,
+    root_moves: MoveCandidates,
 }
 
 impl<'a> SearchData<'a> {
@@ -64,7 +64,7 @@ impl<'a> SearchData<'a> {
             killers: Vec::new(),
             counter_table: CounterTable::new(),
             history_table: HistoryTable::new(),
-            move_candidates: MoveCandidates::default(),
+            root_moves: MoveCandidates::default(),
         }
     }
 
@@ -189,9 +189,7 @@ impl<'a> SearchData<'a> {
         debug_assert!(self.search_depth() > 1);
         self.pv_table = self.prev_pv_table.clone();
         self.pv_depth = self.search_depth() - 1;
-        let pv_move = self.pv(self.search_depth() - 1)[0];
-        self.move_candidates.move_to_front(pv_move);
-        self.root_moves_mut().current_idx = 0;
+        self.root_moves_mut().reset_counts();
     }
 
     pub fn increase_search_depth(&mut self) {
@@ -199,7 +197,8 @@ impl<'a> SearchData<'a> {
         self.pv_depth = self.search_depth();
         self.search_depth += 1;
         self.killers.push([None; NUM_KILLERS]);
-        self.root_moves_mut().current_idx = 0;
+        self.root_moves_mut().order_by_subtree_size();
+        self.root_moves_mut().reset_counts();
     }
 
     pub fn decrease_pv_depth(&mut self) {
@@ -225,19 +224,26 @@ impl<'a> SearchData<'a> {
         self.node_counter.increment_eval_calls(self.search_depth());
     }
 
-    pub fn set_root_moves(&mut self, root_moves: MoveList) {
-        self.move_candidates = MoveCandidates {
-            move_list: root_moves,
-            ..Default::default()
-        };
+    pub fn set_root_moves(&mut self, root_moves: &MoveList) {
+        debug_assert!(self.root_moves.move_list.is_empty());
+        self.root_moves = MoveCandidates::from(root_moves);
     }
 
     pub fn root_moves(&self) -> &MoveCandidates {
-        &self.move_candidates
+        &self.root_moves
     }
 
     pub fn root_moves_mut(&mut self) -> &mut MoveCandidates {
-        &mut self.move_candidates
+        &mut self.root_moves
+    }
+
+    pub fn set_subtree_size(&mut self, m: Move, node_count: u64) {
+        self.root_moves_mut().set_subtree_size(m, node_count);
+    }
+
+    pub fn move_to_front(&mut self, best_move: Move) {
+        self.root_moves_mut().move_to_front(best_move);
+        self.root_moves_mut().alpha_raised_count += 1;
     }
 
     pub fn should_stop_search_immediately(&self) -> bool {
