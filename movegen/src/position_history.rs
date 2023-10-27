@@ -2,7 +2,7 @@ use crate::bitboard::Bitboard;
 use crate::fen::Fen;
 use crate::move_generator::MoveGenerator;
 use crate::pawn::Pawn;
-use crate::piece;
+use crate::piece::{self, Piece};
 use crate::position::{CastlingRights, Position};
 use crate::r#move::{Move, MoveType};
 use crate::rank::Rank;
@@ -73,6 +73,23 @@ impl PositionHistory {
 
     pub fn last_move(&self) -> Option<&Move> {
         self.moves.last()
+    }
+
+    pub fn last_moved_piece(&self) -> Option<Piece> {
+        match self.last_move() {
+            Some(&Move::NULL) => None,
+            Some(lm) => {
+                if lm.is_promotion() {
+                    Some(Piece::new(
+                        !self.current_pos().side_to_move(),
+                        piece::Type::Pawn,
+                    ))
+                } else {
+                    self.current_pos().piece_at(lm.target())
+                }
+            }
+            None => None,
+        }
     }
 
     pub fn do_move(&mut self, m: Move) {

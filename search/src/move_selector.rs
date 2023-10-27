@@ -1,7 +1,7 @@
 use crate::alpha_beta::AlphaBetaTable;
 use crate::alpha_beta_entry::AlphaBetaEntry;
 use crate::search_data::SearchData;
-use movegen::piece::{self, Piece};
+use movegen::piece;
 use movegen::position::Position;
 use movegen::r#move::{Move, MoveList};
 use movegen::transposition_table::ENTRIES_PER_BUCKET;
@@ -176,7 +176,7 @@ impl MoveSelector {
                         move_list,
                         pv_move,
                         search_data.pv_table(),
-                        search_data.pos_history().current_pos(),
+                        search_data.current_pos(),
                     )
                 });
             return Some(move_list.swap_remove(idx));
@@ -191,8 +191,7 @@ impl MoveSelector {
         move_list: &mut MoveList,
     ) -> Option<Move> {
         if self.hash_entry_idx == 0 {
-            self.hash_entries =
-                transpos_table.get_all(&search_data.pos_history().current_pos_hash());
+            self.hash_entries = transpos_table.get_all(&search_data.current_pos_hash());
         }
         for entry in self.hash_entries[self.hash_entry_idx..].iter().flatten() {
             self.hash_entry_idx += 1;
@@ -288,8 +287,7 @@ impl MoveSelector {
             .enumerate()
             .filter(|&(_, x)| x.is_capture() && !x.is_promotion())
             .min_by_key(|&(_, x)| {
-                let (attacker, target) =
-                    Self::capture_piece_types(search_data.pos_history().current_pos(), *x);
+                let (attacker, target) = Self::capture_piece_types(search_data.current_pos(), *x);
                 Self::capture_priority(attacker, target)
             })
         {
@@ -303,8 +301,7 @@ impl MoveSelector {
 
     fn select_mvv_lva(search_data: &mut SearchData, move_list: &mut MoveList) -> Option<Move> {
         if let Some((idx, &m)) = move_list.iter().enumerate().min_by_key(|&(_, x)| {
-            let (attacker, target) =
-                Self::capture_piece_types(search_data.pos_history().current_pos(), *x);
+            let (attacker, target) = Self::capture_piece_types(search_data.current_pos(), *x);
             Self::capture_priority(attacker, target)
         }) {
             debug_assert_eq!(m, move_list[idx]);
@@ -373,16 +370,8 @@ impl MoveSelector {
 
     fn select_counter(search_data: &mut SearchData, move_list: &mut MoveList) -> Option<Move> {
         if let Some(last_move) = search_data.pos_history().last_move() {
-            if *last_move != Move::NULL {
-                let pos = search_data.pos_history().current_pos();
-                let p = if last_move.is_promotion() {
-                    let s = !pos.side_to_move();
-                    Piece::new(s, piece::Type::Pawn)
-                } else {
-                    pos.piece_at(last_move.target())
-                        .expect("Expected a piece at move target")
-                };
-                let counter = search_data.counter(p, last_move.target());
+            if let Some(last_moved_piece) = search_data.pos_history().last_moved_piece() {
+                let counter = search_data.counter(last_moved_piece, last_move.target());
                 if counter != Move::NULL {
                     if let Some(idx) = move_list.iter().position(|&x| x == counter) {
                         return Some(move_list.swap_remove(idx));
@@ -401,7 +390,6 @@ impl MoveSelector {
             .filter(|&(_, x)| !x.is_promotion())
             .max_by_key(|&(_, x)| {
                 let p = search_data
-                    .pos_history()
                     .current_pos()
                     .piece_at(x.origin())
                     .expect("Expected a piece at move origin");
