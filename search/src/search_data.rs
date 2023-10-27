@@ -8,9 +8,11 @@ use crate::pv_table::PvTable;
 use crate::search::{SearchCommand, SearchInfo};
 use crossbeam_channel::{Receiver, Sender, TryRecvError};
 use movegen::piece::Piece;
+use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
 use movegen::square::Square;
+use movegen::zobrist::Zobrist;
 
 pub type Killers = [Option<Move>; NUM_KILLERS];
 
@@ -82,6 +84,14 @@ impl<'a> SearchData<'a> {
 
     pub fn pos_history_mut(&mut self) -> &mut PositionHistory {
         &mut self.pos_history
+    }
+
+    pub fn current_pos(&self) -> &Position {
+        self.pos_history.current_pos()
+    }
+
+    pub fn current_pos_hash(&self) -> Zobrist {
+        self.pos_history.current_pos_hash()
     }
 
     pub fn halfmove_count(&self) -> usize {
@@ -200,9 +210,10 @@ impl<'a> SearchData<'a> {
         self.pv_depth = 0;
     }
 
-    pub fn increment_nodes(&mut self, plies_from_end: usize) {
+    pub fn do_move_and_increment_nodes(&mut self, m: Move, plies_from_end: usize) {
         self.node_counter
-            .increment_nodes(self.search_depth(), plies_from_end)
+            .increment_nodes(self.search_depth(), plies_from_end);
+        self.pos_history_mut().do_move(m);
     }
 
     pub fn increment_cache_hits(&mut self, plies_from_end: usize) {
@@ -227,5 +238,24 @@ impl<'a> SearchData<'a> {
 
     pub fn root_moves_mut(&mut self) -> &mut MoveCandidates {
         &mut self.move_candidates
+    }
+
+    pub fn should_stop_search_immediately(&self) -> bool {
+        if self.search_depth() > 1 {
+            if let Ok(SearchCommand::Stop) = self.try_recv_cmd() {
+                return true;
+            }
+            if let Some(limit) = self.hard_time_limit() {
+                if self.start_time().elapsed() > limit {
+                    return true;
+                }
+            }
+            if let Some(max_nodes) = self.max_nodes() {
+                if self.searched_nodes() >= max_nodes {
+                    return true;
+                }
+            }
+        }
+        false
     }
 }

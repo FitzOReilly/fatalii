@@ -81,11 +81,10 @@ impl Search for Negamax {
 
             match self.search_recursive(&mut search_data, d) {
                 Some(rel_negamax_res) => {
-                    let abs_negamax_res =
-                        match search_data.pos_history().current_pos().side_to_move() {
-                            Side::White => rel_negamax_res,
-                            Side::Black => -rel_negamax_res,
-                        };
+                    let abs_negamax_res = match search_data.current_pos().side_to_move() {
+                        Side::White => rel_negamax_res,
+                        Side::Black => -rel_negamax_res,
+                    };
                     let search_res = SearchResult::new(
                         d,
                         abs_negamax_res.score(),
@@ -124,20 +123,8 @@ impl Negamax {
         search_data: &mut SearchData,
         depth: usize,
     ) -> Option<NegamaxEntry> {
-        if search_data.search_depth() > 1 {
-            if let Ok(SearchCommand::Stop) = search_data.try_recv_cmd() {
-                return None;
-            }
-            if let Some(limit) = search_data.hard_time_limit() {
-                if search_data.start_time().elapsed() > limit {
-                    return None;
-                }
-            }
-            if let Some(max_nodes) = search_data.max_nodes() {
-                if search_data.searched_nodes() >= max_nodes {
-                    return None;
-                }
-            }
+        if search_data.should_stop_search_immediately() {
+            return None;
         }
 
         if search_data.pos_history().current_pos_repetitions() >= REPETITIONS_TO_DRAW {
@@ -150,7 +137,7 @@ impl Negamax {
             return Some(entry);
         }
 
-        let pos = search_data.pos_history().current_pos();
+        let pos = search_data.current_pos();
         if pos.plies_since_pawn_move_or_capture() >= PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW {
             let mut score = EQ_POSITION;
             if pos.is_in_check(pos.side_to_move()) {
@@ -169,7 +156,7 @@ impl Negamax {
             return Some(entry);
         }
 
-        let pos_hash = search_data.pos_history().current_pos_hash();
+        let pos_hash = search_data.current_pos_hash();
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             let e = *entry;
             search_data.increment_cache_hits(depth);
@@ -193,7 +180,7 @@ impl Negamax {
         match depth {
             0 => Some(self.search_quiescence(search_data)),
             _ => {
-                let pos = search_data.pos_history().current_pos();
+                let pos = search_data.current_pos();
                 let mut move_list = MoveList::new();
                 MoveGenerator::generate_moves(&mut move_list, pos);
                 if move_list.is_empty() {
@@ -210,8 +197,7 @@ impl Negamax {
                     Some(node)
                 } else {
                     for m in move_list.iter() {
-                        search_data.increment_nodes(depth);
-                        search_data.pos_history_mut().do_move(*m);
+                        search_data.do_move_and_increment_nodes(*m, depth);
                         let opt_neg_res = self.search_recursive(search_data, depth - 1);
                         search_data.pos_history_mut().undo_last_move();
 
@@ -240,14 +226,11 @@ impl Negamax {
 
     fn search_quiescence(&mut self, search_data: &mut SearchData) -> NegamaxEntry {
         let depth = 0;
-        let pos_hash = search_data.pos_history().current_pos_hash();
+        let pos_hash = search_data.current_pos_hash();
 
         debug_assert!(search_data.pos_history().current_pos_repetitions() < REPETITIONS_TO_DRAW);
         debug_assert!(
-            search_data
-                .pos_history()
-                .current_pos()
-                .plies_since_pawn_move_or_capture()
+            search_data.current_pos().plies_since_pawn_move_or_capture()
                 < PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW
         );
 
@@ -258,7 +241,7 @@ impl Negamax {
         }
 
         search_data.increment_eval_calls();
-        let pos = search_data.pos_history().current_pos();
+        let pos = search_data.current_pos();
         let mut score = self.evaluator.eval_relative(pos);
         let mut best_score = score;
         let mut best_move = Move::NULL;
@@ -266,8 +249,7 @@ impl Negamax {
         let mut move_list = MoveList::new();
         MoveGenerator::generate_moves_quiescence(&mut move_list, pos);
         for m in move_list.iter() {
-            search_data.increment_nodes(depth);
-            search_data.pos_history_mut().do_move(*m);
+            search_data.do_move_and_increment_nodes(*m, depth);
             let search_result = -self.search_quiescence(search_data);
             score = eval::score::inc_mate_dist(search_result.score());
             search_data.pos_history_mut().undo_last_move();
