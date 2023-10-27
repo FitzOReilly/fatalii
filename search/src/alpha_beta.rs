@@ -11,6 +11,7 @@ use crate::SearchOptions;
 use crossbeam_channel::{Receiver, Sender};
 use eval::{Eval, Score, BLACK_WIN, EQ_POSITION, WHITE_WIN};
 use movegen::move_generator::MoveGenerator;
+use movegen::piece;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
@@ -32,6 +33,13 @@ const FUTILITY_MARGIN: Score = 120;
 
 // Enable reverse futility pruning if the evaluation plus this value is greater than or equal to beta.
 const REVERSE_FUTILITY_MARGIN: Score = 120;
+
+// Prune a move if the static evaluation plus the move's potential improvement
+// plus this value is less than alpha.
+const DELTA_PRUNING_MARGIN_MOVE: Score = 200;
+
+// Prune all moves if the static evaluation plus this value is less than alpha.
+const DELTA_PRUNING_MARGIN_ALL_MOVES: Score = 1800;
 
 // Alpha-beta search with fail-hard cutoffs
 pub struct AlphaBeta {
@@ -480,7 +488,8 @@ impl AlphaBeta {
         // moves is expensive here.
         search_data.increment_eval_calls();
         let pos = search_data.current_pos();
-        let mut score = self.evaluator.eval_relative(pos);
+        let stand_pat = self.evaluator.eval_relative(pos);
+        let mut score = stand_pat;
         let mut score_type = ScoreType::UpperBound;
         let mut best_move = Move::NULL;
 
@@ -499,6 +508,12 @@ impl AlphaBeta {
             alpha = score;
             score_type = ScoreType::Exact;
         }
+        if stand_pat + DELTA_PRUNING_MARGIN_ALL_MOVES < alpha {
+            debug_assert!(score_type == ScoreType::UpperBound);
+            let node = AlphaBetaEntry::new(depth, alpha, score_type, best_move, search_data.age());
+            self.update_table(pos_hash, node);
+            return node;
+        }
 
         let mut move_list = MoveList::new();
         MoveGenerator::generate_moves_quiescence(&mut move_list, pos);
@@ -508,6 +523,34 @@ impl AlphaBeta {
             &mut self.transpos_table,
             &mut move_list,
         ) {
+            let pos = search_data.pos_history().current_pos();
+            let mut potential_improvement = if m.is_capture() {
+                if m.is_en_passant() {
+                    100
+                } else {
+                    match pos
+                        .piece_at(m.target())
+                        .expect("No piece on target square")
+                        .piece_type()
+                    {
+                        piece::Type::Pawn => 100,
+                        piece::Type::Knight => 300,
+                        piece::Type::Bishop => 300,
+                        piece::Type::Rook => 500,
+                        piece::Type::Queen => 900,
+                        piece::Type::King => panic!("Cannot capture king"),
+                    }
+                }
+            } else {
+                0
+            };
+            if m.is_promotion() {
+                potential_improvement += 800;
+            }
+            if stand_pat + potential_improvement + DELTA_PRUNING_MARGIN_MOVE < alpha {
+                continue;
+            }
+
             search_data.do_move_and_increment_nodes(m, depth);
             let search_result = -self.search_quiescence(
                 search_data,
