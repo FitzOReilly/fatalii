@@ -93,7 +93,7 @@ Fatalii supports both standard chess and Chess960 (a.k.a. Fischer Random Chess).
 - [Lichess](https://lichess.org/) for being an awesome chess site and for
   letting bots play there. And https://github.com/lichess-bot-devs/lichess-bot
   for making it easy to create such a bot.
-- The folks at [CCRL](http://ccrl.chessdom.com/ccrl/404/) for rating the engine.
+- The folks at [CCRL](https://www.computerchess.org.uk/ccrl/404/) for rating the engine.
 - [Cute Chess](https://cutechess.com/). The CLI was extensively used for
   self-play testing.
 
