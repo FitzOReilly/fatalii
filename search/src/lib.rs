@@ -16,4 +16,5 @@ mod node_counter;
 mod pv_table;
 mod search_data;
 mod search_options;
+mod static_exchange_eval;
 mod time_manager;

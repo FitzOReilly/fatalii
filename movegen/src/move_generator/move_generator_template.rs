@@ -490,4 +490,138 @@ pub trait MoveGeneratorTemplate {
             }
         }
     }
+
+    fn least_valuable_attacker(attacks_to_king: &AttacksTo, target: Square) -> Option<Move> {
+        if let Some(pawn_attacker) = Self::pawn_attacker(attacks_to_king, target) {
+            return Some(pawn_attacker);
+        }
+        if let Some(knight_attacker) = Self::knight_attacker(attacks_to_king, target) {
+            return Some(knight_attacker);
+        }
+        if let Some(bishop_attacker) = Self::sliding_piece_attacker(
+            attacks_to_king,
+            piece::Type::Bishop,
+            Bishop::targets,
+            target,
+        ) {
+            return Some(bishop_attacker);
+        }
+        if let Some(rook_attacker) =
+            Self::sliding_piece_attacker(attacks_to_king, piece::Type::Rook, Rook::targets, target)
+        {
+            return Some(rook_attacker);
+        }
+        if let Some(queen_attacker) = Self::sliding_piece_attacker(
+            attacks_to_king,
+            piece::Type::Queen,
+            Queen::targets,
+            target,
+        ) {
+            return Some(queen_attacker);
+        }
+        if let Some(king_attacker) = Self::king_attacker(attacks_to_king, target) {
+            return Some(king_attacker);
+        }
+        None
+    }
+
+    fn pawn_attacker(attacks_to_king: &AttacksTo, target: Square) -> Option<Move> {
+        let pos = attacks_to_king.pos;
+        let side_to_move = pos.side_to_move();
+        let own_pawns = pos.piece_occupancy(side_to_move, piece::Type::Pawn);
+        let promo_rank = Pawn::promotion_rank(side_to_move);
+
+        let targets =
+            Pawn::east_attack_targets(own_pawns, side_to_move) & Bitboard::from_square(target);
+        if targets != Bitboard::EMPTY {
+            let origin = Pawn::east_attack_origin(target, side_to_move);
+            if Self::is_legal_capture(attacks_to_king, origin, target) {
+                match targets & promo_rank {
+                    Bitboard::EMPTY => return Move::new(origin, target, MoveType::CAPTURE).into(),
+                    _ => {
+                        return Move::new(
+                            origin,
+                            target,
+                            MoveType::new_with_promo_piece(
+                                MoveType::PROMOTION_CAPTURE,
+                                piece::Type::Queen,
+                            ),
+                        )
+                        .into()
+                    }
+                }
+            }
+        }
+        let targets =
+            Pawn::west_attack_targets(own_pawns, side_to_move) & Bitboard::from_square(target);
+        if targets != Bitboard::EMPTY {
+            let origin = Pawn::west_attack_origin(target, side_to_move);
+            if Self::is_legal_capture(attacks_to_king, origin, target) {
+                match targets & promo_rank {
+                    Bitboard::EMPTY => return Move::new(origin, target, MoveType::CAPTURE).into(),
+                    _ => {
+                        return Move::new(
+                            origin,
+                            target,
+                            MoveType::new_with_promo_piece(
+                                MoveType::PROMOTION_CAPTURE,
+                                piece::Type::Queen,
+                            ),
+                        )
+                        .into()
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn knight_attacker(attacks_to_king: &AttacksTo, target: Square) -> Option<Move> {
+        let pos = attacks_to_king.pos;
+        let knights = pos.piece_occupancy(pos.side_to_move(), piece::Type::Knight);
+        let origins = Knight::targets(target) & knights;
+        if origins != Bitboard::EMPTY {
+            let origin = origins.square_scan_forward();
+            if let Some(m) = Self::piece_attacker(attacks_to_king, origin, target) {
+                return Some(m);
+            }
+        }
+        None
+    }
+
+    fn sliding_piece_attacker(
+        attacks_to_king: &AttacksTo,
+        piece_type: piece::Type,
+        piece_targets: fn(Square, Bitboard) -> Bitboard,
+        target: Square,
+    ) -> Option<Move> {
+        let pos = attacks_to_king.pos;
+        let piece_occupancy = pos.piece_occupancy(pos.side_to_move(), piece_type);
+        let origins = piece_targets(target, pos.occupancy()) & piece_occupancy;
+        if origins != Bitboard::EMPTY {
+            let origin = origins.square_scan_forward();
+            if let Some(m) = Self::piece_attacker(attacks_to_king, origin, target) {
+                return Some(m);
+            }
+        }
+        None
+    }
+
+    fn piece_attacker(attacks_to_king: &AttacksTo, origin: Square, target: Square) -> Option<Move> {
+        if Self::is_legal_capture(attacks_to_king, origin, target) {
+            return Move::new(origin, target, MoveType::CAPTURE).into();
+        }
+        None
+    }
+
+    fn king_attacker(attacks_to_king: &AttacksTo, target: Square) -> Option<Move> {
+        let origin = attacks_to_king.target;
+        let targets = King::targets(origin)
+            & !attacks_to_king.all_attack_targets
+            & Bitboard::from_square(target);
+        if targets != Bitboard::EMPTY && Self::is_legal_king_move(attacks_to_king, origin, target) {
+            return Move::new(origin, target, MoveType::CAPTURE).into();
+        }
+        None
+    }
 }

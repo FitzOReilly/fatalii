@@ -12,7 +12,8 @@ use crate::attacks_to::AttacksTo;
 use crate::bitboard::Bitboard;
 use crate::piece;
 use crate::position::Position;
-use crate::r#move::MoveList;
+use crate::r#move::{Move, MoveList};
+use crate::square::Square;
 
 pub struct MoveGenerator;
 
@@ -70,6 +71,32 @@ impl MoveGenerator {
             KingXrayedGenerator::generate_moves_quiescence(move_list, &attacks_to_king);
         } else {
             KingNotXrayedGenerator::generate_moves_quiescence(move_list, &attacks_to_king);
+        }
+    }
+
+    pub fn least_valuable_attacker(pos: &Position, target: Square) -> Option<Move> {
+        let own_king_bb = pos.piece_occupancy(pos.side_to_move(), piece::Type::King);
+        let own_king = own_king_bb.to_square();
+
+        let attacks_to_king = AttacksTo::new(pos, own_king, !pos.side_to_move());
+
+        let king_in_check = own_king_bb & attacks_to_king.all_attack_targets != Bitboard::EMPTY;
+        let king_xrayed = attacks_to_king.xrays_to_target != Bitboard::EMPTY;
+
+        if king_in_check {
+            debug_assert!(attacks_to_king.attack_origins.pop_count() >= 1);
+            debug_assert!(attacks_to_king.attack_origins.pop_count() <= 2);
+            debug_assert!(attacks_to_king.each_slider_attack.len() <= 2);
+            if attacks_to_king.attack_origins.pop_count() == 2 {
+                // Only king moves are legal in double check
+                KingInCheckGenerator::king_attacker(&attacks_to_king, target)
+            } else {
+                KingInCheckGenerator::least_valuable_attacker(&attacks_to_king, target)
+            }
+        } else if king_xrayed {
+            KingXrayedGenerator::least_valuable_attacker(&attacks_to_king, target)
+        } else {
+            KingNotXrayedGenerator::least_valuable_attacker(&attacks_to_king, target)
         }
     }
 

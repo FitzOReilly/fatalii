@@ -226,7 +226,7 @@ impl AlphaBeta {
         depth: usize,
         mut alpha: Score,
         beta: Score,
-        mut move_list: MoveList,
+        move_list: MoveList,
     ) -> Option<AlphaBetaEntry> {
         if let Some(opt_node) = self.prune_null_move(search_data, depth, alpha, beta) {
             return opt_node;
@@ -243,15 +243,12 @@ impl AlphaBeta {
         let mut best_move = Move::NULL;
 
         let mut pvs_full_window = true;
-        let mut move_selector = MoveSelector::new();
+        let mut move_selector = MoveSelector::new(move_list);
 
         let mut prev_node_count = search_data.node_counter().sum_nodes();
-        while let Some(m) = move_selector.select_next_move(
-            search_data,
-            &mut self.transpos_table,
-            depth,
-            &mut move_list,
-        ) {
+        while let Some(m) =
+            move_selector.select_next_move(search_data, &mut self.transpos_table, depth)
+        {
             debug_assert!(if depth == search_data.search_depth() {
                 prev_node_count == search_data.node_counter().sum_nodes()
             } else {
@@ -517,12 +514,10 @@ impl AlphaBeta {
 
         let mut move_list = MoveList::new();
         MoveGenerator::generate_moves_quiescence(&mut move_list, pos);
-        let mut move_selector = MoveSelector::new();
-        while let Some(m) = move_selector.select_next_move_quiescence_capture(
-            search_data,
-            &mut self.transpos_table,
-            &mut move_list,
-        ) {
+        let mut move_selector = MoveSelector::new(move_list);
+        while let Some(m) =
+            move_selector.select_next_move_quiescence_capture(search_data, &mut self.transpos_table)
+        {
             let pos = search_data.pos_history().current_pos();
             let mut potential_improvement = if m.is_capture() {
                 if m.is_en_passant() {
@@ -597,9 +592,8 @@ impl AlphaBeta {
         let mut best_move = Move::NULL;
 
         let mut move_list = MoveList::new();
-        let mut move_selector = MoveSelector::new();
-
         MoveGenerator::generate_moves(&mut move_list, search_data.current_pos());
+
         if move_list.is_empty() {
             score = BLACK_WIN;
             if score > alpha {
@@ -608,12 +602,10 @@ impl AlphaBeta {
                 best_move = Move::NULL;
             }
         } else {
-            while let Some(m) = move_selector.select_next_move(
-                search_data,
-                &mut self.transpos_table,
-                depth,
-                &mut move_list,
-            ) {
+            let mut move_selector = MoveSelector::new(move_list);
+            while let Some(m) =
+                move_selector.select_next_move(search_data, &mut self.transpos_table, depth)
+            {
                 search_data.do_move_and_increment_nodes(m, depth);
                 let search_result = -self.search_quiescence(
                     search_data,
