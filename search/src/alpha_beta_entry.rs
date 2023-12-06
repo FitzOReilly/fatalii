@@ -94,23 +94,23 @@ impl AlphaBetaEntry {
         self.age
     }
 
-    pub fn bound_hard(&self, alpha: Score, beta: Score) -> Option<Self> {
+    pub fn bound_soft(&self, alpha: Score, beta: Score) -> Option<Self> {
         match self.score_type() {
             ScoreType::Exact => {
                 if self.score() >= beta {
                     Some(Self::new(
                         self.depth(),
-                        beta,
+                        self.score(),
                         ScoreType::LowerBound,
-                        Move::NULL,
+                        self.best_move(),
                         self.age(),
                     ))
                 } else if self.score() < alpha {
                     Some(Self::new(
                         self.depth(),
-                        alpha,
+                        self.score(),
                         ScoreType::UpperBound,
-                        Move::NULL,
+                        self.best_move(),
                         self.age(),
                     ))
                 } else {
@@ -119,16 +119,16 @@ impl AlphaBetaEntry {
             }
             ScoreType::LowerBound if self.score() >= beta => Some(Self::new(
                 self.depth(),
-                beta,
+                self.score(),
                 ScoreType::LowerBound,
-                Move::NULL,
+                self.best_move(),
                 self.age(),
             )),
             ScoreType::UpperBound if self.score() < alpha => Some(Self::new(
                 self.depth(),
-                alpha,
+                self.score(),
                 ScoreType::UpperBound,
-                Move::NULL,
+                self.best_move(),
                 self.age(),
             )),
             _ => None,

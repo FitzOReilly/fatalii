@@ -16,6 +16,10 @@ const MAX_MATE_DIST: Score = 255;
 const MIN_CP: Score = BLACK_WIN + MAX_MATE_DIST + 1;
 const MAX_CP: Score = WHITE_WIN - MAX_MATE_DIST - 1;
 
+pub fn is_valid(s: Score) -> bool {
+    (BLACK_WIN..=WHITE_WIN).contains(&s)
+}
+
 pub fn is_centipawns(s: Score) -> bool {
     (MIN_CP..=MAX_CP).contains(&s)
 }
@@ -95,6 +99,20 @@ impl fmt::Display for ScoreVariant {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn score_valid_or_invalid() {
+        assert!(!is_valid(Score::MIN));
+        assert!(!is_valid(NEG_INF));
+        assert!(is_valid(BLACK_WIN));
+        assert!(is_valid(MIN_CP - 1));
+        assert!(is_valid(MIN_CP));
+        assert!(is_valid(EQ_POSITION));
+        assert!(is_valid(MAX_CP));
+        assert!(is_valid(MAX_CP + 1));
+        assert!(is_valid(WHITE_WIN));
+        assert!(!is_valid(POS_INF));
+    }
 
     #[test]
     fn mating_scores() {
