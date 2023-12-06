@@ -42,7 +42,7 @@ impl TimeManager {
             _ => return None,
         };
         let quot = (moves_to_go as f64).sqrt() as u64;
-        let max_time = (time_millis + inc_millis) as u64 / quot;
+        let max_time = time_millis as u64 / quot + inc_millis as u64;
         let hard_time_limit = match time_millis.checked_sub(options.move_overhead.as_millis()) {
             Some(t) => Duration::from_millis(cmp::min(t as u64, max_time)),
             None => MIN_TIME,
@@ -78,7 +78,11 @@ impl TimeManager {
             ),
             _ => return None,
         };
-        let soft_limit = (time_millis + inc_millis) as u64 / moves_to_go as u64;
+        // We don't add the full increment to the soft limit. Otherwise we would
+        // be running into the hard limit almost every move if we have very
+        // little time left.
+        const INC_DIVISOR: u64 = 2;
+        let soft_limit = time_millis as u64 / moves_to_go as u64 + inc_millis as u64 / INC_DIVISOR;
         Some(Duration::from_millis(soft_limit))
     }
 }
