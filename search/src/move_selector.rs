@@ -1,6 +1,8 @@
 use crate::alpha_beta::AlphaBetaTable;
 use crate::alpha_beta_entry::AlphaBetaEntry;
 use crate::search_data::SearchData;
+use crate::static_exchange_eval::{see_capture, CaptureType};
+use eval::Score;
 use movegen::piece;
 use movegen::position::Position;
 use movegen::r#move::{Move, MoveList};
@@ -13,26 +15,42 @@ enum Stage {
     Hash,
     QueenPromoCaptures,
     QueenPromos,
-    MvvLva,
+    WinningCaptures,
+    EqualCaptures,
     Killers,
     Counters,
+    LosingCaptures,
     History,
     UnderPromoCaptures,
     UnderPromos,
+}
+
+#[derive(Debug, Clone)]
+struct MoveInfo {
+    r#move: Move,
+    static_exchange_eval: Option<CaptureType>,
 }
 
 pub struct MoveSelector {
     stage: Stage,
     hash_entries: [Option<AlphaBetaEntry>; ENTRIES_PER_BUCKET],
     hash_entry_idx: usize,
+    moves: Vec<MoveInfo>,
 }
 
 impl MoveSelector {
-    pub fn new() -> Self {
+    pub fn new(move_list: MoveList) -> Self {
         MoveSelector {
             stage: Stage::PrincipalVariation,
             hash_entries: [None; ENTRIES_PER_BUCKET],
             hash_entry_idx: 0,
+            moves: move_list
+                .iter()
+                .map(|&x| MoveInfo {
+                    r#move: x,
+                    static_exchange_eval: None,
+                })
+                .collect(),
         }
     }
 
@@ -41,89 +59,102 @@ impl MoveSelector {
         search_data: &mut SearchData,
         transpos_table: &mut AlphaBetaTable,
         depth: usize,
-        move_list: &mut MoveList,
     ) -> Option<Move> {
         if search_data.search_depth() > 1 && depth == search_data.search_depth() {
             if self.stage == Stage::PrincipalVariation {
-                if let Some(m) = Self::select_pv_move(search_data, depth, move_list) {
+                if let Some(m) = self.select_pv_move(search_data, depth) {
                     search_data.root_moves_mut().move_to_front(m);
                     search_data.root_moves_mut().current_idx += 1;
                     return Some(m);
                 }
                 self.stage = Stage::Hash;
             }
-            return Self::select_root_move(search_data);
+            return self.select_root_move(search_data);
         }
 
         if self.stage == Stage::PrincipalVariation {
-            if let Some(m) = Self::select_pv_move(search_data, depth, move_list) {
+            if let Some(m) = self.select_pv_move(search_data, depth) {
                 return Some(m);
             }
             self.stage = Stage::Hash;
         }
 
         if self.stage == Stage::Hash {
-            if let Some(m) = self.select_hash_move(search_data, transpos_table, move_list) {
+            if let Some(m) = self.select_hash_move(search_data, transpos_table) {
                 return Some(m);
             }
             self.stage = Stage::QueenPromoCaptures;
         }
 
         if self.stage == Stage::QueenPromoCaptures {
-            if let Some(m) = Self::select_queen_promo_capture(move_list) {
+            if let Some(m) = self.select_queen_promo_capture() {
                 return Some(m);
             }
             self.stage = Stage::QueenPromos;
         }
 
         if self.stage == Stage::QueenPromos {
-            if let Some(m) = Self::select_queen_promo(move_list) {
+            if let Some(m) = self.select_queen_promo() {
                 return Some(m);
             }
-            self.stage = Stage::MvvLva;
+            self.stage = Stage::WinningCaptures;
         }
 
-        if self.stage == Stage::MvvLva {
-            if let Some(m) = Self::filter_captures_select_mvv_lva(search_data, move_list) {
+        if self.stage == Stage::WinningCaptures {
+            if let Some(m) = self.select_winning_capture(search_data) {
+                return Some(m);
+            }
+            self.stage = Stage::EqualCaptures;
+        }
+
+        if self.stage == Stage::EqualCaptures {
+            if let Some(m) = self.select_equal_capture(search_data) {
                 return Some(m);
             }
             self.stage = Stage::Killers;
         }
 
         if self.stage == Stage::Killers {
-            if let Some(m) = Self::select_killer(search_data, depth, move_list) {
+            if let Some(m) = self.select_killer(search_data, depth) {
                 return Some(m);
             }
             self.stage = Stage::Counters;
         }
 
         if self.stage == Stage::Counters {
-            if let Some(m) = Self::select_counter(search_data, move_list) {
+            if let Some(m) = self.select_counter(search_data) {
                 return Some(m);
             }
             self.stage = Stage::History;
         }
 
         if self.stage == Stage::History {
-            if let Some(m) = Self::select_history(search_data, move_list) {
+            if let Some(m) = self.select_history(search_data) {
+                return Some(m);
+            }
+            self.stage = Stage::LosingCaptures;
+        }
+
+        if self.stage == Stage::LosingCaptures {
+            if let Some(m) = self.select_losing_capture(search_data) {
                 return Some(m);
             }
             self.stage = Stage::UnderPromoCaptures;
         }
 
         if self.stage == Stage::UnderPromoCaptures {
-            if let Some(m) = Self::select_under_promo_capture(move_list) {
+            if let Some(m) = self.select_under_promo_capture() {
                 return Some(m);
             }
             self.stage = Stage::UnderPromos;
         }
 
         debug_assert_eq!(Stage::UnderPromos, self.stage);
-        if let Some(m) = Self::select_under_promo(move_list) {
+        if let Some(m) = self.select_under_promo() {
             return Some(m);
         }
 
-        debug_assert!(move_list.is_empty());
+        debug_assert!(self.moves.is_empty());
         None
     }
 
@@ -131,50 +162,57 @@ impl MoveSelector {
         &mut self,
         search_data: &mut SearchData,
         transpos_table: &mut AlphaBetaTable,
-        move_list: &mut MoveList,
     ) -> Option<Move> {
         if self.stage == Stage::PrincipalVariation || self.stage == Stage::Hash {
-            if let Some(m) = self.select_hash_move(search_data, transpos_table, move_list) {
+            if let Some(m) = self.select_hash_move(search_data, transpos_table) {
                 return Some(m);
             }
             self.stage = Stage::QueenPromoCaptures;
         }
 
         if self.stage == Stage::QueenPromoCaptures {
-            if let Some(m) = Self::select_queen_promo_capture(move_list) {
+            if let Some(m) = self.select_queen_promo_capture() {
                 return Some(m);
             }
             self.stage = Stage::QueenPromos;
         }
 
         if self.stage == Stage::QueenPromos {
-            if let Some(m) = Self::select_queen_promo(move_list) {
+            if let Some(m) = self.select_queen_promo() {
                 return Some(m);
             }
-            self.stage = Stage::MvvLva;
+            self.stage = Stage::WinningCaptures;
         }
 
-        debug_assert_eq!(Stage::MvvLva, self.stage);
-        let opt_m = Self::select_mvv_lva(search_data, move_list);
-        debug_assert!(opt_m.is_some() || move_list.is_empty());
-        opt_m
+        if self.stage == Stage::WinningCaptures {
+            if let Some(m) = self.select_winning_capture(search_data) {
+                return Some(m);
+            }
+            self.stage = Stage::EqualCaptures;
+        }
+
+        debug_assert_eq!(Stage::EqualCaptures, self.stage);
+        if let Some(m) = self.select_equal_capture(search_data) {
+            return Some(m);
+        }
+
+        None
     }
 
-    fn select_pv_move(
-        search_data: &mut SearchData,
-        depth: usize,
-        move_list: &mut MoveList,
-    ) -> Option<Move> {
+    fn select_pv_move(&mut self, search_data: &mut SearchData, depth: usize) -> Option<Move> {
         if search_data.pv_depth() > 0 {
             debug_assert_eq!(search_data.pv_depth(), depth - 1);
             search_data.decrease_pv_depth();
             // Select the PV move from the previous iteration
             let prev_pv = search_data.pv(search_data.search_depth() - 1);
             let pv_move = prev_pv[search_data.search_depth() - depth];
-            let idx = move_list
+            let idx = self
+                .moves
                 .iter()
-                .position(|&x| x == pv_move)
+                .position(|x| x.r#move == pv_move)
                 .unwrap_or_else(|| {
+                    let move_list =
+                        MoveList::from(self.moves.iter().map(|x| x.r#move).collect::<Vec<_>>());
                     panic!(
                         "\nPV move not found in move list\n\
                         Search depth: {}\nDepth: {}\nMove list: {}\nPV move: {}\nPV table:\n{}\
@@ -187,7 +225,7 @@ impl MoveSelector {
                         search_data.current_pos(),
                     )
                 });
-            return Some(move_list.swap_remove(idx));
+            return Some(self.moves.swap_remove(idx).r#move);
         }
         None
     }
@@ -196,127 +234,145 @@ impl MoveSelector {
         &mut self,
         search_data: &mut SearchData,
         transpos_table: &AlphaBetaTable,
-        move_list: &mut MoveList,
     ) -> Option<Move> {
         if self.hash_entry_idx == 0 {
             self.hash_entries = transpos_table.get_all(&search_data.current_pos_hash());
         }
         for entry in self.hash_entries[self.hash_entry_idx..].iter().flatten() {
             self.hash_entry_idx += 1;
-            if let Some(idx) = move_list.iter().position(|&x| x == entry.best_move()) {
-                return Some(move_list.swap_remove(idx));
+            if let Some(idx) = self
+                .moves
+                .iter()
+                .position(|x| x.r#move == entry.best_move())
+            {
+                return Some(self.moves.swap_remove(idx).r#move);
             }
         }
         None
     }
 
-    fn select_queen_promo_capture(move_list: &mut MoveList) -> Option<Move> {
-        if let Some(idx) = move_list.iter().enumerate().position(|(_, x)| {
-            x.is_promotion() && x.is_capture() && x.promotion_piece() == Some(piece::Type::Queen)
+    fn select_queen_promo_capture(&mut self) -> Option<Move> {
+        if let Some(idx) = self.moves.iter().enumerate().position(|(_, x)| {
+            let m = x.r#move;
+            m.is_promotion() && m.is_capture() && m.promotion_piece() == Some(piece::Type::Queen)
         }) {
-            let next_move = move_list.swap_remove(idx);
+            let next_move = self.moves.swap_remove(idx).r#move;
             return Some(next_move);
         }
 
         None
     }
 
-    fn select_queen_promo(move_list: &mut MoveList) -> Option<Move> {
-        if let Some(idx) = move_list
-            .iter()
-            .enumerate()
-            .position(|(_, x)| x.is_promotion() && x.promotion_piece() == Some(piece::Type::Queen))
-        {
-            let next_move = move_list.swap_remove(idx);
+    fn select_queen_promo(&mut self) -> Option<Move> {
+        if let Some(idx) = self.moves.iter().enumerate().position(|(_, x)| {
+            x.r#move.is_promotion() && x.r#move.promotion_piece() == Some(piece::Type::Queen)
+        }) {
+            let next_move = self.moves.swap_remove(idx).r#move;
             return Some(next_move);
         }
 
         None
     }
 
-    fn select_under_promo_capture(move_list: &mut MoveList) -> Option<Move> {
-        if let Some(idx) = move_list.iter().enumerate().position(|(_, x)| {
-            x.is_promotion() && x.is_capture() && x.promotion_piece() == Some(piece::Type::Knight)
-        }) {
-            let next_move = move_list.swap_remove(idx);
-            return Some(next_move);
-        }
-        if let Some(idx) = move_list.iter().enumerate().position(|(_, x)| {
-            x.is_promotion() && x.is_capture() && x.promotion_piece() == Some(piece::Type::Rook)
-        }) {
-            let next_move = move_list.swap_remove(idx);
-            return Some(next_move);
-        }
-        if let Some(idx) = move_list.iter().enumerate().position(|(_, x)| {
-            x.is_promotion() && x.is_capture() && x.promotion_piece() == Some(piece::Type::Bishop)
-        }) {
-            let next_move = move_list.swap_remove(idx);
-            return Some(next_move);
+    fn select_under_promo_capture(&mut self) -> Option<Move> {
+        for piece_type in [piece::Type::Knight, piece::Type::Rook, piece::Type::Bishop] {
+            if let Some(idx) = self.moves.iter().enumerate().position(|(_, x)| {
+                let m = x.r#move;
+                m.is_promotion() && m.is_capture() && m.promotion_piece() == Some(piece_type)
+            }) {
+                let next_move = self.moves.swap_remove(idx).r#move;
+                return Some(next_move);
+            }
         }
 
         None
     }
 
-    fn select_under_promo(move_list: &mut MoveList) -> Option<Move> {
-        if let Some(idx) = move_list
-            .iter()
-            .enumerate()
-            .position(|(_, x)| x.is_promotion() && x.promotion_piece() == Some(piece::Type::Knight))
-        {
-            let next_move = move_list.swap_remove(idx);
-            return Some(next_move);
-        }
-        if let Some(idx) = move_list
-            .iter()
-            .enumerate()
-            .position(|(_, x)| x.is_promotion() && x.promotion_piece() == Some(piece::Type::Rook))
-        {
-            let next_move = move_list.swap_remove(idx);
-            return Some(next_move);
-        }
-        if let Some(idx) = move_list
-            .iter()
-            .enumerate()
-            .position(|(_, x)| x.is_promotion() && x.promotion_piece() == Some(piece::Type::Bishop))
-        {
-            let next_move = move_list.swap_remove(idx);
-            return Some(next_move);
+    fn select_under_promo(&mut self) -> Option<Move> {
+        for piece_type in [piece::Type::Knight, piece::Type::Rook, piece::Type::Bishop] {
+            if let Some(idx) = self.moves.iter().enumerate().position(|(_, x)| {
+                x.r#move.is_promotion() && x.r#move.promotion_piece() == Some(piece_type)
+            }) {
+                let next_move = self.moves.swap_remove(idx).r#move;
+                return Some(next_move);
+            }
         }
 
         None
     }
 
-    fn filter_captures_select_mvv_lva(
-        search_data: &mut SearchData,
-        move_list: &mut MoveList,
-    ) -> Option<Move> {
-        if let Some((idx, &m)) = move_list
+    fn select_winning_capture(&mut self, search_data: &mut SearchData) -> Option<Move> {
+        let mut end = self.moves.len();
+        while let Some((idx, m, _)) = self.moves[..end]
             .iter()
             .enumerate()
-            .filter(|&(_, x)| x.is_capture() && !x.is_promotion())
-            .min_by_key(|&(_, x)| {
-                let (attacker, target) = Self::capture_piece_types(search_data.current_pos(), *x);
-                Self::capture_priority(attacker, target)
+            .filter(|(_, x)| x.r#move.is_capture())
+            .map(|(idx, x)| {
+                let cap_score = Self::capture_score(search_data.current_pos(), x.r#move);
+                (idx, x.r#move, cap_score)
             })
+            .max_by_key(|&(_, _, cap_score)| cap_score)
         {
-            debug_assert_eq!(m, move_list[idx]);
-            let next_move = move_list.swap_remove(idx);
-            return Some(next_move);
+            match Self::static_exchange_eval(search_data, &mut self.moves[idx]) {
+                CaptureType::Winning => {
+                    debug_assert_eq!(m, self.moves[idx].r#move);
+                    let next_move = self.moves.swap_remove(idx).r#move;
+                    return Some(next_move);
+                }
+                _ => {
+                    end -= 1;
+                    self.moves.swap(idx, end);
+                }
+            }
         }
-
         None
     }
 
-    fn select_mvv_lva(search_data: &mut SearchData, move_list: &mut MoveList) -> Option<Move> {
-        if let Some((idx, &m)) = move_list.iter().enumerate().min_by_key(|&(_, x)| {
-            let (attacker, target) = Self::capture_piece_types(search_data.current_pos(), *x);
-            Self::capture_priority(attacker, target)
-        }) {
-            debug_assert_eq!(m, move_list[idx]);
-            let next_move = move_list.swap_remove(idx);
+    fn select_equal_capture(&mut self, search_data: &mut SearchData) -> Option<Move> {
+        let mut end = self.moves.len();
+        while let Some((idx, m, _)) = self.moves[..end]
+            .iter()
+            .enumerate()
+            .filter(|(_, x)| x.r#move.is_capture())
+            .map(|(idx, x)| {
+                let cap_score = Self::capture_score(search_data.current_pos(), x.r#move);
+                (idx, x.r#move, cap_score)
+            })
+            .max_by_key(|&(_, _, cap_score)| cap_score)
+        {
+            match Self::static_exchange_eval(search_data, &mut self.moves[idx]) {
+                CaptureType::Equal => {
+                    debug_assert_eq!(m, self.moves[idx].r#move);
+                    let next_move = self.moves.swap_remove(idx).r#move;
+                    return Some(next_move);
+                }
+                see => {
+                    debug_assert_eq!(CaptureType::Losing, see);
+                    end -= 1;
+                    self.moves.swap(idx, end);
+                    continue;
+                }
+            }
+        }
+        None
+    }
+
+    fn select_losing_capture(&mut self, search_data: &mut SearchData) -> Option<Move> {
+        if let Some((idx, m, _)) = self
+            .moves
+            .iter()
+            .enumerate()
+            .filter(|(_, x)| x.r#move.is_capture())
+            .map(|(idx, x)| {
+                let cap_score = Self::capture_score(search_data.current_pos(), x.r#move);
+                (idx, x.r#move, cap_score)
+            })
+            .max_by_key(|&(_, _, cap_score)| cap_score)
+        {
+            debug_assert_eq!(m, self.moves[idx].r#move);
+            let next_move = self.moves.swap_remove(idx).r#move;
             return Some(next_move);
         }
-
         None
     }
 
@@ -336,39 +392,14 @@ impl MoveSelector {
         (attacker, target)
     }
 
-    fn capture_priority(attacker: piece::Type, target: piece::Type) -> i32 {
-        const LEN_ATTACKER_PRIO: i32 = 6;
-        let attacker_prio = |t: &piece::Type| match t {
-            piece::Type::Pawn => 0,
-            piece::Type::Knight => 1,
-            piece::Type::Bishop => 2,
-            piece::Type::Rook => 3,
-            piece::Type::Queen => 4,
-            piece::Type::King => 5,
-        };
-        let target_prio = |t: &piece::Type| match t {
-            piece::Type::Queen => 0,
-            piece::Type::Rook => 1,
-            piece::Type::Bishop => 2,
-            piece::Type::Knight => 3,
-            piece::Type::Pawn => 4,
-            piece::Type::King => panic!("King cannot be captured"),
-        };
-        LEN_ATTACKER_PRIO * target_prio(&target) + attacker_prio(&attacker)
-    }
-
-    fn select_killer(
-        search_data: &mut SearchData,
-        depth: usize,
-        move_list: &mut MoveList,
-    ) -> Option<Move> {
+    fn select_killer(&mut self, search_data: &mut SearchData, depth: usize) -> Option<Move> {
         if depth == 0 {
             return None;
         }
 
         for k in search_data.killers(depth).iter().flatten() {
-            if let Some(idx) = move_list.iter().position(|x| x == k) {
-                let next_move = move_list.swap_remove(idx);
+            if let Some(idx) = self.moves.iter().position(|x| x.r#move == *k) {
+                let next_move = self.moves.swap_remove(idx).r#move;
                 return Some(next_move);
             }
         }
@@ -376,13 +407,13 @@ impl MoveSelector {
         None
     }
 
-    fn select_counter(search_data: &mut SearchData, move_list: &mut MoveList) -> Option<Move> {
+    fn select_counter(&mut self, search_data: &mut SearchData) -> Option<Move> {
         if let Some(last_move) = search_data.pos_history().last_move() {
             if let Some(last_moved_piece) = search_data.pos_history().last_moved_piece() {
                 let counter = search_data.counter(last_moved_piece, last_move.target());
                 if counter != Move::NULL {
-                    if let Some(idx) = move_list.iter().position(|&x| x == counter) {
-                        return Some(move_list.swap_remove(idx));
+                    if let Some(idx) = self.moves.iter().position(|x| x.r#move == counter) {
+                        return Some(self.moves.swap_remove(idx).r#move);
                     }
                 }
             }
@@ -391,28 +422,29 @@ impl MoveSelector {
         None
     }
 
-    fn select_history(search_data: &mut SearchData, move_list: &mut MoveList) -> Option<Move> {
-        if let Some((idx, &m)) = move_list
+    fn select_history(&mut self, search_data: &mut SearchData) -> Option<Move> {
+        if let Some((idx, m)) = self
+            .moves
             .iter()
             .enumerate()
-            .filter(|&(_, x)| !x.is_promotion())
+            .filter(|&(_, x)| !x.r#move.is_capture() && !x.r#move.is_promotion())
             .max_by_key(|&(_, x)| {
                 let p = search_data
                     .current_pos()
-                    .piece_at(x.origin())
+                    .piece_at(x.r#move.origin())
                     .expect("Expected a piece at move origin");
-                search_data.history_priority(p, x.target())
+                search_data.history_priority(p, x.r#move.target())
             })
         {
-            debug_assert_eq!(m, move_list[idx]);
-            let next_move = move_list.swap_remove(idx);
+            debug_assert_eq!(m.r#move, self.moves[idx].r#move);
+            let next_move = self.moves.swap_remove(idx).r#move;
             return Some(next_move);
         }
 
         None
     }
 
-    fn select_root_move(search_data: &mut SearchData) -> Option<Move> {
+    fn select_root_move(&mut self, search_data: &mut SearchData) -> Option<Move> {
         debug_assert_ne!(0, search_data.root_moves().current_idx);
         let candidates = search_data.root_moves_mut();
         let moves = &candidates.move_list;
@@ -423,5 +455,52 @@ impl MoveSelector {
             return Some(m);
         }
         None
+    }
+
+    fn static_exchange_eval(search_data: &mut SearchData, move_info: &mut MoveInfo) -> CaptureType {
+        match move_info.static_exchange_eval {
+            Some(see) => see,
+            None => {
+                let see = see_capture(search_data.pos_history_mut(), move_info.r#move);
+                move_info.static_exchange_eval = Some(see);
+                see
+            }
+        }
+    }
+
+    fn mvv_lva_score(attacker: piece::Type, target: piece::Type) -> Score {
+        debug_assert_ne!(piece::Type::King, target);
+
+        const NUM_VICTIMS: usize = 5;
+        const NUM_ATTACKERS: usize = 6;
+        const MVV_LVA_SCORES: [[Score; NUM_ATTACKERS]; NUM_VICTIMS] = [
+            // attackers: P, N, B, R, Q, K
+            [15, 14, 13, 12, 11, 10], // victim: P
+            [25, 24, 23, 22, 21, 20], // victim: N
+            [35, 34, 33, 32, 31, 30], // victim: B
+            [45, 44, 43, 42, 41, 40], // victim: R
+            [55, 54, 53, 52, 51, 50], // victim: Q
+        ];
+
+        let attacker_idx = Self::piece_type_idx(attacker);
+        let victim_idx = Self::piece_type_idx(target);
+
+        MVV_LVA_SCORES[victim_idx][attacker_idx]
+    }
+
+    fn capture_score(pos: &Position, m: Move) -> Score {
+        let (attacker, target) = Self::capture_piece_types(pos, m);
+        Self::mvv_lva_score(attacker, target)
+    }
+
+    fn piece_type_idx(pt: piece::Type) -> usize {
+        match pt {
+            piece::Type::Pawn => 0,
+            piece::Type::Knight => 1,
+            piece::Type::Bishop => 2,
+            piece::Type::Rook => 3,
+            piece::Type::Queen => 4,
+            piece::Type::King => 5,
+        }
     }
 }

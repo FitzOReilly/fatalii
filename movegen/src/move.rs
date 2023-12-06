@@ -189,6 +189,12 @@ impl DerefMut for MoveList {
     }
 }
 
+impl From<Vec<Move>> for MoveList {
+    fn from(moves: Vec<Move>) -> Self {
+        Self(moves)
+    }
+}
+
 impl fmt::Display for MoveList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let move_list_str = self
