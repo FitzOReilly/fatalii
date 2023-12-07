@@ -77,7 +77,6 @@ impl EngineOut for UciOut {
     }
 
     fn best_move(&self, search_result: Option<SearchResult>) -> Result<(), Box<dyn Error>> {
-        self.info_depth_finished(search_result.clone())?;
         match search_result {
             Some(res) => match self.inner.lock() {
                 Ok(mut inner) => {
