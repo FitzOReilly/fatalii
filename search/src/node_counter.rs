@@ -16,14 +16,14 @@ impl NodeCounter {
         }
     }
 
-    pub fn increment_nodes(&mut self, search_depth: usize, plies_from_end: usize) {
+    pub fn increment_nodes(&mut self, search_depth: usize, ply: usize) {
         self.reserve(search_depth);
-        self.node_counts[search_depth - 1][plies_from_end].0 += 1;
+        self.node_counts[search_depth - 1][ply.min(search_depth)].0 += 1;
     }
 
-    pub fn increment_cache_hits(&mut self, search_depth: usize, plies_from_end: usize) {
+    pub fn increment_cache_hits(&mut self, search_depth: usize, ply: usize) {
         self.reserve(search_depth);
-        self.node_counts[search_depth - 1][plies_from_end].1 += 1;
+        self.node_counts[search_depth - 1][ply.min(search_depth)].1 += 1;
     }
 
     pub fn increment_eval_calls(&mut self, search_depth: usize) {
@@ -57,7 +57,7 @@ impl fmt::Display for NodeCounter {
                 let nc = &self.node_counts[d - 1][p];
                 writeln!(
                     f,
-                    "\tPlies from end of PV / moves made / cache hits: {} / {} / {}",
+                    "\tPly / moves made / cache hits: {} / {} / {}",
                     p, nc.0, nc.1,
                 )?;
             }
