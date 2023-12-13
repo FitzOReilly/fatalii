@@ -115,7 +115,7 @@ impl MoveSelector {
         }
 
         if self.stage == Stage::Killers {
-            if let Some(m) = self.select_killer(search_data, depth) {
+            if let Some(m) = self.select_killer(search_data) {
                 return Some(m);
             }
             self.stage = Stage::Counters;
@@ -392,12 +392,12 @@ impl MoveSelector {
         (attacker, target)
     }
 
-    fn select_killer(&mut self, search_data: &mut SearchData, depth: usize) -> Option<Move> {
-        if depth == 0 {
+    fn select_killer(&mut self, search_data: &mut SearchData) -> Option<Move> {
+        if search_data.ply() >= search_data.search_depth() {
             return None;
         }
 
-        for k in search_data.killers(depth).iter().flatten() {
+        for k in search_data.killers().iter().flatten() {
             if let Some(idx) = self.moves.iter().position(|x| x.r#move == *k) {
                 let next_move = self.moves.swap_remove(idx).r#move;
                 return Some(next_move);
