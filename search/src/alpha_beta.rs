@@ -249,8 +249,8 @@ impl AlphaBeta {
 
         let mut pvs_full_window = true;
         let mut move_selector = MoveSelector::new(move_list);
-
         let mut prev_node_count = search_data.node_counter().sum_nodes();
+        search_data.reset_killers_next_ply();
         while let Some(m) =
             move_selector.select_next_move(search_data, &mut self.transpos_table, depth)
         {
@@ -287,7 +287,7 @@ impl AlphaBeta {
                 let node =
                     AlphaBetaEntry::new(depth, score, ScoreType::LowerBound, m, search_data.age());
                 if !m.is_capture() {
-                    search_data.insert_killer(depth, m);
+                    search_data.insert_killer(m);
                     let last_move = search_data.pos_history().last_move().copied();
                     let last_moved_piece = search_data.pos_history().last_moved_piece();
                     if let (Some(lmp), Some(lm)) = (last_moved_piece, last_move) {

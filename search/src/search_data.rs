@@ -124,6 +124,10 @@ impl<'a> SearchData<'a> {
         self.search_depth
     }
 
+    pub fn ply(&self) -> usize {
+        self.ply
+    }
+
     pub fn pv_depth(&self) -> usize {
         self.pv_depth
     }
@@ -148,24 +152,29 @@ impl<'a> SearchData<'a> {
         &self.node_counter
     }
 
-    pub fn killers(&self, depth: usize) -> &Killers {
-        let len = self.killers.len();
-        debug_assert!(len >= depth);
-        &self.killers[len - depth]
+    pub fn killers(&self) -> &Killers {
+        debug_assert!(self.ply < self.killers.len());
+        &self.killers[self.ply]
     }
 
-    pub fn insert_killer(&mut self, depth: usize, m: Move) {
-        let len = self.killers.len();
-        debug_assert!(len >= depth);
+    pub fn insert_killer(&mut self, m: Move) {
+        let ply = self.ply;
+        debug_assert!(ply < self.killers.len());
         // If m is already in the list of killers, move it to the front
-        let max_idx = match self.killers[len - depth].iter().position(|&k| k == Some(m)) {
+        let max_idx = match self.killers[ply].iter().position(|&k| k == Some(m)) {
             Some(p) => p,
             None => NUM_KILLERS - 1,
         };
         for idx in (0..max_idx).rev() {
-            self.killers[len - depth][idx + 1] = self.killers[len - depth][idx];
+            self.killers[ply][idx + 1] = self.killers[ply][idx];
         }
-        self.killers[len - depth][0] = Some(m);
+        self.killers[ply][0] = Some(m);
+    }
+
+    pub fn reset_killers_next_ply(&mut self) {
+        if self.ply() + 1 < self.search_depth() {
+            self.killers[self.ply + 1].fill(None);
+        }
     }
 
     pub fn update_counter(&mut self, p: Piece, to: Square, m: Move) {
