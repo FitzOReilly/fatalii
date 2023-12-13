@@ -28,6 +28,7 @@ pub struct SearchData<'a> {
     hard_time_limit: Option<Duration>,
     max_nodes: Option<usize>,
     search_depth: usize,
+    ply: usize,
     pv_depth: usize,
     pv_table: PvTable,
     prev_pv_table: PvTable,
@@ -57,6 +58,7 @@ impl<'a> SearchData<'a> {
             hard_time_limit,
             max_nodes,
             search_depth: 0,
+            ply: 0,
             pv_depth: 0,
             pv_table: PvTable::new(),
             prev_pv_table: PvTable::new(),
@@ -209,15 +211,21 @@ impl<'a> SearchData<'a> {
         self.pv_depth = 0;
     }
 
-    pub fn do_move_and_increment_nodes(&mut self, m: Move, plies_from_end: usize) {
+    pub fn do_move(&mut self, m: Move) {
         self.node_counter
-            .increment_nodes(self.search_depth(), plies_from_end);
+            .increment_nodes(self.search_depth(), self.ply);
+        self.ply += 1;
         self.pos_history_mut().do_move(m);
     }
 
-    pub fn increment_cache_hits(&mut self, plies_from_end: usize) {
+    pub fn undo_last_move(&mut self) {
+        self.ply -= 1;
+        self.pos_history_mut().undo_last_move();
+    }
+
+    pub fn increment_cache_hits(&mut self) {
         self.node_counter
-            .increment_cache_hits(self.search_depth(), plies_from_end)
+            .increment_cache_hits(self.search_depth(), self.ply);
     }
 
     pub fn increment_eval_calls(&mut self) {

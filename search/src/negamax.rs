@@ -159,7 +159,7 @@ impl Negamax {
         let pos_hash = search_data.current_pos_hash();
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             let e = *entry;
-            search_data.increment_cache_hits(depth);
+            search_data.increment_cache_hits();
             match depth {
                 0 => return Some(e),
                 1 => {
@@ -197,9 +197,9 @@ impl Negamax {
                     Some(node)
                 } else {
                     for m in move_list.iter() {
-                        search_data.do_move_and_increment_nodes(*m, depth);
+                        search_data.do_move(*m);
                         let opt_neg_res = self.search_recursive(search_data, depth - 1);
-                        search_data.pos_history_mut().undo_last_move();
+                        search_data.undo_last_move();
 
                         match opt_neg_res {
                             Some(neg_search_res) => {
@@ -236,7 +236,7 @@ impl Negamax {
 
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             let e = *entry;
-            search_data.increment_cache_hits(depth);
+            search_data.increment_cache_hits();
             return e;
         }
 
@@ -249,10 +249,10 @@ impl Negamax {
         let mut move_list = MoveList::new();
         MoveGenerator::generate_moves_quiescence(&mut move_list, pos);
         for m in move_list.iter() {
-            search_data.do_move_and_increment_nodes(*m, depth);
+            search_data.do_move(*m);
             let search_result = -self.search_quiescence(search_data);
             score = eval::score::inc_mate_dist(search_result.score());
-            search_data.pos_history_mut().undo_last_move();
+            search_data.undo_last_move();
 
             if score > best_score {
                 best_score = score;

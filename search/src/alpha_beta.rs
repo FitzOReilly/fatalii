@@ -269,7 +269,7 @@ impl AlphaBeta {
                 continue;
             }
 
-            search_data.do_move_and_increment_nodes(m, depth);
+            search_data.do_move(m);
             let search_res = match self.principal_variation_search(
                 search_data,
                 depth,
@@ -280,7 +280,7 @@ impl AlphaBeta {
                 Some(node) => -node,
                 None => return None,
             };
-            search_data.pos_history_mut().undo_last_move();
+            search_data.undo_last_move();
             let score = eval::score::inc_mate_dist(search_res.score());
 
             if score >= beta {
@@ -401,7 +401,7 @@ impl AlphaBeta {
             && !pos.is_in_check(pos.side_to_move())
             && pos.has_minor_or_major_piece(pos.side_to_move())
         {
-            search_data.do_move_and_increment_nodes(Move::NULL, depth);
+            search_data.do_move(Move::NULL);
             let reduced_depth = depth - Self::null_move_depth_reduction(depth) - 1;
             let opt_neg_res = self.search_recursive(
                 search_data,
@@ -421,13 +421,13 @@ impl AlphaBeta {
                             Move::NULL,
                             search_data.age(),
                         );
-                        search_data.pos_history_mut().undo_last_move();
+                        search_data.undo_last_move();
                         return Some(Some(node));
                     }
                 }
                 None => return Some(None),
             }
-            search_data.pos_history_mut().undo_last_move();
+            search_data.undo_last_move();
         }
         None
     }
@@ -479,7 +479,7 @@ impl AlphaBeta {
         let pos_hash = search_data.current_pos_hash();
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             if let Some(bounded) = entry.bound_soft(alpha, beta) {
-                search_data.increment_cache_hits(depth);
+                search_data.increment_cache_hits();
                 return bounded;
             }
         }
@@ -556,14 +556,14 @@ impl AlphaBeta {
                 continue;
             }
 
-            search_data.do_move_and_increment_nodes(m, depth);
+            search_data.do_move(m);
             let search_result = -self.search_quiescence(
                 search_data,
                 eval::score::dec_mate_dist(-beta),
                 eval::score::dec_mate_dist(-alpha),
             );
             score = eval::score::inc_mate_dist(search_result.score());
-            search_data.pos_history_mut().undo_last_move();
+            search_data.undo_last_move();
 
             if score >= beta {
                 let node =
@@ -622,14 +622,14 @@ impl AlphaBeta {
             while let Some(m) =
                 move_selector.select_next_move(search_data, &mut self.transpos_table, depth)
             {
-                search_data.do_move_and_increment_nodes(m, depth);
+                search_data.do_move(m);
                 let search_result = -self.search_quiescence(
                     search_data,
                     eval::score::dec_mate_dist(-beta),
                     eval::score::dec_mate_dist(-alpha),
                 );
                 score = eval::score::inc_mate_dist(search_result.score());
-                search_data.pos_history_mut().undo_last_move();
+                search_data.undo_last_move();
 
                 if score >= beta {
                     let node = AlphaBetaEntry::new(
@@ -680,7 +680,7 @@ impl AlphaBeta {
         let pos_hash = search_data.current_pos_hash();
         if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
             if let Some(bounded) = entry.bound_soft(alpha, beta) {
-                search_data.increment_cache_hits(depth);
+                search_data.increment_cache_hits();
                 match (bounded.score_type(), depth) {
                     (ScoreType::Exact, 0) => return Some(bounded),
                     (ScoreType::Exact, 1) => {
