@@ -395,11 +395,12 @@ impl AlphaBeta {
         alpha: i16,
         beta: i16,
     ) -> Option<Option<AlphaBetaEntry>> {
-        let pos = search_data.current_pos();
         if depth >= MIN_NULL_MOVE_PRUNE_DEPTH
             && search_data.pv_depth() == 0
-            && !pos.is_in_check(pos.side_to_move())
-            && pos.has_minor_or_major_piece(pos.side_to_move())
+            && !search_data.is_in_check(search_data.current_pos().side_to_move())
+            && search_data
+                .current_pos()
+                .has_minor_or_major_piece(search_data.current_pos().side_to_move())
         {
             search_data.do_move(Move::NULL);
             let reduced_depth = depth - Self::null_move_depth_reduction(depth) - 1;
@@ -440,10 +441,8 @@ impl AlphaBeta {
         beta: i16,
         futility_pruning: &mut bool,
     ) -> Option<AlphaBetaEntry> {
-        let pos = search_data.current_pos();
-        if depth == 1 && !pos.is_in_check(pos.side_to_move()) {
-            search_data.increment_eval_calls();
-            let score = self.evaluator.eval_relative(search_data.current_pos());
+        if depth == 1 && !search_data.is_in_check(search_data.current_pos().side_to_move()) {
+            let score = search_data.eval_relative(&mut self.evaluator);
             if score - REVERSE_FUTILITY_MARGIN >= beta {
                 let node = AlphaBetaEntry::new(
                     depth,
@@ -484,17 +483,14 @@ impl AlphaBeta {
             }
         }
 
-        let pos = search_data.current_pos();
-        let is_in_check = pos.is_in_check(pos.side_to_move());
+        let is_in_check = search_data.is_in_check(search_data.current_pos().side_to_move());
         if is_in_check {
             return self.search_quiescence_check(search_data, alpha, beta);
         }
 
         // We might be evaluating a stalemate here. This is ok for now because checking for legal
         // moves is expensive here.
-        search_data.increment_eval_calls();
-        let pos = search_data.current_pos();
-        let stand_pat = self.evaluator.eval_relative(pos);
+        let stand_pat = search_data.eval_relative(&mut self.evaluator);
         let mut score = stand_pat;
         let mut score_type = ScoreType::UpperBound;
         let mut best_score = stand_pat;
@@ -523,17 +519,17 @@ impl AlphaBeta {
         }
 
         let mut move_list = MoveList::new();
-        MoveGenerator::generate_moves_quiescence(&mut move_list, pos);
+        MoveGenerator::generate_moves_quiescence(&mut move_list, search_data.current_pos());
         let mut move_selector = MoveSelector::new(move_list);
         while let Some(m) =
             move_selector.select_next_move_quiescence_capture(search_data, &mut self.transpos_table)
         {
-            let pos = search_data.pos_history().current_pos();
             let mut potential_improvement = if m.is_capture() {
                 if m.is_en_passant() {
                     100
                 } else {
-                    match pos
+                    match search_data
+                        .current_pos()
                         .piece_at(m.target())
                         .expect("No piece on target square")
                         .piece_type()
@@ -592,10 +588,7 @@ impl AlphaBeta {
         mut alpha: Score,
         beta: Score,
     ) -> AlphaBetaEntry {
-        debug_assert!({
-            let pos = search_data.current_pos();
-            pos.is_in_check(pos.side_to_move())
-        });
+        debug_assert!(search_data.is_in_check(search_data.current_pos().side_to_move()));
 
         let depth = 0;
         let pos_hash = search_data.current_pos_hash();
@@ -729,12 +722,13 @@ impl AlphaBeta {
     }
 
     fn check_draw_by_moves(search_data: &mut SearchData, depth: usize) -> Option<AlphaBetaEntry> {
-        let pos = search_data.current_pos();
-        if pos.plies_since_pawn_move_or_capture() >= PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW {
+        if search_data.current_pos().plies_since_pawn_move_or_capture()
+            >= PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW
+        {
             let mut score = EQ_POSITION;
-            if pos.is_in_check(pos.side_to_move()) {
+            if search_data.is_in_check(search_data.current_pos().side_to_move()) {
                 let mut move_list = MoveList::new();
-                MoveGenerator::generate_moves(&mut move_list, pos);
+                MoveGenerator::generate_moves(&mut move_list, search_data.current_pos());
                 if move_list.is_empty() {
                     score = BLACK_WIN;
                 }
@@ -771,7 +765,7 @@ impl AlphaBeta {
         let pos = search_data.current_pos();
         let mut score_type = ScoreType::UpperBound;
         let best_move = Move::NULL;
-        let score = if pos.is_in_check(pos.side_to_move()) {
+        let score = if search_data.is_in_check(pos.side_to_move()) {
             BLACK_WIN
         } else {
             EQ_POSITION

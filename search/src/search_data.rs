@@ -7,10 +7,12 @@ use crate::node_counter::NodeCounter;
 use crate::pv_table::PvTable;
 use crate::search::{SearchCommand, SearchInfo};
 use crossbeam_channel::{Receiver, Sender, TryRecvError};
+use eval::{Eval, Score};
 use movegen::piece::Piece;
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
+use movegen::side::Side;
 use movegen::square::Square;
 use movegen::zobrist::Zobrist;
 
@@ -37,6 +39,8 @@ pub struct SearchData<'a> {
     counter_table: CounterTable,
     history_table: HistoryTable,
     root_moves: MoveCandidates,
+    is_in_check: [Option<bool>; 2],
+    eval_relative: Option<Score>,
 }
 
 impl<'a> SearchData<'a> {
@@ -67,6 +71,8 @@ impl<'a> SearchData<'a> {
             counter_table: CounterTable::new(),
             history_table: HistoryTable::new(),
             root_moves: MoveCandidates::default(),
+            is_in_check: Default::default(),
+            eval_relative: Default::default(),
         }
     }
 
@@ -224,11 +230,15 @@ impl<'a> SearchData<'a> {
         self.node_counter
             .increment_nodes(self.search_depth(), self.ply);
         self.ply += 1;
+        self.is_in_check = Default::default();
+        self.eval_relative = Default::default();
         self.pos_history_mut().do_move(m);
     }
 
     pub fn undo_last_move(&mut self) {
         self.ply -= 1;
+        self.is_in_check = Default::default();
+        self.eval_relative = Default::default();
         self.pos_history_mut().undo_last_move();
     }
 
@@ -252,6 +262,29 @@ impl<'a> SearchData<'a> {
 
     pub fn root_moves_mut(&mut self) -> &mut MoveCandidates {
         &mut self.root_moves
+    }
+
+    pub fn is_in_check(&mut self, side: Side) -> bool {
+        match self.is_in_check[side as usize] {
+            Some(b) => b,
+            None => {
+                let b = self.current_pos().is_in_check(side);
+                self.is_in_check[side as usize] = Some(b);
+                b
+            }
+        }
+    }
+
+    pub fn eval_relative(&mut self, evaluator: &mut Box<dyn Eval + Send>) -> Score {
+        match self.eval_relative {
+            Some(eval) => eval,
+            None => {
+                self.increment_eval_calls();
+                let eval = evaluator.eval_relative(self.current_pos());
+                self.eval_relative = Some(eval);
+                eval
+            }
+        }
     }
 
     pub fn set_subtree_size(&mut self, m: Move, node_count: u64) {

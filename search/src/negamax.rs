@@ -140,9 +140,9 @@ impl Negamax {
         let pos = search_data.current_pos();
         if pos.plies_since_pawn_move_or_capture() >= PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW {
             let mut score = EQ_POSITION;
-            if pos.is_in_check(pos.side_to_move()) {
+            if search_data.is_in_check(pos.side_to_move()) {
                 let mut move_list = MoveList::new();
-                MoveGenerator::generate_moves(&mut move_list, pos);
+                MoveGenerator::generate_moves(&mut move_list, search_data.current_pos());
                 if move_list.is_empty() {
                     score = BLACK_WIN;
                 }
@@ -184,7 +184,7 @@ impl Negamax {
                 let mut move_list = MoveList::new();
                 MoveGenerator::generate_moves(&mut move_list, pos);
                 if move_list.is_empty() {
-                    let score = if pos.is_in_check(pos.side_to_move()) {
+                    let score = if search_data.is_in_check(pos.side_to_move()) {
                         BLACK_WIN
                     } else {
                         EQ_POSITION
