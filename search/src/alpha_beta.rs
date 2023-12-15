@@ -30,10 +30,14 @@ const MIN_PVS_DEPTH: usize = 3;
 const MIN_NULL_MOVE_PRUNE_DEPTH: usize = 3;
 
 // Enable futility pruning if the evaluation plus this value is less than alpha.
-const FUTILITY_MARGIN: Score = 120;
+const FUTILITY_MARGIN_BASE: Score = 0;
+const FUTILITY_MARGIN_PER_DEPTH: Score = 120;
+const FUTILITY_PRUNING_MAX_DEPTH: usize = 2;
 
 // Enable reverse futility pruning if the evaluation plus this value is greater than or equal to beta.
-const REVERSE_FUTILITY_MARGIN: Score = 120;
+const REVERSE_FUTILITY_MARGIN_BASE: Score = 0;
+const REVERSE_FUTILITY_MARGIN_PER_DEPTH: Score = 120;
+const REVERSE_FUTILITY_PRUNING_MAX_DEPTH: usize = 2;
 
 // Prune a move if the static evaluation plus the move's potential improvement
 // plus this value is less than alpha.
@@ -232,15 +236,14 @@ impl AlphaBeta {
         beta: Score,
         move_list: MoveList,
     ) -> Option<AlphaBetaEntry> {
-        if let Some(opt_node) = self.prune_null_move(search_data, depth, alpha, beta) {
-            return opt_node;
+        if let Some(node) = self.prune_reverse_futility(search_data, depth, beta) {
+            return Some(node);
         }
 
-        let mut futility_pruning = false;
-        if let Some(node) =
-            self.prune_futility(search_data, depth, alpha, beta, &mut futility_pruning)
-        {
-            return Some(node);
+        let futility_pruning = self.prune_futility(search_data, depth, alpha);
+
+        if let Some(opt_node) = self.prune_null_move(search_data, depth, alpha, beta) {
+            return opt_node;
         }
 
         let mut score_type = ScoreType::UpperBound;
@@ -261,6 +264,8 @@ impl AlphaBeta {
             });
 
             if futility_pruning
+                && search_data.ply() != 0
+                && search_data.pv_depth() == 0
                 && !m.is_capture()
                 && !m.is_promotion()
                 && !search_data.pos_history_mut().gives_check(m)
@@ -438,12 +443,35 @@ impl AlphaBeta {
         search_data: &mut SearchData<'_>,
         depth: usize,
         alpha: i16,
-        beta: i16,
-        futility_pruning: &mut bool,
-    ) -> Option<AlphaBetaEntry> {
-        if depth == 1 && !search_data.is_in_check(search_data.current_pos().side_to_move()) {
+    ) -> bool {
+        if depth <= FUTILITY_PRUNING_MAX_DEPTH
+            && !search_data.is_in_check(search_data.current_pos().side_to_move())
+        {
             let score = search_data.eval_relative(&mut self.evaluator);
-            if score - REVERSE_FUTILITY_MARGIN >= beta {
+            if score + FUTILITY_MARGIN_BASE + depth as Score * FUTILITY_MARGIN_PER_DEPTH < alpha {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn prune_reverse_futility(
+        &mut self,
+        search_data: &mut SearchData<'_>,
+        depth: usize,
+        beta: i16,
+    ) -> Option<AlphaBetaEntry> {
+        if search_data.ply() != 0
+            && search_data.pv_depth() == 0
+            && depth <= REVERSE_FUTILITY_PRUNING_MAX_DEPTH
+            && !search_data.is_in_check(search_data.current_pos().side_to_move())
+        {
+            let score = search_data.eval_relative(&mut self.evaluator);
+            if score
+                - REVERSE_FUTILITY_MARGIN_BASE
+                - depth as Score * REVERSE_FUTILITY_MARGIN_PER_DEPTH
+                >= beta
+            {
                 let node = AlphaBetaEntry::new(
                     depth,
                     score,
@@ -452,9 +480,6 @@ impl AlphaBeta {
                     search_data.age(),
                 );
                 return Some(node);
-            }
-            if score + FUTILITY_MARGIN < alpha {
-                *futility_pruning = true;
             }
         }
         None
