@@ -402,6 +402,7 @@ impl AlphaBeta {
     ) -> Option<Option<AlphaBetaEntry>> {
         if depth >= MIN_NULL_MOVE_PRUNE_DEPTH
             && search_data.pv_depth() == 0
+            && search_data.pos_history().last_move() != Some(&Move::NULL)
             && !search_data.is_in_check(search_data.current_pos().side_to_move())
             && search_data
                 .current_pos()
