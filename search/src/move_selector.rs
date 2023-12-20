@@ -58,11 +58,10 @@ impl MoveSelector {
         &mut self,
         search_data: &mut SearchData,
         transpos_table: &mut AlphaBetaTable,
-        depth: usize,
     ) -> Option<Move> {
-        if search_data.search_depth() > 1 && depth == search_data.search_depth() {
+        if search_data.search_depth() > 1 && search_data.ply() == 0 {
             if self.stage == Stage::PrincipalVariation {
-                if let Some(m) = self.select_pv_move(search_data, depth) {
+                if let Some(m) = self.select_pv_move(search_data) {
                     search_data.root_moves_mut().move_to_front(m);
                     search_data.root_moves_mut().current_idx += 1;
                     return Some(m);
@@ -73,7 +72,7 @@ impl MoveSelector {
         }
 
         if self.stage == Stage::PrincipalVariation {
-            if let Some(m) = self.select_pv_move(search_data, depth) {
+            if let Some(m) = self.select_pv_move(search_data) {
                 return Some(m);
             }
             self.stage = Stage::Hash;
@@ -199,13 +198,12 @@ impl MoveSelector {
         None
     }
 
-    fn select_pv_move(&mut self, search_data: &mut SearchData, depth: usize) -> Option<Move> {
+    fn select_pv_move(&mut self, search_data: &mut SearchData) -> Option<Move> {
         if search_data.pv_depth() > 0 {
-            debug_assert_eq!(search_data.pv_depth(), depth - 1);
             search_data.decrease_pv_depth();
             // Select the PV move from the previous iteration
             let prev_pv = search_data.pv(search_data.search_depth() - 1);
-            let pv_move = prev_pv[search_data.search_depth() - depth];
+            let pv_move = prev_pv[search_data.ply()];
             let idx = self
                 .moves
                 .iter()
@@ -215,10 +213,13 @@ impl MoveSelector {
                         MoveList::from(self.moves.iter().map(|x| x.r#move).collect::<Vec<_>>());
                     panic!(
                         "\nPV move not found in move list\n\
-                        Search depth: {}\nDepth: {}\nMove list: {}\nPV move: {}\nPV table:\n{}\
+                        Search depth: {}\nNet search depth: {}\nRemaining depth: {}\nPly: {}\n\
+                        Move list: {}\nPV move: {}\nPV table:\n{}\
                         Position:\n{}",
                         search_data.search_depth(),
-                        depth,
+                        search_data.net_search_depth(),
+                        search_data.remaining_depth(),
+                        search_data.ply(),
                         move_list,
                         pv_move,
                         search_data.pv_table(),
