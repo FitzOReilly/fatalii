@@ -20,6 +20,13 @@ pub type Killers = [Option<Move>; NUM_KILLERS];
 
 const NUM_KILLERS: usize = 2;
 
+// The maximum number of search depth extensions
+const MAX_EXTENSIONS: usize = 2;
+
+// The number of fractions (i.e. the number of extending moves) needed to extend
+// the search by 1 ply
+const FRACTIONS_PER_EXTENSION: usize = 2;
+
 #[derive(Debug, Clone)]
 pub struct SearchData<'a> {
     command_receiver: &'a Receiver<SearchCommand>,
@@ -30,6 +37,8 @@ pub struct SearchData<'a> {
     hard_time_limit: Option<Duration>,
     max_nodes: Option<usize>,
     search_depth: usize,
+    extensions: Vec<usize>,
+    reductions: Vec<usize>,
     ply: usize,
     pv_depth: usize,
     pv_table: PvTable,
@@ -62,6 +71,8 @@ impl<'a> SearchData<'a> {
             hard_time_limit,
             max_nodes,
             search_depth: 0,
+            extensions: Default::default(),
+            reductions: Default::default(),
             ply: 0,
             pv_depth: 0,
             pv_table: PvTable::new(),
@@ -130,6 +141,35 @@ impl<'a> SearchData<'a> {
         self.search_depth
     }
 
+    pub fn set_current_extension(&mut self, ext: usize) {
+        self.extensions[self.ply - 1] = ext;
+    }
+
+    pub fn total_extensions(&self) -> usize {
+        (self.extensions.iter().sum::<usize>() / FRACTIONS_PER_EXTENSION).min(MAX_EXTENSIONS)
+    }
+
+    pub fn set_current_reduction(&mut self, red: usize) {
+        self.reductions[self.ply - 1] = red;
+    }
+
+    pub fn total_reductions(&self) -> usize {
+        self.reductions.iter().sum()
+    }
+
+    pub fn net_search_depth(&self) -> usize {
+        debug_assert!(self.search_depth() + self.total_extensions() > self.total_reductions());
+        self.search_depth() + self.total_extensions() - self.total_reductions()
+    }
+
+    pub fn remaining_depth(&self) -> usize {
+        if self.ply() < self.net_search_depth() {
+            self.net_search_depth() - self.ply()
+        } else {
+            0
+        }
+    }
+
     pub fn ply(&self) -> usize {
         self.ply
     }
@@ -142,10 +182,6 @@ impl<'a> SearchData<'a> {
         &self.pv_table
     }
 
-    pub fn pv_table_mut(&mut self) -> &mut PvTable {
-        &mut self.pv_table
-    }
-
     pub fn pv(&self, depth: usize) -> &[Move] {
         self.pv_table().pv(depth)
     }
@@ -154,18 +190,32 @@ impl<'a> SearchData<'a> {
         self.pv_table().pv_into_movelist(depth)
     }
 
+    pub fn update_pv_move_and_copy(&mut self, m: Move) {
+        if self.search_depth() > self.ply() {
+            let depth = self.search_depth() - self.ply();
+            self.pv_table.update_move_and_copy(depth, m);
+        }
+    }
+
+    pub fn update_pv_move_and_truncate(&mut self, m: Move) {
+        if self.search_depth() > self.ply() {
+            let depth = self.search_depth() - self.ply();
+            self.pv_table.update_move_and_truncate(depth, m);
+        }
+    }
+
     pub fn node_counter(&self) -> &NodeCounter {
         &self.node_counter
     }
 
-    pub fn killers(&self) -> &Killers {
-        debug_assert!(self.ply < self.killers.len());
+    pub fn killers(&mut self) -> &Killers {
+        self.resize_killers();
         &self.killers[self.ply]
     }
 
     pub fn insert_killer(&mut self, m: Move) {
+        self.resize_killers();
         let ply = self.ply;
-        debug_assert!(ply < self.killers.len());
         // If m is already in the list of killers, move it to the front
         let max_idx = match self.killers[ply].iter().position(|&k| k == Some(m)) {
             Some(p) => p,
@@ -180,6 +230,12 @@ impl<'a> SearchData<'a> {
     pub fn reset_killers_next_ply(&mut self) {
         if self.ply() + 1 < self.search_depth() {
             self.killers[self.ply + 1].fill(None);
+        }
+    }
+
+    fn resize_killers(&mut self) {
+        if self.ply >= self.killers.len() {
+            self.killers.resize_with(self.ply + 1, Default::default);
         }
     }
 
@@ -229,16 +285,20 @@ impl<'a> SearchData<'a> {
     pub fn do_move(&mut self, m: Move) {
         self.node_counter
             .increment_nodes(self.search_depth(), self.ply);
+        self.pos_history_mut().do_move(m);
         self.ply += 1;
         self.is_in_check = Default::default();
         self.eval_relative = Default::default();
-        self.pos_history_mut().do_move(m);
+        self.extensions.push(0);
+        self.reductions.push(0);
     }
 
     pub fn undo_last_move(&mut self) {
-        self.ply -= 1;
-        self.is_in_check = Default::default();
+        self.reductions.pop();
+        self.extensions.pop();
         self.eval_relative = Default::default();
+        self.is_in_check = Default::default();
+        self.ply -= 1;
         self.pos_history_mut().undo_last_move();
     }
 
@@ -313,5 +373,15 @@ impl<'a> SearchData<'a> {
             }
         }
         false
+    }
+
+    pub fn calc_extension(&mut self, m: Move) -> usize {
+        match m != Move::NULL
+            && self.ply() <= self.search_depth()
+            && self.is_in_check(self.current_pos().side_to_move())
+        {
+            true => 1,
+            false => 0,
+        }
     }
 }

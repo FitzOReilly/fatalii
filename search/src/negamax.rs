@@ -130,9 +130,7 @@ impl Negamax {
         if search_data.pos_history().current_pos_repetitions() >= REPETITIONS_TO_DRAW {
             let entry = NegamaxEntry::new(depth, EQ_POSITION, Move::NULL, search_data.age());
             if depth > 0 {
-                search_data
-                    .pv_table_mut()
-                    .update_move_and_truncate(depth, entry.best_move());
+                search_data.update_pv_move_and_truncate(entry.best_move());
             }
             return Some(entry);
         }
@@ -149,9 +147,7 @@ impl Negamax {
             }
             let entry = NegamaxEntry::new(depth, score, Move::NULL, search_data.age());
             if depth > 0 {
-                search_data
-                    .pv_table_mut()
-                    .update_move_and_truncate(depth, entry.best_move());
+                search_data.update_pv_move_and_truncate(entry.best_move());
             }
             return Some(entry);
         }
@@ -163,9 +159,7 @@ impl Negamax {
             match depth {
                 0 => return Some(e),
                 1 => {
-                    search_data
-                        .pv_table_mut()
-                        .update_move_and_truncate(depth, e.best_move());
+                    search_data.update_pv_move_and_truncate(e.best_move());
                     return Some(e);
                 }
                 _ => {
@@ -191,9 +185,7 @@ impl Negamax {
                     };
                     let node = NegamaxEntry::new(depth, score, Move::NULL, search_data.age());
                     self.update_table(pos_hash, node);
-                    search_data
-                        .pv_table_mut()
-                        .update_move_and_truncate(depth, Move::NULL);
+                    search_data.update_pv_move_and_truncate(Move::NULL);
                     Some(node)
                 } else {
                     for m in move_list.iter() {
@@ -208,9 +200,7 @@ impl Negamax {
                                 if score > best_score {
                                     best_score = score;
                                     best_move = *m;
-                                    search_data
-                                        .pv_table_mut()
-                                        .update_move_and_copy(depth, best_move);
+                                    search_data.update_pv_move_and_copy(best_move);
                                 }
                             }
                             None => return None,

@@ -110,7 +110,7 @@ impl Search for AlphaBeta {
 
             let mut stop_search = false;
             loop {
-                match self.search_recursive(&mut search_data, d, aw.alpha(), aw.beta()) {
+                match self.search_recursive(&mut search_data, aw.alpha(), aw.beta()) {
                     Some(rel_alpha_beta_res) => {
                         if rel_alpha_beta_res.score() <= aw.alpha() {
                             // Fail low
@@ -186,7 +186,6 @@ impl AlphaBeta {
     fn search_recursive(
         &mut self,
         search_data: &mut SearchData,
-        depth: usize,
         alpha: Score,
         beta: Score,
     ) -> Option<AlphaBetaEntry> {
@@ -194,55 +193,52 @@ impl AlphaBeta {
             return None;
         }
 
-        if let Some(entry) = Self::check_draw_by_rep(search_data, depth) {
+        if let Some(entry) = Self::check_draw_by_rep(search_data) {
             return Some(entry);
         }
-        if let Some(entry) = Self::check_draw_by_moves(search_data, depth) {
-            return Some(entry);
-        }
-
-        if let Some(entry) = self.usable_table_entry(search_data, depth, alpha, beta) {
+        if let Some(entry) = Self::check_draw_by_moves(search_data) {
             return Some(entry);
         }
 
-        match depth {
-            0 => Some(self.search_quiescence(search_data, alpha, beta)),
-            _ => {
-                let mut move_list = MoveList::new();
-                MoveGenerator::generate_moves(&mut move_list, search_data.current_pos());
-                let node = if move_list.is_empty() {
-                    self.checkmate_or_stalemate(search_data, depth, alpha)
-                } else {
-                    match self.search_recursive_next_ply(search_data, depth, alpha, beta, move_list)
-                    {
-                        Some(n) => n,
-                        None => return None,
-                    }
-                };
-                // If the score is not valid, we need to widen the aspiration window.
-                if is_valid(node.score()) {
-                    self.update_table(search_data.current_pos_hash(), node);
-                }
-                Some(node)
+        if let Some(entry) = self.usable_table_entry(search_data, alpha, beta) {
+            return Some(entry);
+        }
+
+        if search_data.remaining_depth() == 0 {
+            return Some(self.search_quiescence(search_data, alpha, beta));
+        }
+
+        let mut move_list = MoveList::new();
+        MoveGenerator::generate_moves(&mut move_list, search_data.current_pos());
+        let node = if move_list.is_empty() {
+            self.checkmate_or_stalemate(search_data, alpha)
+        } else {
+            match self.search_recursive_next_ply(search_data, alpha, beta, move_list) {
+                Some(n) => n,
+                None => return None,
             }
+        };
+        // If the score is not valid, we need to widen the aspiration window.
+        if is_valid(node.score()) {
+            self.update_table(search_data.current_pos_hash(), node);
         }
+        Some(node)
     }
 
     fn search_recursive_next_ply(
         &mut self,
         search_data: &mut SearchData,
-        depth: usize,
         mut alpha: Score,
         beta: Score,
         move_list: MoveList,
     ) -> Option<AlphaBetaEntry> {
-        if let Some(node) = self.prune_reverse_futility(search_data, depth, beta) {
+        if let Some(node) = self.prune_reverse_futility(search_data, beta) {
             return Some(node);
         }
 
-        let futility_pruning = self.prune_futility(search_data, depth, alpha);
+        let futility_pruning = self.prune_futility(search_data, alpha);
 
-        if let Some(opt_node) = self.prune_null_move(search_data, depth, alpha, beta) {
+        if let Some(opt_node) = self.prune_null_move(search_data, alpha, beta) {
             return opt_node;
         }
 
@@ -250,14 +246,13 @@ impl AlphaBeta {
         let mut best_score = NEG_INF;
         let mut best_move = Move::NULL;
 
+        let depth = search_data.remaining_depth();
         let mut pvs_full_window = true;
         let mut move_selector = MoveSelector::new(move_list);
         let mut prev_node_count = search_data.node_counter().sum_nodes();
         search_data.reset_killers_next_ply();
-        while let Some(m) =
-            move_selector.select_next_move(search_data, &mut self.transpos_table, depth)
-        {
-            debug_assert!(if depth == search_data.search_depth() {
+        while let Some(m) = move_selector.select_next_move(search_data, &mut self.transpos_table) {
+            debug_assert!(if search_data.ply() == 0 {
                 prev_node_count == search_data.node_counter().sum_nodes()
             } else {
                 true
@@ -270,21 +265,18 @@ impl AlphaBeta {
                 && !m.is_promotion()
                 && !search_data.pos_history_mut().gives_check(m)
             {
-                debug_assert_ne!(depth, search_data.search_depth());
+                debug_assert_ne!(search_data.ply(), 0);
                 continue;
             }
 
             search_data.do_move(m);
-            let search_res = match self.principal_variation_search(
-                search_data,
-                depth,
-                alpha,
-                beta,
-                pvs_full_window,
-            ) {
-                Some(node) => -node,
-                None => return None,
-            };
+            let extension = search_data.calc_extension(m);
+            search_data.set_current_extension(extension);
+            let search_res =
+                match self.principal_variation_search(search_data, alpha, beta, pvs_full_window) {
+                    Some(node) => -node,
+                    None => return None,
+                };
             search_data.undo_last_move();
             let score = eval::score::inc_mate_dist(search_res.score());
 
@@ -316,21 +308,17 @@ impl AlphaBeta {
                     pvs_full_window = false;
                     score_type = ScoreType::Exact;
                     if score == WHITE_WIN - 1 {
-                        search_data
-                            .pv_table_mut()
-                            .update_move_and_truncate(depth, best_move);
+                        search_data.update_pv_move_and_truncate(best_move);
                     } else {
-                        search_data
-                            .pv_table_mut()
-                            .update_move_and_copy(depth, best_move);
+                        search_data.update_pv_move_and_copy(best_move);
                     }
                     // Root move ordering: move the new best move to the front
-                    if depth == search_data.search_depth() {
+                    if search_data.ply() == 0 {
                         search_data.move_to_front(best_move);
                     }
                 }
             }
-            if depth == search_data.search_depth() {
+            if search_data.ply() == 0 {
                 let node_count = search_data.node_counter().sum_nodes();
                 search_data.set_subtree_size(m, node_count - prev_node_count);
                 prev_node_count = node_count;
@@ -346,27 +334,20 @@ impl AlphaBeta {
     fn principal_variation_search(
         &mut self,
         search_data: &mut SearchData<'_>,
-        depth: usize,
         alpha: i16,
         beta: i16,
         pvs_full_window: bool,
     ) -> Option<AlphaBetaEntry> {
-        if pvs_full_window || depth < MIN_PVS_DEPTH {
+        if pvs_full_window || search_data.remaining_depth() < MIN_PVS_DEPTH {
             self.search_recursive(
                 search_data,
-                depth - 1,
                 eval::score::dec_mate_dist(-beta),
                 eval::score::dec_mate_dist(-alpha),
             )
         } else {
             // Null window search
             let mate_dist_alpha = eval::score::dec_mate_dist(alpha);
-            let onr = self.search_recursive(
-                search_data,
-                depth - 1,
-                -mate_dist_alpha - 1,
-                -mate_dist_alpha,
-            );
+            let onr = self.search_recursive(search_data, -mate_dist_alpha - 1, -mate_dist_alpha);
             match onr {
                 Some(nr) => {
                     let search_res = -nr;
@@ -375,7 +356,6 @@ impl AlphaBeta {
                         // Re-search with full window
                         self.search_recursive(
                             search_data,
-                            depth - 1,
                             eval::score::dec_mate_dist(-beta),
                             eval::score::dec_mate_dist(-alpha),
                         )
@@ -396,10 +376,10 @@ impl AlphaBeta {
     fn prune_null_move(
         &mut self,
         search_data: &mut SearchData<'_>,
-        depth: usize,
         alpha: i16,
         beta: i16,
     ) -> Option<Option<AlphaBetaEntry>> {
+        let depth = search_data.remaining_depth();
         if depth >= MIN_NULL_MOVE_PRUNE_DEPTH
             && search_data.pv_depth() == 0
             && search_data.pos_history().last_move() != Some(&Move::NULL)
@@ -408,11 +388,11 @@ impl AlphaBeta {
                 .current_pos()
                 .has_minor_or_major_piece(search_data.current_pos().side_to_move())
         {
+            let reduction = Self::null_move_depth_reduction(depth);
             search_data.do_move(Move::NULL);
-            let reduced_depth = depth - Self::null_move_depth_reduction(depth) - 1;
+            search_data.set_current_reduction(reduction);
             let opt_neg_res = self.search_recursive(
                 search_data,
-                reduced_depth,
                 eval::score::dec_mate_dist(-beta),
                 eval::score::dec_mate_dist(-alpha),
             );
@@ -439,12 +419,8 @@ impl AlphaBeta {
         None
     }
 
-    fn prune_futility(
-        &mut self,
-        search_data: &mut SearchData<'_>,
-        depth: usize,
-        alpha: i16,
-    ) -> bool {
+    fn prune_futility(&mut self, search_data: &mut SearchData<'_>, alpha: i16) -> bool {
+        let depth = search_data.remaining_depth();
         if depth <= FUTILITY_PRUNING_MAX_DEPTH
             && !search_data.is_in_check(search_data.current_pos().side_to_move())
         {
@@ -459,9 +435,9 @@ impl AlphaBeta {
     fn prune_reverse_futility(
         &mut self,
         search_data: &mut SearchData<'_>,
-        depth: usize,
         beta: i16,
     ) -> Option<AlphaBetaEntry> {
+        let depth = search_data.remaining_depth();
         if search_data.ply() != 0
             && search_data.pv_depth() == 0
             && depth <= REVERSE_FUTILITY_PRUNING_MAX_DEPTH
@@ -494,10 +470,10 @@ impl AlphaBeta {
     ) -> AlphaBetaEntry {
         let depth = 0;
 
-        if let Some(entry) = Self::check_draw_by_rep(search_data, depth) {
+        if let Some(entry) = Self::check_draw_by_rep(search_data) {
             return entry;
         }
-        if let Some(entry) = Self::check_draw_by_moves(search_data, depth) {
+        if let Some(entry) = Self::check_draw_by_moves(search_data) {
             return entry;
         }
 
@@ -639,7 +615,7 @@ impl AlphaBeta {
         } else {
             let mut move_selector = MoveSelector::new(move_list);
             while let Some(m) =
-                move_selector.select_next_move(search_data, &mut self.transpos_table, depth)
+                move_selector.select_next_move(search_data, &mut self.transpos_table)
             {
                 search_data.do_move(m);
                 let search_result = -self.search_quiescence(
@@ -692,22 +668,19 @@ impl AlphaBeta {
     fn usable_table_entry(
         &self,
         search_data: &mut SearchData<'_>,
-        depth: usize,
         alpha: i16,
         beta: i16,
     ) -> Option<AlphaBetaEntry> {
         let pos_hash = search_data.current_pos_hash();
-        if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
+        if let Some(entry) = self.lookup_table_entry(pos_hash, search_data.remaining_depth()) {
             if let Some(bounded) = entry.bound_soft(alpha, beta) {
                 search_data.increment_cache_hits();
-                match (bounded.score_type(), depth) {
+                match (bounded.score_type(), search_data.remaining_depth()) {
                     (ScoreType::Exact, 0) => return Some(bounded),
                     (ScoreType::Exact, 1) => {
-                        search_data
-                            .pv_table_mut()
-                            .update_move_and_truncate(depth, bounded.best_move());
+                        search_data.update_pv_move_and_truncate(bounded.best_move());
                         // Root move ordering: move the new best move to the front
-                        if depth == search_data.search_depth() {
+                        if search_data.ply() == 0 {
                             search_data.move_to_front(bounded.best_move());
                         }
                         return Some(bounded);
@@ -727,8 +700,9 @@ impl AlphaBeta {
         None
     }
 
-    fn check_draw_by_rep(search_data: &mut SearchData, depth: usize) -> Option<AlphaBetaEntry> {
+    fn check_draw_by_rep(search_data: &mut SearchData) -> Option<AlphaBetaEntry> {
         if search_data.pos_history().current_pos_repetitions() >= REPETITIONS_TO_DRAW {
+            let depth = search_data.remaining_depth();
             let entry = AlphaBetaEntry::new(
                 depth,
                 EQ_POSITION,
@@ -737,9 +711,7 @@ impl AlphaBeta {
                 search_data.age(),
             );
             if depth > 0 {
-                search_data
-                    .pv_table_mut()
-                    .update_move_and_truncate(depth, entry.best_move());
+                search_data.update_pv_move_and_truncate(entry.best_move());
                 search_data.end_pv();
             }
             return Some(entry);
@@ -747,7 +719,7 @@ impl AlphaBeta {
         None
     }
 
-    fn check_draw_by_moves(search_data: &mut SearchData, depth: usize) -> Option<AlphaBetaEntry> {
+    fn check_draw_by_moves(search_data: &mut SearchData) -> Option<AlphaBetaEntry> {
         if search_data.current_pos().plies_since_pawn_move_or_capture()
             >= PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW
         {
@@ -759,6 +731,7 @@ impl AlphaBeta {
                     score = BLACK_WIN;
                 }
             }
+            let depth = search_data.remaining_depth();
             let entry = AlphaBetaEntry::new(
                 depth,
                 score,
@@ -767,9 +740,7 @@ impl AlphaBeta {
                 search_data.age(),
             );
             if depth > 0 {
-                search_data
-                    .pv_table_mut()
-                    .update_move_and_truncate(depth, entry.best_move());
+                search_data.update_pv_move_and_truncate(entry.best_move());
                 search_data.end_pv();
             }
             return Some(entry);
@@ -785,7 +756,6 @@ impl AlphaBeta {
     fn checkmate_or_stalemate(
         &self,
         search_data: &mut SearchData<'_>,
-        depth: usize,
         alpha: i16,
     ) -> AlphaBetaEntry {
         let pos = search_data.current_pos();
@@ -798,11 +768,10 @@ impl AlphaBeta {
         };
         if score > alpha {
             score_type = ScoreType::Exact;
-            search_data
-                .pv_table_mut()
-                .update_move_and_truncate(depth, best_move);
+            search_data.update_pv_move_and_truncate(best_move);
             search_data.end_pv();
         }
+        let depth = search_data.remaining_depth();
         AlphaBetaEntry::new(depth, score, score_type, best_move, search_data.age())
     }
 }
