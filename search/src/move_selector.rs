@@ -19,8 +19,8 @@ enum Stage {
     EqualCaptures,
     Killers,
     Counters,
-    LosingCaptures,
     History,
+    LosingCaptures,
     UnderPromoCaptures,
     UnderPromos,
 }

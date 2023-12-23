@@ -278,7 +278,7 @@ impl AlphaBeta {
                     None => return None,
                 };
             search_data.undo_last_move();
-            let score = eval::score::inc_mate_dist(search_res.score());
+            let score = search_res.score();
 
             if score >= beta {
                 let node =
@@ -339,26 +339,17 @@ impl AlphaBeta {
         pvs_full_window: bool,
     ) -> Option<AlphaBetaEntry> {
         if pvs_full_window || search_data.remaining_depth() < MIN_PVS_DEPTH {
-            self.search_recursive(
-                search_data,
-                eval::score::dec_mate_dist(-beta),
-                eval::score::dec_mate_dist(-alpha),
-            )
+            self.search_recursive(search_data, -beta, -alpha)
         } else {
             // Null window search
-            let mate_dist_alpha = eval::score::dec_mate_dist(alpha);
-            let onr = self.search_recursive(search_data, -mate_dist_alpha - 1, -mate_dist_alpha);
+            let onr = self.search_recursive(search_data, -alpha - 1, -alpha);
             match onr {
                 Some(nr) => {
                     let search_res = -nr;
-                    let score = eval::score::inc_mate_dist(search_res.score());
+                    let score = search_res.score();
                     if score > alpha && score < beta {
                         // Re-search with full window
-                        self.search_recursive(
-                            search_data,
-                            eval::score::dec_mate_dist(-beta),
-                            eval::score::dec_mate_dist(-alpha),
-                        )
+                        self.search_recursive(search_data, -beta, -alpha)
                     } else {
                         onr
                     }
@@ -391,15 +382,11 @@ impl AlphaBeta {
             let reduction = Self::null_move_depth_reduction(depth);
             search_data.do_move(Move::NULL);
             search_data.set_current_reduction(reduction);
-            let opt_neg_res = self.search_recursive(
-                search_data,
-                eval::score::dec_mate_dist(-beta),
-                eval::score::dec_mate_dist(-alpha),
-            );
+            let opt_neg_res = self.search_recursive(search_data, -beta, -alpha);
             match opt_neg_res {
                 Some(neg_search_res) => {
                     let search_res = -neg_search_res;
-                    let score = eval::score::inc_mate_dist(search_res.score());
+                    let score = search_res.score();
                     if score >= beta {
                         let node = AlphaBetaEntry::new(
                             depth,
@@ -555,12 +542,8 @@ impl AlphaBeta {
             }
 
             search_data.do_move(m);
-            let search_result = -self.search_quiescence(
-                search_data,
-                eval::score::dec_mate_dist(-beta),
-                eval::score::dec_mate_dist(-alpha),
-            );
-            score = eval::score::inc_mate_dist(search_result.score());
+            let search_result = -self.search_quiescence(search_data, -beta, -alpha);
+            score = search_result.score();
             search_data.undo_last_move();
 
             if score >= beta {
@@ -604,7 +587,7 @@ impl AlphaBeta {
         MoveGenerator::generate_moves(&mut move_list, search_data.current_pos());
 
         if move_list.is_empty() {
-            score = BLACK_WIN;
+            score = BLACK_WIN + search_data.ply() as Score;
             if score > best_score {
                 best_score = score;
                 best_move = Move::NULL;
@@ -618,12 +601,8 @@ impl AlphaBeta {
                 move_selector.select_next_move(search_data, &mut self.transpos_table)
             {
                 search_data.do_move(m);
-                let search_result = -self.search_quiescence(
-                    search_data,
-                    eval::score::dec_mate_dist(-beta),
-                    eval::score::dec_mate_dist(-alpha),
-                );
-                score = eval::score::inc_mate_dist(search_result.score());
+                let search_result = -self.search_quiescence(search_data, -beta, -alpha);
+                score = search_result.score();
                 search_data.undo_last_move();
 
                 if score >= beta {
@@ -728,7 +707,7 @@ impl AlphaBeta {
                 let mut move_list = MoveList::new();
                 MoveGenerator::generate_moves(&mut move_list, search_data.current_pos());
                 if move_list.is_empty() {
-                    score = BLACK_WIN;
+                    score = BLACK_WIN + search_data.ply() as Score;
                 }
             }
             let depth = search_data.remaining_depth();
@@ -762,7 +741,7 @@ impl AlphaBeta {
         let mut score_type = ScoreType::UpperBound;
         let best_move = Move::NULL;
         let score = if search_data.is_in_check(pos.side_to_move()) {
-            BLACK_WIN
+            BLACK_WIN + search_data.ply() as Score
         } else {
             EQ_POSITION
         };
