@@ -7,7 +7,7 @@ use crate::search_data::SearchData;
 use crate::time_manager::TimeManager;
 use crate::SearchOptions;
 use crossbeam_channel::{Receiver, Sender};
-use eval::{Eval, BLACK_WIN, EQ_POSITION, NEG_INF, WHITE_WIN};
+use eval::{Eval, Score, BLACK_WIN, EQ_POSITION, NEG_INF, WHITE_WIN};
 use movegen::move_generator::MoveGenerator;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
@@ -142,7 +142,7 @@ impl Negamax {
                 let mut move_list = MoveList::new();
                 MoveGenerator::generate_moves(&mut move_list, search_data.current_pos());
                 if move_list.is_empty() {
-                    score = BLACK_WIN;
+                    score = BLACK_WIN + search_data.ply() as Score;
                 }
             }
             let entry = NegamaxEntry::new(depth, score, Move::NULL, search_data.age());
@@ -179,7 +179,7 @@ impl Negamax {
                 MoveGenerator::generate_moves(&mut move_list, pos);
                 if move_list.is_empty() {
                     let score = if search_data.is_in_check(pos.side_to_move()) {
-                        BLACK_WIN
+                        BLACK_WIN + search_data.ply() as Score
                     } else {
                         EQ_POSITION
                     };
@@ -196,7 +196,7 @@ impl Negamax {
                         match opt_neg_res {
                             Some(neg_search_res) => {
                                 let search_result = -neg_search_res;
-                                let score = eval::score::inc_mate_dist(search_result.score());
+                                let score = search_result.score();
                                 if score > best_score {
                                     best_score = score;
                                     best_move = *m;
@@ -241,7 +241,7 @@ impl Negamax {
         for m in move_list.iter() {
             search_data.do_move(*m);
             let search_result = -self.search_quiescence(search_data);
-            score = eval::score::inc_mate_dist(search_result.score());
+            score = search_result.score();
             search_data.undo_last_move();
 
             if score > best_score {
