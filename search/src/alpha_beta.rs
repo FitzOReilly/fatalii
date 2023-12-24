@@ -375,6 +375,7 @@ impl AlphaBeta {
             && search_data.pv_depth() == 0
             && search_data.pos_history().last_move() != Some(&Move::NULL)
             && !search_data.is_in_check(search_data.current_pos().side_to_move())
+            && search_data.eval_relative(&mut self.evaluator) >= beta
             && search_data
                 .current_pos()
                 .has_minor_or_major_piece(search_data.current_pos().side_to_move())
@@ -383,6 +384,7 @@ impl AlphaBeta {
             search_data.do_move(Move::NULL);
             search_data.set_current_reduction(reduction);
             let opt_neg_res = self.search_recursive(search_data, -beta, -alpha);
+            search_data.undo_last_move();
             match opt_neg_res {
                 Some(neg_search_res) => {
                     let search_res = -neg_search_res;
@@ -395,13 +397,11 @@ impl AlphaBeta {
                             Move::NULL,
                             search_data.age(),
                         );
-                        search_data.undo_last_move();
                         return Some(Some(node));
                     }
                 }
                 None => return Some(None),
             }
-            search_data.undo_last_move();
         }
         None
     }
