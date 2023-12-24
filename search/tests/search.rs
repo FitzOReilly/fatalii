@@ -123,6 +123,7 @@ fn checkmate_white(search_algo: impl Search + Send + 'static, depth: usize) {
 
     let expected = SearchResult::new(
         depth,
+        0,
         BLACK_WIN + 1, // Mate in 1
         0,
         0,
@@ -152,6 +153,7 @@ fn checkmate_black(search_algo: impl Search + Send + 'static, depth: usize) {
 
     let expected = SearchResult::new(
         depth,
+        0,
         WHITE_WIN - 1, // Mate in 1
         0,
         0,
@@ -178,7 +180,7 @@ fn stalemate(search_algo: impl Search + Send + 'static) {
     let pos_history = PositionHistory::new(pos);
 
     let depth = 1;
-    let expected = SearchResult::new(depth, EQ_POSITION, 0, 0, 0, Move::NULL, MoveList::new());
+    let expected = SearchResult::new(depth, 0, EQ_POSITION, 0, 0, 0, Move::NULL, MoveList::new());
 
     let mut tester = SearchTester::new(search_algo);
     let actual = tester.search(pos_history, depth);

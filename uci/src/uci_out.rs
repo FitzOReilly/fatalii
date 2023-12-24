@@ -47,8 +47,9 @@ impl EngineOut for UciOut {
                         .join(" ");
                     Ok(writeln!(
                         inner.writer,
-                        "info depth {} score {} nodes {} nps {} time {} hashfull {} pv {}",
+                        "info depth {} seldepth {} score {} nodes {} nps {} time {} hashfull {} pv {}",
                         res.depth(),
+                        res.selective_depth(),
                         UciScore::from(res.score()),
                         res.nodes(),
                         res.nodes_per_second(),

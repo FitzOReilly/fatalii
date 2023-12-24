@@ -13,6 +13,7 @@ pub const PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW: usize = 100;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchResult {
     depth: u8,
+    selective_depth: u8,
     score: Score,
     nodes: u64,
     time_us: u64,
@@ -22,8 +23,10 @@ pub struct SearchResult {
 }
 
 impl SearchResult {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         depth: usize,
+        selective_depth: usize,
         score: Score,
         nodes: u64,
         time_us: u64,
@@ -34,6 +37,7 @@ impl SearchResult {
         debug_assert!(depth <= MAX_SEARCH_DEPTH);
         Self {
             depth: depth as u8,
+            selective_depth: selective_depth as u8,
             score,
             nodes,
             time_us,
@@ -45,6 +49,10 @@ impl SearchResult {
 
     pub fn depth(&self) -> usize {
         self.depth as usize
+    }
+
+    pub fn selective_depth(&self) -> usize {
+        self.selective_depth as usize
     }
 
     pub fn score(&self) -> Score {
@@ -90,6 +98,7 @@ impl Neg for SearchResult {
     fn neg(self) -> Self::Output {
         Self::new(
             self.depth(),
+            self.selective_depth(),
             -self.score(),
             self.nodes(),
             self.time_us(),
@@ -104,8 +113,9 @@ impl fmt::Display for SearchResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "depth: {}, score: {}, nodes: {}, time in us: {}, hash load factor permille: {}, best move: {}",
+            "depth: {}, selective depth: {}, score: {}, nodes: {}, time in us: {}, hash load factor permille: {}, best move: {}",
             self.depth(),
+            self.selective_depth(),
             self.score(),
             self.nodes(),
             self.time_us(),
