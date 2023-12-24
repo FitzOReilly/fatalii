@@ -87,6 +87,7 @@ impl Search for Negamax {
                     };
                     let search_res = SearchResult::new(
                         d,
+                        search_data.selective_depth(),
                         abs_negamax_res.score(),
                         search_data.node_counter().sum_nodes(),
                         start_time.elapsed().as_micros() as u64,

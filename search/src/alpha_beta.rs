@@ -132,6 +132,7 @@ impl Search for AlphaBeta {
                         debug_assert_eq!(ScoreType::Exact, abs_alpha_beta_res.score_type());
                         let search_res = SearchResult::new(
                             d,
+                            search_data.selective_depth(),
                             abs_alpha_beta_res.score(),
                             search_data.node_counter().sum_nodes(),
                             start_time.elapsed().as_micros() as u64,

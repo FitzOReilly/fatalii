@@ -37,6 +37,7 @@ pub struct SearchData<'a> {
     hard_time_limit: Option<Duration>,
     max_nodes: Option<usize>,
     search_depth: usize,
+    selective_depth: usize,
     extensions: Vec<usize>,
     reductions: Vec<usize>,
     ply: usize,
@@ -71,6 +72,7 @@ impl<'a> SearchData<'a> {
             hard_time_limit,
             max_nodes,
             search_depth: 0,
+            selective_depth: 0,
             extensions: Default::default(),
             reductions: Default::default(),
             ply: 0,
@@ -139,6 +141,10 @@ impl<'a> SearchData<'a> {
 
     pub fn search_depth(&self) -> usize {
         self.search_depth
+    }
+
+    pub fn selective_depth(&self) -> usize {
+        self.selective_depth
     }
 
     pub fn set_current_extension(&mut self, ext: usize) {
@@ -262,6 +268,7 @@ impl<'a> SearchData<'a> {
         debug_assert!(self.search_depth() > 1);
         self.pv_table = self.prev_pv_table.clone();
         self.pv_depth = self.search_depth() - 1;
+        self.selective_depth = 0;
         self.root_moves_mut().reset_counts();
     }
 
@@ -269,6 +276,7 @@ impl<'a> SearchData<'a> {
         self.prev_pv_table = self.pv_table.clone();
         self.pv_depth = self.search_depth();
         self.search_depth += 1;
+        self.selective_depth = 0;
         self.killers.push([None; NUM_KILLERS]);
         self.root_moves_mut().order_by_subtree_size();
         self.root_moves_mut().reset_counts();
@@ -287,6 +295,7 @@ impl<'a> SearchData<'a> {
             .increment_nodes(self.search_depth(), self.ply);
         self.pos_history_mut().do_move(m);
         self.ply += 1;
+        self.selective_depth = self.selective_depth.max(self.ply);
         self.is_in_check = Default::default();
         self.eval_relative = Default::default();
         self.extensions.push(0);
