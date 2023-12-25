@@ -1,5 +1,8 @@
 use crate::search::MAX_SEARCH_DEPTH;
-use eval::Score;
+use eval::{
+    score::{dec_mate_dist_by, inc_mate_dist_by},
+    Score,
+};
 use movegen::{r#move::Move, transposition_table::TtEntry};
 use std::{cmp, ops::Neg};
 
@@ -28,6 +31,20 @@ impl NegamaxEntry {
 
     pub fn best_move(&self) -> Move {
         self.best_move
+    }
+
+    pub fn with_increased_mate_distance(&self, plies: usize) -> Self {
+        Self {
+            score: inc_mate_dist_by(self.score, plies),
+            ..*self
+        }
+    }
+
+    pub fn with_decreased_mate_distance(&self, plies: usize) -> Self {
+        Self {
+            score: dec_mate_dist_by(self.score, plies),
+            ..*self
+        }
     }
 }
 

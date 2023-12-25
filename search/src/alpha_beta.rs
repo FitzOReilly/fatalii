@@ -221,7 +221,7 @@ impl AlphaBeta {
         };
         // If the score is not valid, we need to widen the aspiration window.
         if is_valid(node.score()) {
-            self.update_table(search_data.current_pos_hash(), node);
+            self.update_table(search_data, node);
         }
         Some(node)
     }
@@ -465,8 +465,7 @@ impl AlphaBeta {
             return entry;
         }
 
-        let pos_hash = search_data.current_pos_hash();
-        if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
+        if let Some(entry) = self.lookup_table_entry(search_data, depth) {
             if let Some(bounded) = entry.bound_soft(alpha, beta) {
                 search_data.increment_cache_hits();
                 return bounded;
@@ -494,7 +493,7 @@ impl AlphaBeta {
                 Move::NULL,
                 search_data.age(),
             );
-            self.update_table(pos_hash, node);
+            self.update_table(search_data, node);
             return node;
         }
         if score > alpha {
@@ -504,7 +503,7 @@ impl AlphaBeta {
         if stand_pat + DELTA_PRUNING_MARGIN_ALL_MOVES < alpha {
             debug_assert!(score_type == ScoreType::UpperBound);
             let node = AlphaBetaEntry::new(depth, alpha, score_type, best_move, search_data.age());
-            self.update_table(pos_hash, node);
+            self.update_table(search_data, node);
             return node;
         }
 
@@ -550,7 +549,7 @@ impl AlphaBeta {
             if score >= beta {
                 let node =
                     AlphaBetaEntry::new(depth, score, ScoreType::LowerBound, m, search_data.age());
-                self.update_table(pos_hash, node);
+                self.update_table(search_data, node);
                 return node;
             }
             if score > best_score {
@@ -564,7 +563,7 @@ impl AlphaBeta {
         }
         debug_assert!(score_type == ScoreType::Exact || score_type == ScoreType::UpperBound);
         let node = AlphaBetaEntry::new(depth, best_score, score_type, best_move, search_data.age());
-        self.update_table(pos_hash, node);
+        self.update_table(search_data, node);
         node
     }
 
@@ -577,7 +576,6 @@ impl AlphaBeta {
         debug_assert!(search_data.is_in_check(search_data.current_pos().side_to_move()));
 
         let depth = 0;
-        let pos_hash = search_data.current_pos_hash();
 
         let mut score;
         let mut score_type = ScoreType::UpperBound;
@@ -614,7 +612,7 @@ impl AlphaBeta {
                         m,
                         search_data.age(),
                     );
-                    self.update_table(pos_hash, node);
+                    self.update_table(search_data, node);
                     return node;
                 }
                 if score > best_score {
@@ -630,17 +628,31 @@ impl AlphaBeta {
 
         debug_assert!(score_type == ScoreType::Exact || score_type == ScoreType::UpperBound);
         let node = AlphaBetaEntry::new(depth, best_score, score_type, best_move, search_data.age());
-        self.update_table(pos_hash, node);
+        self.update_table(search_data, node);
         node
     }
 
-    fn update_table(&mut self, pos_hash: Zobrist, node: AlphaBetaEntry) {
-        self.transpos_table.insert(pos_hash, node);
+    fn update_table(&mut self, search_data: &SearchData<'_>, node: AlphaBetaEntry) {
+        self.transpos_table.insert(
+            search_data.current_pos_hash(),
+            // Convert mate distance from the search root to the current position
+            node.with_decreased_mate_distance(search_data.ply()),
+        );
     }
 
-    fn lookup_table_entry(&self, pos_hash: Zobrist, depth: usize) -> Option<&AlphaBetaEntry> {
-        match self.transpos_table.get_depth(&pos_hash, depth) {
-            Some(entry) if entry.depth() == depth => Some(entry),
+    fn lookup_table_entry(
+        &self,
+        search_data: &SearchData<'_>,
+        depth: usize,
+    ) -> Option<AlphaBetaEntry> {
+        match self
+            .transpos_table
+            .get_depth(&search_data.current_pos_hash(), depth)
+        {
+            Some(entry) if entry.depth() == depth => {
+                // Convert mate distance from the current position to the search root
+                Some(entry.with_increased_mate_distance(search_data.ply()))
+            }
             _ => None,
         }
     }
@@ -651,8 +663,7 @@ impl AlphaBeta {
         alpha: i16,
         beta: i16,
     ) -> Option<AlphaBetaEntry> {
-        let pos_hash = search_data.current_pos_hash();
-        if let Some(entry) = self.lookup_table_entry(pos_hash, search_data.remaining_depth()) {
+        if let Some(entry) = self.lookup_table_entry(search_data, search_data.remaining_depth()) {
             if let Some(bounded) = entry.bound_soft(alpha, beta) {
                 search_data.increment_cache_hits();
                 match (bounded.score_type(), search_data.remaining_depth()) {

@@ -44,10 +44,6 @@ impl SearchTester {
         }
     }
 
-    fn clear_hash_table(&mut self) {
-        self.searcher.clear_hash_table();
-    }
-
     fn search(&mut self, pos_hist: PositionHistory, depth: usize) -> SearchResult {
         let search_options = SearchOptions {
             depth: Some(depth),
@@ -508,7 +504,6 @@ fn mate_in_x_no_capture_no_check(search_algo: impl Search + Send + 'static) {
     ];
 
     for (fen, depth, exp_score) in test_positions {
-        tester.clear_hash_table();
         let pos = Fen::str_to_pos(fen).unwrap();
         let pos_history = PositionHistory::new(pos.clone());
         let res = tester.search(pos_history, depth);
@@ -558,7 +553,6 @@ fn mate_in_x_capture_and_check(search_algo: impl Search + Send + 'static) {
     ];
 
     for (fen, depth, exp_score) in test_positions {
-        tester.clear_hash_table();
         let pos = Fen::str_to_pos(fen).unwrap();
         let pos_history = PositionHistory::new(pos.clone());
         let res = tester.search(pos_history, depth);
