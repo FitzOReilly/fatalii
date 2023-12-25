@@ -153,15 +153,13 @@ impl Negamax {
             return Some(entry);
         }
 
-        let pos_hash = search_data.current_pos_hash();
-        if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
-            let e = *entry;
+        if let Some(entry) = self.lookup_table_entry(search_data, depth) {
             search_data.increment_cache_hits();
             match depth {
-                0 => return Some(e),
+                0 => return Some(entry),
                 1 => {
-                    search_data.update_pv_move_and_truncate(e.best_move());
-                    return Some(e);
+                    search_data.update_pv_move_and_truncate(entry.best_move());
+                    return Some(entry);
                 }
                 _ => {
                     // For greater depths, we need to keep searching in order to obtain the PV
@@ -185,7 +183,7 @@ impl Negamax {
                         EQ_POSITION
                     };
                     let node = NegamaxEntry::new(depth, score, Move::NULL, search_data.age());
-                    self.update_table(pos_hash, node);
+                    self.update_table(search_data, node);
                     search_data.update_pv_move_and_truncate(Move::NULL);
                     Some(node)
                 } else {
@@ -208,7 +206,7 @@ impl Negamax {
                         }
                     }
                     let node = NegamaxEntry::new(depth, best_score, best_move, search_data.age());
-                    self.update_table(pos_hash, node);
+                    self.update_table(search_data, node);
                     Some(node)
                 }
             }
@@ -217,7 +215,6 @@ impl Negamax {
 
     fn search_quiescence(&mut self, search_data: &mut SearchData) -> NegamaxEntry {
         let depth = 0;
-        let pos_hash = search_data.current_pos_hash();
 
         debug_assert!(search_data.pos_history().current_pos_repetitions() < REPETITIONS_TO_DRAW);
         debug_assert!(
@@ -225,10 +222,9 @@ impl Negamax {
                 < PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW
         );
 
-        if let Some(entry) = self.lookup_table_entry(pos_hash, depth) {
-            let e = *entry;
+        if let Some(entry) = self.lookup_table_entry(search_data, depth) {
             search_data.increment_cache_hits();
-            return e;
+            return entry;
         }
 
         search_data.increment_eval_calls();
@@ -251,17 +247,31 @@ impl Negamax {
             }
         }
         let node = NegamaxEntry::new(depth, best_score, best_move, search_data.age());
-        self.update_table(pos_hash, node);
+        self.update_table(search_data, node);
         node
     }
 
-    fn update_table(&mut self, pos_hash: Zobrist, node: NegamaxEntry) {
-        self.transpos_table.insert(pos_hash, node);
+    fn update_table(&mut self, search_data: &SearchData<'_>, node: NegamaxEntry) {
+        self.transpos_table.insert(
+            search_data.current_pos_hash(),
+            // Convert mate distance from the search root to the current position
+            node.with_decreased_mate_distance(search_data.ply()),
+        );
     }
 
-    fn lookup_table_entry(&self, pos_hash: Zobrist, depth: usize) -> Option<&NegamaxEntry> {
-        match self.transpos_table.get(&pos_hash) {
-            Some(entry) if entry.depth() == depth => Some(entry),
+    fn lookup_table_entry(
+        &self,
+        search_data: &SearchData<'_>,
+        depth: usize,
+    ) -> Option<NegamaxEntry> {
+        match self
+            .transpos_table
+            .get_depth(&search_data.current_pos_hash(), depth)
+        {
+            Some(entry) if entry.depth() == depth => {
+                // Convert mate distance from the current position to the search root
+                Some(entry.with_increased_mate_distance(search_data.ply()))
+            }
             _ => None,
         }
     }

@@ -47,20 +47,28 @@ pub fn mate_dist(s: Score) -> Score {
 }
 
 pub fn inc_mate_dist(s: Score) -> Score {
+    inc_mate_dist_by(s, 1)
+}
+
+pub fn inc_mate_dist_by(s: Score, plies: usize) -> Score {
     if is_white_mating(s) {
-        s - 1
+        s - (plies as Score).min(s - MAX_CP)
     } else if is_black_mating(s) {
-        s + 1
+        s + (plies as Score).min(-MAX_CP - s)
     } else {
         s
     }
 }
 
 pub fn dec_mate_dist(s: Score) -> Score {
+    dec_mate_dist_by(s, 1)
+}
+
+pub fn dec_mate_dist_by(s: Score, plies: usize) -> Score {
     if is_white_mating(s) && s != WHITE_WIN {
-        s + 1
+        s + (plies as Score).min(WHITE_WIN - s)
     } else if is_black_mating(s) && s != BLACK_WIN {
-        s - 1
+        s - (plies as Score).min(s - BLACK_WIN)
     } else {
         s
     }
@@ -149,25 +157,45 @@ mod tests {
     #[test]
     fn increase_and_decrease_mate_distance() {
         assert_eq!(Score::MIN, inc_mate_dist(Score::MIN));
+        assert_eq!(Score::MIN, inc_mate_dist_by(Score::MIN, 2));
         assert_eq!(Score::MIN, dec_mate_dist(Score::MIN));
+        assert_eq!(Score::MIN, dec_mate_dist_by(Score::MIN, 2));
         assert_eq!(NEG_INF, inc_mate_dist(NEG_INF));
+        assert_eq!(NEG_INF, inc_mate_dist_by(NEG_INF, 2));
         assert_eq!(NEG_INF, dec_mate_dist(NEG_INF));
+        assert_eq!(NEG_INF, dec_mate_dist_by(NEG_INF, 2));
         assert_eq!(BLACK_WIN + 1, inc_mate_dist(BLACK_WIN));
+        assert_eq!(BLACK_WIN + 2, inc_mate_dist_by(BLACK_WIN, 2));
         assert_eq!(BLACK_WIN, dec_mate_dist(BLACK_WIN));
+        assert_eq!(BLACK_WIN, dec_mate_dist_by(BLACK_WIN, 2));
         assert_eq!(MIN_CP, inc_mate_dist(MIN_CP - 1));
+        assert_eq!(MIN_CP, inc_mate_dist_by(MIN_CP - 1, 2));
         assert_eq!(MIN_CP - 2, dec_mate_dist(MIN_CP - 1));
+        assert_eq!(MIN_CP - 3, dec_mate_dist_by(MIN_CP - 1, 2));
         assert_eq!(MIN_CP, inc_mate_dist(MIN_CP));
+        assert_eq!(MIN_CP, inc_mate_dist_by(MIN_CP, 2));
         assert_eq!(MIN_CP, dec_mate_dist(MIN_CP));
+        assert_eq!(MIN_CP, dec_mate_dist_by(MIN_CP, 2));
         assert_eq!(EQ_POSITION, inc_mate_dist(EQ_POSITION));
+        assert_eq!(EQ_POSITION, inc_mate_dist_by(EQ_POSITION, 2));
         assert_eq!(EQ_POSITION, dec_mate_dist(EQ_POSITION));
+        assert_eq!(EQ_POSITION, dec_mate_dist_by(EQ_POSITION, 2));
         assert_eq!(MAX_CP, inc_mate_dist(MAX_CP));
+        assert_eq!(MAX_CP, inc_mate_dist_by(MAX_CP, 2));
         assert_eq!(MAX_CP, dec_mate_dist(MAX_CP));
+        assert_eq!(MAX_CP, dec_mate_dist_by(MAX_CP, 2));
         assert_eq!(MAX_CP, inc_mate_dist(MAX_CP + 1));
+        assert_eq!(MAX_CP, inc_mate_dist_by(MAX_CP + 1, 2));
         assert_eq!(MAX_CP + 2, dec_mate_dist(MAX_CP + 1));
+        assert_eq!(MAX_CP + 3, dec_mate_dist_by(MAX_CP + 1, 2));
         assert_eq!(WHITE_WIN - 1, inc_mate_dist(WHITE_WIN));
+        assert_eq!(WHITE_WIN - 2, inc_mate_dist_by(WHITE_WIN, 2));
         assert_eq!(WHITE_WIN, dec_mate_dist(WHITE_WIN));
+        assert_eq!(WHITE_WIN, dec_mate_dist_by(WHITE_WIN, 2));
         assert_eq!(POS_INF, inc_mate_dist(POS_INF));
+        assert_eq!(POS_INF, inc_mate_dist_by(POS_INF, 2));
         assert_eq!(POS_INF, dec_mate_dist(POS_INF));
+        assert_eq!(POS_INF, dec_mate_dist_by(POS_INF, 2));
     }
 
     #[test]
