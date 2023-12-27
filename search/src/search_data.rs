@@ -155,6 +155,10 @@ impl<'a> SearchData<'a> {
         (self.extensions.iter().sum::<usize>() / FRACTIONS_PER_EXTENSION).min(MAX_EXTENSIONS)
     }
 
+    pub fn current_reduction(&mut self) -> usize {
+        self.reductions[self.ply - 1]
+    }
+
     pub fn set_current_reduction(&mut self, red: usize) {
         self.reductions[self.ply - 1] = red;
     }

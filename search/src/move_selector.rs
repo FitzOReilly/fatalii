@@ -200,7 +200,6 @@ impl MoveSelector {
 
     fn select_pv_move(&mut self, search_data: &mut SearchData) -> Option<Move> {
         if search_data.prev_pv_depth() > 0 {
-            search_data.decrease_prev_pv_depth();
             // Select the PV move from the previous iteration
             let prev_pv = search_data.pv(search_data.search_depth() - 1);
             let pv_move = prev_pv[search_data.ply()];
@@ -213,19 +212,25 @@ impl MoveSelector {
                         MoveList::from(self.moves.iter().map(|x| x.r#move).collect::<Vec<_>>());
                     panic!(
                         "\nPV move not found in move list\n\
-                        Search depth: {}\nNet search depth: {}\nRemaining depth: {}\nPly: {}\n\
-                        Move list: {}\nPV move: {}\nPV table:\n{}\
+                        Search depth: {}\nNet search depth: {}\nRemaining depth: {}\nPly: {}\nPrevious PV depth: {}\n\
+                        Total extensions: {}\nTotal reductions: {}\n\
+                        Move list: {}\nPV move: {}, {:?}\nPV table:\n{}\
                         Position:\n{}",
                         search_data.search_depth(),
                         search_data.net_search_depth(),
                         search_data.remaining_depth(),
                         search_data.ply(),
+                        search_data.prev_pv_depth(),
+                        search_data.total_extensions(),
+                        search_data.total_reductions(),
                         move_list,
+                        pv_move,
                         pv_move,
                         search_data.pv_table(),
                         search_data.current_pos(),
                     )
                 });
+            search_data.decrease_prev_pv_depth();
             return Some(self.moves.swap_remove(idx).r#move);
         }
         None

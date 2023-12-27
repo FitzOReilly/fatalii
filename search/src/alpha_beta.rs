@@ -29,6 +29,9 @@ const MIN_PVS_DEPTH: usize = 3;
 // Minimum depth for null move pruning.
 const MIN_NULL_MOVE_PRUNE_DEPTH: usize = 3;
 
+// Minimum depth for late move reductions.
+const MIN_LATE_MOVE_REDUCTION_DEPTH: usize = 3;
+
 // Enable futility pruning if the evaluation plus this value is less than alpha.
 const FUTILITY_MARGIN_BASE: Score = 0;
 const FUTILITY_MARGIN_PER_DEPTH: Score = 120;
@@ -194,7 +197,8 @@ impl AlphaBeta {
             return None;
         }
 
-        if let Some(entry) = Self::is_draw(search_data) {
+        let is_pv_node = alpha + 1 != beta;
+        if let Some(entry) = Self::is_draw(search_data, is_pv_node) {
             return Some(entry);
         }
 
@@ -209,7 +213,7 @@ impl AlphaBeta {
         let mut move_list = MoveList::new();
         MoveGenerator::generate_moves(&mut move_list, search_data.current_pos());
         let node = if move_list.is_empty() {
-            self.checkmate_or_stalemate(search_data, alpha)
+            self.checkmate_or_stalemate(search_data, alpha, beta)
         } else {
             match self.search_recursive_next_ply(search_data, alpha, beta, move_list) {
                 Some(n) => n,
@@ -246,6 +250,7 @@ impl AlphaBeta {
 
         let depth = search_data.remaining_depth();
         let mut pvs_full_window = true;
+        let mut quiet_move_count = 0;
         let mut move_selector = MoveSelector::new(move_list);
         let mut prev_node_count = search_data.node_counter().sum_nodes();
         search_data.reset_killers_next_ply();
@@ -267,9 +272,25 @@ impl AlphaBeta {
                 continue;
             }
 
+            let is_quiet = !m.is_capture() && !m.is_promotion();
+            quiet_move_count += is_quiet as usize;
+
             search_data.do_move(m);
             let extension = search_data.calc_extension(m);
             search_data.set_current_extension(extension);
+
+            // Late move reductions
+            let reduction = if !pvs_full_window
+                && depth >= MIN_LATE_MOVE_REDUCTION_DEPTH
+                && extension == 0
+                && is_quiet
+            {
+                Self::late_move_depth_reduction(depth, quiet_move_count)
+            } else {
+                0
+            };
+            search_data.set_current_reduction(reduction);
+
             let search_res =
                 match self.principal_variation_search(search_data, alpha, beta, pvs_full_window) {
                     Some(node) => -node,
@@ -301,6 +322,7 @@ impl AlphaBeta {
                 best_score = score;
                 best_move = m;
                 if score > alpha {
+                    debug_assert_ne!(alpha + 1, beta);
                     alpha = score;
 
                     pvs_full_window = false;
@@ -336,17 +358,28 @@ impl AlphaBeta {
         beta: i16,
         pvs_full_window: bool,
     ) -> Option<AlphaBetaEntry> {
-        if pvs_full_window || search_data.remaining_depth() < MIN_PVS_DEPTH {
+        if (pvs_full_window || search_data.remaining_depth() < MIN_PVS_DEPTH)
+            && search_data.total_reductions() == 0
+        {
             // Full depth, full window search
             return self.search_recursive(search_data, -beta, -alpha);
         }
 
-        // Full depth, null window search
-        let Some(neg_res) = self.search_recursive(search_data, -alpha - 1, -alpha) else {
+        // Reduced depth, null window search
+        let Some(mut neg_res) = self.search_recursive(search_data, -alpha - 1, -alpha) else {
             return None;
         };
         let score = -neg_res.score();
-        if score > alpha && score < beta {
+        if score > alpha && score < beta && search_data.current_reduction() != 0 {
+            search_data.set_current_reduction(0);
+            // Full depth, null window search
+            match self.search_recursive(search_data, -alpha - 1, -alpha) {
+                Some(nr) => neg_res = nr,
+                None => return None,
+            }
+        }
+        let score = -neg_res.score();
+        if score > alpha && score < beta && search_data.total_reductions() == 0 {
             // Full depth, full window search
             self.search_recursive(search_data, -beta, -alpha)
         } else {
@@ -452,7 +485,8 @@ impl AlphaBeta {
     ) -> AlphaBetaEntry {
         let depth = 0;
 
-        if let Some(entry) = Self::is_draw(search_data) {
+        let is_pv_node = alpha + 1 != beta;
+        if let Some(entry) = Self::is_draw(search_data, is_pv_node) {
             return entry;
         }
 
@@ -682,13 +716,13 @@ impl AlphaBeta {
         None
     }
 
-    fn is_draw(search_data: &mut SearchData) -> Option<AlphaBetaEntry> {
+    fn is_draw(search_data: &mut SearchData, is_pv_node: bool) -> Option<AlphaBetaEntry> {
         let Some(node) =
             Self::is_draw_by_rep(search_data).or_else(|| Self::is_draw_by_moves(search_data))
         else {
             return None;
         };
-        if search_data.remaining_depth() > 0 {
+        if is_pv_node {
             search_data.update_pv_move_and_truncate(node.best_move());
             search_data.end_prev_pv();
         }
@@ -740,6 +774,7 @@ impl AlphaBeta {
         &self,
         search_data: &mut SearchData<'_>,
         alpha: i16,
+        beta: i16,
     ) -> AlphaBetaEntry {
         let pos = search_data.current_pos();
         let mut score_type = ScoreType::UpperBound;
@@ -749,12 +784,21 @@ impl AlphaBeta {
         } else {
             EQ_POSITION
         };
+        let depth = search_data.remaining_depth();
+        if score >= beta {
+            score_type = ScoreType::LowerBound;
+            return AlphaBetaEntry::new(depth, score, score_type, best_move, search_data.age());
+        }
         if score > alpha {
             score_type = ScoreType::Exact;
             search_data.update_pv_move_and_truncate(best_move);
             search_data.end_prev_pv();
         }
-        let depth = search_data.remaining_depth();
         AlphaBetaEntry::new(depth, score, score_type, best_move, search_data.age())
+    }
+
+    fn late_move_depth_reduction(depth: usize, move_count: usize) -> usize {
+        debug_assert!(depth >= MIN_LATE_MOVE_REDUCTION_DEPTH);
+        (move_count / 6).min(depth / 3)
     }
 }
