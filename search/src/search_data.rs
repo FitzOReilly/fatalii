@@ -41,7 +41,7 @@ pub struct SearchData<'a> {
     extensions: Vec<usize>,
     reductions: Vec<usize>,
     ply: usize,
-    pv_depth: usize,
+    prev_pv_depth: usize,
     pv_table: PvTable,
     prev_pv_table: PvTable,
     node_counter: NodeCounter,
@@ -76,7 +76,7 @@ impl<'a> SearchData<'a> {
             extensions: Default::default(),
             reductions: Default::default(),
             ply: 0,
-            pv_depth: 0,
+            prev_pv_depth: 0,
             pv_table: PvTable::new(),
             prev_pv_table: PvTable::new(),
             node_counter: NodeCounter::new(),
@@ -180,8 +180,8 @@ impl<'a> SearchData<'a> {
         self.ply
     }
 
-    pub fn pv_depth(&self) -> usize {
-        self.pv_depth
+    pub fn prev_pv_depth(&self) -> usize {
+        self.prev_pv_depth
     }
 
     pub fn pv_table(&self) -> &PvTable {
@@ -267,14 +267,14 @@ impl<'a> SearchData<'a> {
         // should only be called at search depths > 1.
         debug_assert!(self.search_depth() > 1);
         self.pv_table = self.prev_pv_table.clone();
-        self.pv_depth = self.search_depth() - 1;
+        self.prev_pv_depth = self.search_depth() - 1;
         self.selective_depth = 0;
         self.root_moves_mut().reset_counts();
     }
 
     pub fn increase_search_depth(&mut self) {
         self.prev_pv_table = self.pv_table.clone();
-        self.pv_depth = self.search_depth();
+        self.prev_pv_depth = self.search_depth();
         self.search_depth += 1;
         self.selective_depth = 0;
         self.killers.push([None; NUM_KILLERS]);
@@ -282,12 +282,12 @@ impl<'a> SearchData<'a> {
         self.root_moves_mut().reset_counts();
     }
 
-    pub fn decrease_pv_depth(&mut self) {
-        self.pv_depth -= 1;
+    pub fn decrease_prev_pv_depth(&mut self) {
+        self.prev_pv_depth -= 1;
     }
 
-    pub fn end_pv(&mut self) {
-        self.pv_depth = 0;
+    pub fn end_prev_pv(&mut self) {
+        self.prev_pv_depth = 0;
     }
 
     pub fn do_move(&mut self, m: Move) {
