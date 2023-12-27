@@ -199,8 +199,8 @@ impl MoveSelector {
     }
 
     fn select_pv_move(&mut self, search_data: &mut SearchData) -> Option<Move> {
-        if search_data.pv_depth() > 0 {
-            search_data.decrease_pv_depth();
+        if search_data.prev_pv_depth() > 0 {
+            search_data.decrease_prev_pv_depth();
             // Select the PV move from the previous iteration
             let prev_pv = search_data.pv(search_data.search_depth() - 1);
             let pv_move = prev_pv[search_data.ply()];
