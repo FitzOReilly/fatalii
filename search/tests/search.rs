@@ -401,7 +401,7 @@ fn underpromotions(search_algo: impl Search + Send + 'static) {
         ),
         (
             "4Q3/Pq4pk/5p1p/5P1K/6PP/8/8/8 w - - 0 1",
-            8,
+            10,
             Move::new(Square::A7, Square::A8, MoveType::PROMOTION_BISHOP),
         ),
     ];
