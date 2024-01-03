@@ -20,6 +20,19 @@ impl HistoryTable {
         self.table[Self::idx(p, to)]
     }
 
+    pub fn clear(&mut self) {
+        for entry in self.table.iter_mut() {
+            *entry = 0;
+        }
+    }
+
+    // Reduce the weight of old entries
+    pub fn decay(&mut self) {
+        for entry in self.table.iter_mut() {
+            *entry /= 2;
+        }
+    }
+
     fn idx(p: Piece, s: Square) -> usize {
         p.idx() * Square::NUM_SQUARES + s.idx()
     }

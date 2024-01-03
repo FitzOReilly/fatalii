@@ -20,6 +20,12 @@ impl CounterTable {
         self.table[Self::idx(p, to)]
     }
 
+    pub fn clear(&mut self) {
+        for entry in self.table.iter_mut() {
+            *entry = Move::NULL;
+        }
+    }
+
     fn idx(p: Piece, s: Square) -> usize {
         p.idx() * Square::NUM_SQUARES + s.idx()
     }

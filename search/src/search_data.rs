@@ -1,19 +1,15 @@
 use std::time::{Duration, Instant};
 
-use crate::counter_table::CounterTable;
-use crate::history_table::HistoryTable;
 use crate::move_candidates::MoveCandidates;
 use crate::node_counter::NodeCounter;
 use crate::pv_table::PvTable;
 use crate::search::{SearchCommand, SearchInfo};
 use crossbeam_channel::{Receiver, Sender, TryRecvError};
 use eval::{Eval, Score};
-use movegen::piece::Piece;
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
-use movegen::square::Square;
 use movegen::zobrist::Zobrist;
 
 pub type Killers = [Option<Move>; NUM_KILLERS];
@@ -46,8 +42,6 @@ pub struct SearchData<'a> {
     prev_pv_table: PvTable,
     node_counter: NodeCounter,
     killers: Vec<Killers>,
-    counter_table: CounterTable,
-    history_table: HistoryTable,
     root_moves: MoveCandidates,
     is_in_check: [Option<bool>; 2],
     eval_relative: Option<Score>,
@@ -81,8 +75,6 @@ impl<'a> SearchData<'a> {
             prev_pv_table: PvTable::new(),
             node_counter: NodeCounter::new(),
             killers: Vec::new(),
-            counter_table: CounterTable::new(),
-            history_table: HistoryTable::new(),
             root_moves: MoveCandidates::default(),
             is_in_check: Default::default(),
             eval_relative: Default::default(),
@@ -247,22 +239,6 @@ impl<'a> SearchData<'a> {
         if self.ply >= self.killers.len() {
             self.killers.resize_with(self.ply + 1, Default::default);
         }
-    }
-
-    pub fn update_counter(&mut self, p: Piece, to: Square, m: Move) {
-        self.counter_table.update(p, to, m);
-    }
-
-    pub fn counter(&self, p: Piece, to: Square) -> Move {
-        self.counter_table.counter(p, to)
-    }
-
-    pub fn prioritize_history(&mut self, p: Piece, to: Square, depth: usize) {
-        self.history_table.prioritize(p, to, depth);
-    }
-
-    pub fn history_priority(&self, p: Piece, to: Square) -> u32 {
-        self.history_table.priority(p, to)
     }
 
     pub fn reset_current_search_depth(&mut self) {
