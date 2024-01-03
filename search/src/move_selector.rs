@@ -1,5 +1,7 @@
 use crate::alpha_beta::AlphaBetaTable;
 use crate::alpha_beta_entry::AlphaBetaEntry;
+use crate::counter_table::CounterTable;
+use crate::history_table::HistoryTable;
 use crate::search_data::SearchData;
 use crate::static_exchange_eval::{see_capture, CaptureType};
 use eval::Score;
@@ -58,6 +60,8 @@ impl MoveSelector {
         &mut self,
         search_data: &mut SearchData,
         transpos_table: &mut AlphaBetaTable,
+        counter_table: &CounterTable,
+        history_table: &HistoryTable,
     ) -> Option<Move> {
         if search_data.search_depth() > 1 && search_data.ply() == 0 {
             if self.stage == Stage::PrincipalVariation {
@@ -121,14 +125,14 @@ impl MoveSelector {
         }
 
         if self.stage == Stage::Counters {
-            if let Some(m) = self.select_counter(search_data) {
+            if let Some(m) = self.select_counter(search_data, counter_table) {
                 return Some(m);
             }
             self.stage = Stage::History;
         }
 
         if self.stage == Stage::History {
-            if let Some(m) = self.select_history(search_data) {
+            if let Some(m) = self.select_history(search_data, history_table) {
                 return Some(m);
             }
             self.stage = Stage::LosingCaptures;
@@ -413,10 +417,14 @@ impl MoveSelector {
         None
     }
 
-    fn select_counter(&mut self, search_data: &mut SearchData) -> Option<Move> {
+    fn select_counter(
+        &mut self,
+        search_data: &mut SearchData,
+        counter_table: &CounterTable,
+    ) -> Option<Move> {
         if let Some(last_move) = search_data.pos_history().last_move() {
             if let Some(last_moved_piece) = search_data.pos_history().last_moved_piece() {
-                let counter = search_data.counter(last_moved_piece, last_move.target());
+                let counter = counter_table.counter(last_moved_piece, last_move.target());
                 if counter != Move::NULL {
                     if let Some(idx) = self.moves.iter().position(|x| x.r#move == counter) {
                         return Some(self.moves.swap_remove(idx).r#move);
@@ -428,7 +436,11 @@ impl MoveSelector {
         None
     }
 
-    fn select_history(&mut self, search_data: &mut SearchData) -> Option<Move> {
+    fn select_history(
+        &mut self,
+        search_data: &mut SearchData,
+        history_table: &HistoryTable,
+    ) -> Option<Move> {
         if let Some((idx, m)) = self
             .moves
             .iter()
@@ -439,7 +451,7 @@ impl MoveSelector {
                     .current_pos()
                     .piece_at(x.r#move.origin())
                     .expect("Expected a piece at move origin");
-                search_data.history_priority(p, x.r#move.target())
+                history_table.priority(p, x.r#move.target())
             })
         {
             debug_assert_eq!(m.r#move, self.moves[idx].r#move);

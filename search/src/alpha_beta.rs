@@ -1,5 +1,7 @@
 use crate::alpha_beta_entry::{AlphaBetaEntry, ScoreType};
 use crate::aspiration_window::AspirationWindow;
+use crate::counter_table::CounterTable;
+use crate::history_table::HistoryTable;
 use crate::move_selector::MoveSelector;
 use crate::search::{
     Search, SearchCommand, SearchInfo, SearchResult, MAX_SEARCH_DEPTH,
@@ -53,6 +55,8 @@ const DELTA_PRUNING_MARGIN_ALL_MOVES: Score = 1800;
 pub struct AlphaBeta {
     evaluator: Box<dyn Eval + Send>,
     transpos_table: AlphaBetaTable,
+    counter_table: CounterTable,
+    history_table: HistoryTable,
 }
 
 impl Search for AlphaBeta {
@@ -66,6 +70,8 @@ impl Search for AlphaBeta {
 
     fn clear_hash_table(&mut self) {
         self.transpos_table.clear();
+        self.history_table.clear();
+        self.counter_table.clear();
     }
 
     fn search(
@@ -92,6 +98,7 @@ impl Search for AlphaBeta {
             search_options.nodes,
         );
 
+        self.history_table.decay();
         let mut root_moves = MoveList::new();
         MoveGenerator::generate_moves(&mut root_moves, search_data.current_pos());
         search_data.set_root_moves(&root_moves);
@@ -101,7 +108,7 @@ impl Search for AlphaBeta {
             search_data.increase_search_depth();
 
             if search_data.search_depth() > 1 {
-                if let Ok(SearchCommand::Stop) = search_data.try_recv_cmd() {
+                if search_data.should_stop_search_immediately() {
                     break;
                 }
                 if let Some(limit) = soft_time_limit {
@@ -184,6 +191,8 @@ impl AlphaBeta {
         Self {
             evaluator,
             transpos_table: AlphaBetaTable::new(table_size),
+            counter_table: CounterTable::new(),
+            history_table: HistoryTable::new(),
         }
     }
 
@@ -254,7 +263,12 @@ impl AlphaBeta {
         let mut move_selector = MoveSelector::new(move_list);
         let mut prev_node_count = search_data.node_counter().sum_nodes();
         search_data.reset_killers_next_ply();
-        while let Some(m) = move_selector.select_next_move(search_data, &mut self.transpos_table) {
+        while let Some(m) = move_selector.select_next_move(
+            search_data,
+            &mut self.transpos_table,
+            &self.counter_table,
+            &self.history_table,
+        ) {
             debug_assert!(if search_data.ply() == 0 {
                 prev_node_count == search_data.node_counter().sum_nodes()
             } else {
@@ -307,13 +321,14 @@ impl AlphaBeta {
                     let last_move = search_data.pos_history().last_move().copied();
                     let last_moved_piece = search_data.pos_history().last_moved_piece();
                     if let (Some(lmp), Some(lm)) = (last_moved_piece, last_move) {
-                        search_data.update_counter(lmp, lm.target(), m);
+                        self.counter_table.update(lmp, lm.target(), m);
                     }
                     let piece_to_move = search_data
                         .current_pos()
                         .piece_at(m.origin())
                         .expect("Expected a piece at move origin");
-                    search_data.prioritize_history(piece_to_move, m.target(), depth);
+                    self.history_table
+                        .prioritize(piece_to_move, m.target(), depth);
                 }
 
                 return Some(node);
@@ -621,9 +636,12 @@ impl AlphaBeta {
             }
         } else {
             let mut move_selector = MoveSelector::new(move_list);
-            while let Some(m) =
-                move_selector.select_next_move(search_data, &mut self.transpos_table)
-            {
+            while let Some(m) = move_selector.select_next_move(
+                search_data,
+                &mut self.transpos_table,
+                &self.counter_table,
+                &self.history_table,
+            ) {
                 search_data.do_move(m);
                 let search_result = -self.search_quiescence(search_data, -beta, -alpha);
                 score = search_result.score();
