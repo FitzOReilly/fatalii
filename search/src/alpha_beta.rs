@@ -101,6 +101,16 @@ impl Search for AlphaBeta {
         self.history_table.decay();
         let mut root_moves = MoveList::new();
         MoveGenerator::generate_moves(&mut root_moves, search_data.current_pos());
+        let mut best_move = Move::NULL;
+        let move_count = root_moves.len();
+        if has_time_limit && move_count == 1 {
+            // Move is forced, no need to search
+            best_move = root_moves[0];
+            info_sender
+                .send(SearchInfo::Stopped(best_move))
+                .expect("Error sending SearchInfo");
+            return;
+        }
         search_data.set_root_moves(&root_moves);
         let mut aw = AspirationWindow::infinite();
 
@@ -151,11 +161,7 @@ impl Search for AlphaBeta {
                             search_data.pv_owned(d),
                         );
                         search_data.send_info(SearchInfo::DepthFinished(search_res));
-                        if has_time_limit && search_data.root_moves().move_list.len() == 1 {
-                            // Move is forced, stop search after depth 1
-                            stop_search = true;
-                            break;
-                        }
+                        best_move = abs_alpha_beta_res.best_move();
                         let score = abs_alpha_beta_res.score();
                         if eval::score::is_mating(score)
                             && eval::score::mate_dist(score).unsigned_abs() as usize <= d
@@ -181,7 +187,7 @@ impl Search for AlphaBeta {
             }
         }
         info_sender
-            .send(SearchInfo::Stopped)
+            .send(SearchInfo::Stopped(best_move))
             .expect("Error sending SearchInfo");
     }
 }

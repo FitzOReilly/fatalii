@@ -31,22 +31,17 @@ impl Engine {
         engine_out: impl EngineOut + Send + 'static,
         engine_options: Arc<Mutex<EngineOptions>>,
     ) -> Self {
-        let search_result = Arc::new(Mutex::new(None));
         let (best_move_sender, best_move_receiver) = unbounded();
-        let best_move_handler =
-            BestMoveHandler::new(Arc::clone(&search_result), best_move_receiver, engine_out);
+        let best_move_handler = BestMoveHandler::new(best_move_receiver, engine_out);
         let best_move_sender_clone = best_move_sender.clone();
 
         let search_info_callback = Box::new(move |info| match info {
             SearchInfo::DepthFinished(res) => {
                 let _ = best_move_sender_clone.send(BestMoveCommand::DepthFinished(res.clone()));
-                match search_result.lock() {
-                    Ok(mut data) => *data = Some(res),
-                    Err(e) => panic!("{}", e),
-                }
             }
-            SearchInfo::Stopped => {
-                let _ = best_move_sender_clone.send(BestMoveCommand::Stop(StopReason::Finished));
+            SearchInfo::Stopped(best_move) => {
+                let _ = best_move_sender_clone
+                    .send(BestMoveCommand::Stop(StopReason::Finished(best_move)));
             }
             SearchInfo::Terminated => {}
         });

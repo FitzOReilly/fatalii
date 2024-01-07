@@ -64,6 +64,7 @@ impl Search for Negamax {
             hard_time_limit,
             search_options.nodes,
         );
+        let mut best_move = Move::NULL;
 
         for d in 1..=search_options.depth.unwrap_or(MAX_SEARCH_DEPTH) {
             search_data.increase_search_depth();
@@ -98,6 +99,7 @@ impl Search for Negamax {
                     info_sender
                         .send(SearchInfo::DepthFinished(search_res))
                         .expect("Error sending SearchInfo");
+                    best_move = abs_negamax_res.best_move();
                     if let BLACK_WIN | WHITE_WIN = abs_negamax_res.score() {
                         break;
                     }
@@ -106,7 +108,7 @@ impl Search for Negamax {
             }
         }
         info_sender
-            .send(SearchInfo::Stopped)
+            .send(SearchInfo::Stopped(best_move))
             .expect("Error sending SearchInfo");
     }
 }

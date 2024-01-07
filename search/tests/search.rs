@@ -56,7 +56,7 @@ impl SearchTester {
             println!("{:?}", received);
             match received {
                 Ok(SearchInfo::DepthFinished(res)) => search_result = Some(res),
-                Ok(SearchInfo::Stopped) => return search_result.unwrap(),
+                Ok(SearchInfo::Stopped(_)) => return search_result.unwrap(),
                 unexp => panic!("Expected Ok(SearchInfo::DepthFinished(_)), got {:?}", unexp),
             };
             assert!(
@@ -68,7 +68,7 @@ impl SearchTester {
             if search_result.clone().unwrap().depth() == depth {
                 self.searcher.stop();
                 loop {
-                    if let Ok(SearchInfo::Stopped) = self.result_receiver.recv() {
+                    if let Ok(SearchInfo::Stopped(_)) = self.result_receiver.recv() {
                         break;
                     }
                 }

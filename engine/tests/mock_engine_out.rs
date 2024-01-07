@@ -1,10 +1,11 @@
 use engine::EngineOut;
+use movegen::r#move::Move;
 use search::search::SearchResult;
 use std::error::Error;
 
 pub struct MockEngineOut {
     search_info_callback: Box<dyn Fn(Option<SearchResult>)>,
-    best_move_callback: Box<dyn Fn(Option<SearchResult>)>,
+    best_move_callback: Box<dyn Fn(Option<Move>)>,
 }
 
 unsafe impl Send for MockEngineOut {}
@@ -23,7 +24,7 @@ impl EngineOut for MockEngineOut {
         Ok(())
     }
 
-    fn best_move(&self, search_result: Option<SearchResult>) -> Result<(), Box<dyn Error>> {
+    fn best_move(&self, search_result: Option<Move>) -> Result<(), Box<dyn Error>> {
         (self.best_move_callback)(search_result);
         Ok(())
     }
@@ -32,7 +33,7 @@ impl EngineOut for MockEngineOut {
 impl MockEngineOut {
     pub fn new(
         search_info_callback: Box<dyn Fn(Option<SearchResult>)>,
-        best_move_callback: Box<dyn Fn(Option<SearchResult>)>,
+        best_move_callback: Box<dyn Fn(Option<Move>)>,
     ) -> Self {
         Self {
             search_info_callback,
