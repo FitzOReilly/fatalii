@@ -1,9 +1,6 @@
-use engine::{Engine, Variant};
+use engine::{Engine, Variant, DEFAULT_HASH_MB, DEFAULT_MOVE_OVERHEAD_MILLIS};
 use movegen::file::File;
 use std::time::Duration;
-
-pub const DEFAULT_HASH_MB: usize = 16;
-pub const DEFAULT_HASH_BYTES: usize = DEFAULT_HASH_MB * 2_usize.pow(20);
 
 #[allow(dead_code)]
 pub enum OptionType {
@@ -44,7 +41,7 @@ pub const OPTIONS: [UciOption; 3] = [
     UciOption {
         name: "Move Overhead",
         r#type: OptionType::Spin(SpinProps {
-            default: 10,
+            default: DEFAULT_MOVE_OVERHEAD_MILLIS,
             min: 0,
             max: 10000,
             fun: set_move_overhead,
