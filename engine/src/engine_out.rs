@@ -1,3 +1,4 @@
+use movegen::r#move::Move;
 use search::search::SearchResult;
 use std::error::Error;
 
@@ -9,5 +10,5 @@ pub trait EngineOut {
 
     fn info_string(&self, s: &str) -> Result<(), Box<dyn Error>>;
 
-    fn best_move(&self, search_result: Option<SearchResult>) -> Result<(), Box<dyn Error>>;
+    fn best_move(&self, search_result: Option<Move>) -> Result<(), Box<dyn Error>>;
 }

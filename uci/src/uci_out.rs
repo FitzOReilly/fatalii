@@ -77,7 +77,7 @@ impl EngineOut for UciOut {
         }
     }
 
-    fn best_move(&self, search_result: Option<SearchResult>) -> Result<(), Box<dyn Error>> {
+    fn best_move(&self, search_result: Option<Move>) -> Result<(), Box<dyn Error>> {
         match search_result {
             Some(res) => match self.inner.lock() {
                 Ok(mut inner) => {
@@ -91,18 +91,13 @@ impl EngineOut for UciOut {
                         },
                         Err(e) => panic!("{e}"),
                     };
-                    Ok(writeln!(
-                        inner.writer,
-                        "bestmove {}",
-                        move_to_str(res.best_move())
-                    )?)
+                    Ok(writeln!(inner.writer, "bestmove {}", move_to_str(res))?)
                 }
                 Err(e) => {
                     self.info_string(format!("{e}").as_str())?;
                     panic!("{e}");
                 }
             },
-
             None => Ok(()),
         }
     }

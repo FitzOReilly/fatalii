@@ -1,5 +1,6 @@
 use crate::engine_out::EngineOut;
 use crossbeam_channel::Receiver;
+use movegen::r#move::Move;
 use movegen::side::Side;
 use search::search::SearchResult;
 use search::SearchOptions;
@@ -12,12 +13,12 @@ pub struct BestMoveHandler {
 
 impl BestMoveHandler {
     pub fn new(
-        search_result: Arc<Mutex<Option<SearchResult>>>,
         receiver: Receiver<BestMoveCommand>,
         engine_out: impl EngineOut + Send + 'static,
     ) -> Self {
         let options = Arc::new(Mutex::new(SearchOptions::default()));
         let mut side_to_move = None;
+        let mut best_move = None;
 
         let thread = thread::spawn(move || loop {
             let message = receiver.recv().expect("Error receiving BestMoveCommand");
@@ -30,28 +31,28 @@ impl BestMoveHandler {
                 BestMoveCommand::DepthFinished(res) => engine_out
                     .info_depth_finished(Self::search_result_to_relative(Some(res), side_to_move))
                     .expect("Error writing search info"),
-                BestMoveCommand::Stop(StopReason::Command) => match search_result.lock() {
-                    Ok(mut res) => engine_out
-                        .best_move(Self::search_result_to_relative(res.take(), side_to_move))
-                        .expect("Error writing best move"),
-                    Err(e) => panic!("{}", e),
-                },
-                BestMoveCommand::Stop(StopReason::Finished) => match options.lock() {
-                    Ok(opt) => {
-                        if !opt.infinite {
-                            match search_result.lock() {
-                                Ok(mut res) => engine_out
-                                    .best_move(Self::search_result_to_relative(
-                                        res.take(),
-                                        side_to_move,
-                                    ))
-                                    .expect("Error writing best move"),
-                                Err(e) => panic!("{}", e),
+                BestMoveCommand::Stop(StopReason::Command) => {
+                    match options.lock() {
+                        Ok(mut opt) => opt.infinite = false,
+                        Err(e) => panic!("{}", e),
+                    }
+                    engine_out
+                        .best_move(best_move.take())
+                        .expect("Error writing best move");
+                }
+                BestMoveCommand::Stop(StopReason::Finished(new_best_move)) => {
+                    best_move = Some(new_best_move);
+                    match options.lock() {
+                        Ok(opt) => {
+                            if !opt.infinite {
+                                engine_out
+                                    .best_move(best_move.take())
+                                    .expect("Error writing best move");
                             }
                         }
+                        Err(e) => panic!("{}", e),
                     }
-                    Err(e) => panic!("{}", e),
-                },
+                }
                 BestMoveCommand::Terminate => break,
             }
         });
@@ -86,5 +87,5 @@ pub enum BestMoveCommand {
 #[derive(Clone, Copy, Debug)]
 pub enum StopReason {
     Command,
-    Finished,
+    Finished(Move),
 }

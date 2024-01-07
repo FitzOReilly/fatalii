@@ -56,7 +56,7 @@ impl SearchBencher {
             if search_result.depth() == depth {
                 self.searcher.stop();
                 loop {
-                    if let Ok(SearchInfo::Stopped) = self.result_receiver.recv() {
+                    if let Ok(SearchInfo::Stopped(_)) = self.result_receiver.recv() {
                         break;
                     }
                 }

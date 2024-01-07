@@ -137,7 +137,7 @@ pub enum SearchCommand {
 #[derive(Debug)]
 pub enum SearchInfo {
     DepthFinished(SearchResult),
-    Stopped,
+    Stopped(Move),
     Terminated,
 }
 
@@ -145,7 +145,7 @@ impl fmt::Display for SearchInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             SearchInfo::DepthFinished(search_res) => write!(f, "Depth finished: {search_res}"),
-            SearchInfo::Stopped => write!(f, "Search stopped"),
+            SearchInfo::Stopped(best_move) => write!(f, "Search stopped: {best_move}"),
             SearchInfo::Terminated => write!(f, "Search terminated"),
         }
     }
