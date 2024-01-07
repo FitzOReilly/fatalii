@@ -1,4 +1,4 @@
-use engine::{Engine, EngineOptions};
+use engine::{Engine, EngineOptions, DEFAULT_HASH_BYTES};
 use eval::complex::Complex;
 use search::alpha_beta::AlphaBeta;
 use std::error::Error;
@@ -7,7 +7,6 @@ use std::sync::{Arc, Mutex};
 use uci::uci_in::{
     debug, go, is_ready, position, quit, set_option, stop, uci as cmd_uci, ucinewgame,
 };
-use uci::uci_option;
 use uci::UciOut;
 use uci::{Parser, ParserMessage};
 
@@ -19,7 +18,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         Arc::clone(&engine_options),
     );
     let evaluator = Box::new(Complex::new());
-    let search_algo = AlphaBeta::new(evaluator, uci_option::DEFAULT_HASH_BYTES);
+    let search_algo = AlphaBeta::new(evaluator, DEFAULT_HASH_BYTES);
     let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
 
     let mut parser = Parser::new(uci_out);
