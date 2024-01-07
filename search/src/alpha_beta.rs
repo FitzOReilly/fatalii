@@ -281,26 +281,25 @@ impl AlphaBeta {
                 true
             });
 
+            let is_quiet = !m.is_capture() && !m.is_promotion();
             if futility_pruning
                 && search_data.ply() != 0
                 && search_data.prev_pv_depth() == 0
-                && !m.is_capture()
-                && !m.is_promotion()
+                && is_quiet
                 && !search_data.pos_history_mut().gives_check(m)
             {
                 debug_assert_ne!(search_data.ply(), 0);
                 continue;
             }
 
-            let is_quiet = !m.is_capture() && !m.is_promotion();
             quiet_move_count += is_quiet as usize;
-
             search_data.do_move(m);
             let extension = search_data.calc_extension(m);
             search_data.set_current_extension(extension);
 
+            let is_pv_node = alpha != beta - 1;
             // Late move reductions
-            let reduction = if !pvs_full_window
+            let reduction = if !is_pv_node
                 && depth >= MIN_LATE_MOVE_REDUCTION_DEPTH
                 && extension == 0
                 && is_quiet
