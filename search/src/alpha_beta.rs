@@ -249,7 +249,7 @@ impl AlphaBeta {
         beta: Score,
         move_list: MoveList,
     ) -> Option<AlphaBetaEntry> {
-        if let Some(node) = self.prune_reverse_futility(search_data, beta) {
+        if let Some(node) = self.prune_reverse_futility(search_data, alpha, beta) {
             return Some(node);
         }
 
@@ -374,8 +374,8 @@ impl AlphaBeta {
     fn principal_variation_search(
         &mut self,
         search_data: &mut SearchData<'_>,
-        alpha: i16,
-        beta: i16,
+        alpha: Score,
+        beta: Score,
         pvs_full_window: bool,
     ) -> Option<AlphaBetaEntry> {
         if (pvs_full_window || search_data.remaining_depth() < MIN_PVS_DEPTH)
@@ -415,8 +415,8 @@ impl AlphaBeta {
     fn prune_null_move(
         &mut self,
         search_data: &mut SearchData<'_>,
-        alpha: i16,
-        beta: i16,
+        alpha: Score,
+        beta: Score,
     ) -> Option<Option<AlphaBetaEntry>> {
         let depth = search_data.remaining_depth();
         if depth >= MIN_NULL_MOVE_PRUNE_DEPTH
@@ -454,7 +454,7 @@ impl AlphaBeta {
         None
     }
 
-    fn prune_futility(&mut self, search_data: &mut SearchData<'_>, alpha: i16) -> bool {
+    fn prune_futility(&mut self, search_data: &mut SearchData<'_>, alpha: Score) -> bool {
         let depth = search_data.remaining_depth();
         if depth <= FUTILITY_PRUNING_MAX_DEPTH
             && !search_data.is_in_check(search_data.current_pos().side_to_move())
@@ -470,14 +470,17 @@ impl AlphaBeta {
     fn prune_reverse_futility(
         &mut self,
         search_data: &mut SearchData<'_>,
-        beta: i16,
+        alpha: Score,
+        beta: Score,
     ) -> Option<AlphaBetaEntry> {
         let depth = search_data.remaining_depth();
-        if search_data.ply() != 0
-            && search_data.prev_pv_depth() == 0
+        let is_pv_node = alpha != beta - 1;
+        if !is_pv_node
             && depth <= REVERSE_FUTILITY_PRUNING_MAX_DEPTH
             && !search_data.is_in_check(search_data.current_pos().side_to_move())
         {
+            debug_assert_ne!(search_data.ply(), 0);
+            debug_assert_eq!(search_data.prev_pv_depth(), 0);
             let score = search_data.eval_relative(&mut self.evaluator);
             if score
                 - REVERSE_FUTILITY_MARGIN_BASE
@@ -708,8 +711,8 @@ impl AlphaBeta {
     fn usable_table_entry(
         &self,
         search_data: &mut SearchData<'_>,
-        alpha: i16,
-        beta: i16,
+        alpha: Score,
+        beta: Score,
     ) -> Option<AlphaBetaEntry> {
         if let Some(entry) = self.lookup_table_entry(search_data, search_data.remaining_depth()) {
             if let Some(bounded) = entry.bound_soft(alpha, beta) {
@@ -796,8 +799,8 @@ impl AlphaBeta {
     fn checkmate_or_stalemate(
         &self,
         search_data: &mut SearchData<'_>,
-        alpha: i16,
-        beta: i16,
+        alpha: Score,
+        beta: Score,
     ) -> AlphaBetaEntry {
         let pos = search_data.current_pos();
         let mut score_type = ScoreType::UpperBound;
