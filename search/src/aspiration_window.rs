@@ -1,48 +1,66 @@
-use std::cmp;
-
 use eval::{Score, NEG_INF, POS_INF};
 
-const STEPS: [i32; 4] = [40, 160, 640, u16::MAX as i32];
+pub const INITIAL_WIDTH: i32 = 101;
+pub const GROW_RATE: i32 = 15;
 
 #[derive(Debug)]
 pub struct AspirationWindow {
     score: i32,
-    idx_alpha: usize,
-    idx_beta: usize,
+    width_down: i32,
+    width_up: i32,
+    grow_rate: i32,
+    alpha: Score,
+    beta: Score,
 }
 
 impl AspirationWindow {
     pub fn infinite() -> Self {
         Self {
             score: 0,
-            idx_alpha: STEPS.len() - 1,
-            idx_beta: STEPS.len() - 1,
+            width_up: POS_INF as i32,
+            width_down: POS_INF as i32,
+            grow_rate: GROW_RATE,
+            alpha: NEG_INF,
+            beta: POS_INF,
         }
     }
 
-    pub fn new(s: Score) -> Self {
+    pub fn new(s: Score, initial_width: i32, grow_rate: i32) -> Self {
         Self {
             score: s as i32,
-            idx_alpha: 0,
-            idx_beta: 0,
+            width_up: initial_width,
+            width_down: initial_width,
+            grow_rate,
+            alpha: calc_alpha(s as i32, initial_width),
+            beta: calc_beta(s as i32, initial_width),
         }
     }
 
     pub fn alpha(&self) -> Score {
-        (self.score - STEPS[self.idx_alpha]).clamp(NEG_INF as i32, POS_INF as i32) as Score
+        self.alpha
     }
 
     pub fn beta(&self) -> Score {
-        (self.score + STEPS[self.idx_beta]).clamp(NEG_INF as i32, POS_INF as i32) as Score
+        self.beta
     }
 
     pub fn widen_down(&mut self) {
-        self.idx_alpha = cmp::min(STEPS.len() - 1, self.idx_alpha + 1);
+        self.width_down = (self.width_down * self.grow_rate).clamp(0, self.score - NEG_INF as i32);
+        self.alpha = (self.score - self.width_down) as Score;
     }
 
     pub fn widen_up(&mut self) {
-        self.idx_beta = cmp::min(STEPS.len() - 1, self.idx_beta + 1);
+        self.width_up = (self.width_up * self.grow_rate).clamp(0, POS_INF as i32 - self.score);
+        self.beta = (self.score + self.width_up) as Score;
     }
+}
+
+fn calc_alpha(score: i32, width_down: i32) -> Score {
+    (score - width_down).clamp(NEG_INF as i32, POS_INF as i32) as Score
+}
+
+fn calc_beta(score: i32, width_up: i32) -> Score {
+    (score + width_up).clamp(NEG_INF as i32, POS_INF as i32) as Score
 }
 
 #[cfg(test)]
@@ -59,32 +77,44 @@ mod tests {
     #[test]
     fn widen() {
         let score = 200;
-        let mut aw = AspirationWindow::new(score);
-        assert_eq!(score - STEPS[0] as Score, aw.alpha());
-        assert_eq!(score + STEPS[0] as Score, aw.beta());
+        let mut aw = AspirationWindow::new(score, INITIAL_WIDTH, GROW_RATE);
+        assert_eq!(score - INITIAL_WIDTH as Score, aw.alpha());
+        assert_eq!(score + INITIAL_WIDTH as Score, aw.beta());
 
         aw.widen_down();
-        assert_eq!(score - STEPS[1] as Score, aw.alpha());
-        assert_eq!(score + STEPS[0] as Score, aw.beta());
+        assert_eq!(score - (INITIAL_WIDTH * GROW_RATE) as Score, aw.alpha());
+        assert_eq!(score + INITIAL_WIDTH as Score, aw.beta());
 
         aw.widen_up();
-        assert_eq!(score - STEPS[1] as Score, aw.alpha());
-        assert_eq!(score + STEPS[1] as Score, aw.beta());
+        assert_eq!(score - (INITIAL_WIDTH * GROW_RATE) as Score, aw.alpha());
+        assert_eq!(score + (INITIAL_WIDTH * GROW_RATE) as Score, aw.beta());
 
-        for _ in 0..STEPS.len() {
+        let mut prev_alpha = aw.alpha() + 1;
+        while aw.alpha() != prev_alpha {
+            prev_alpha = aw.alpha();
             aw.widen_down();
-            aw.widen_up();
         }
         assert_eq!(NEG_INF, aw.alpha());
+        let mut prev_beta = aw.beta() - 1;
+        while aw.beta() != prev_beta {
+            prev_beta = aw.beta();
+            aw.widen_up();
+        }
         assert_eq!(POS_INF, aw.beta());
 
         let neg_score = -1000;
-        let mut neg_aw = AspirationWindow::new(neg_score);
-        for _ in 0..STEPS.len() {
+        let mut neg_aw = AspirationWindow::new(neg_score, INITIAL_WIDTH, GROW_RATE);
+        let mut prev_alpha = neg_aw.alpha() + 1;
+        while neg_aw.alpha() != prev_alpha {
+            prev_alpha = neg_aw.alpha();
             neg_aw.widen_down();
-            neg_aw.widen_up();
         }
         assert_eq!(NEG_INF, neg_aw.alpha());
+        let mut prev_beta = neg_aw.beta() - 1;
+        while neg_aw.beta() != prev_beta {
+            prev_beta = neg_aw.beta();
+            neg_aw.widen_up();
+        }
         assert_eq!(POS_INF, neg_aw.beta());
     }
 }

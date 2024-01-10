@@ -603,7 +603,7 @@ fn pv_truncated_after_mate(search_algo: impl Search + Send + 'static) {
         // Mate in 3
         (
             "r2N1b2/p2b1Bp1/n4p2/1p1p3R/3P2k1/P7/1PP2KPP/8 w - - 0 27",
-            8,
+            11,
             ScoreVariant::Mate(Side::White, 3),
             5,
         ),

@@ -1,5 +1,7 @@
 use engine::{Engine, Variant, DEFAULT_HASH_MB, DEFAULT_MOVE_OVERHEAD_MILLIS};
+use eval::Score;
 use movegen::file::File;
+use search::search_params::{AlphaBetaParams, SearchParamsEachAlgo};
 use std::time::Duration;
 
 #[allow(dead_code)]
@@ -17,10 +19,10 @@ pub struct CheckProps {
 }
 
 pub struct SpinProps {
-    pub default: usize,
-    pub min: usize,
-    pub max: usize,
-    pub fun: fn(&mut Engine, value: usize) -> String,
+    pub default: i64,
+    pub min: i64,
+    pub max: i64,
+    pub fun: fn(&mut Engine, value: i64) -> String,
 }
 
 pub struct UciOption {
@@ -32,7 +34,7 @@ pub const OPTIONS: [UciOption; 3] = [
     UciOption {
         name: "Hash",
         r#type: OptionType::Spin(SpinProps {
-            default: DEFAULT_HASH_MB,
+            default: DEFAULT_HASH_MB as i64,
             min: 1,
             max: 65536,
             fun: set_hash_size,
@@ -41,7 +43,7 @@ pub const OPTIONS: [UciOption; 3] = [
     UciOption {
         name: "Move Overhead",
         r#type: OptionType::Spin(SpinProps {
-            default: DEFAULT_MOVE_OVERHEAD_MILLIS,
+            default: DEFAULT_MOVE_OVERHEAD_MILLIS as i64,
             min: 0,
             max: 10000,
             fun: set_move_overhead,
@@ -56,13 +58,13 @@ pub const OPTIONS: [UciOption; 3] = [
     },
 ];
 
-fn set_hash_size(engine: &mut Engine, megabytes: usize) -> String {
-    let bytes = 2_usize.pow(20) * megabytes;
+fn set_hash_size(engine: &mut Engine, megabytes: i64) -> String {
+    let bytes = 2_usize.pow(20) * megabytes as usize;
     engine.set_hash_size(bytes);
     format!("Hash set to {megabytes} MB")
 }
 
-fn set_move_overhead(engine: &mut Engine, move_overhead: usize) -> String {
+fn set_move_overhead(engine: &mut Engine, move_overhead: i64) -> String {
     engine.set_move_overhead(Duration::from_millis(move_overhead as u64));
     format!("Move Overhead set to {move_overhead} ms")
 }
@@ -73,4 +75,76 @@ fn set_chess_960(engine: &mut Engine, enable: bool) -> String {
         true => String::from("Chess 960 enabled"),
         false => String::from("Chess 960 disabled"),
     }
+}
+
+#[allow(dead_code)]
+fn set_futility_margin_base(engine: &mut Engine, margin_base: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        futility_margin_base: Some(margin_base as Score),
+        ..Default::default()
+    }));
+    format!("futility-margin-base set to {margin_base}")
+}
+
+#[allow(dead_code)]
+fn set_futility_margin_per_depth(engine: &mut Engine, margin_per_depth: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        futility_margin_per_depth: Some(margin_per_depth as Score),
+        ..Default::default()
+    }));
+    format!("futility-margin-per-depth set to {margin_per_depth}")
+}
+
+#[allow(dead_code)]
+fn set_futility_pruning_max_depth(engine: &mut Engine, depth: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        futility_pruning_max_depth: Some(depth as usize),
+        ..Default::default()
+    }));
+    format!("futility-pruning-max-depth set to {depth}")
+}
+
+#[allow(dead_code)]
+fn set_reverse_futility_margin_base(engine: &mut Engine, margin_base: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        reverse_futility_margin_base: Some(margin_base as Score),
+        ..Default::default()
+    }));
+    format!("reverse-futility-margin-base set to {margin_base}")
+}
+
+#[allow(dead_code)]
+fn set_reverse_futility_margin_per_depth(engine: &mut Engine, margin_per_depth: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        reverse_futility_margin_per_depth: Some(margin_per_depth as Score),
+        ..Default::default()
+    }));
+    format!("reverse-futility-margin-per-depth set to {margin_per_depth}")
+}
+
+#[allow(dead_code)]
+fn set_reverse_futility_pruning_max_depth(engine: &mut Engine, depth: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        reverse_futility_pruning_max_depth: Some(depth as usize),
+        ..Default::default()
+    }));
+    format!("reverse-futility-pruning-max-depth set to {depth}")
+}
+
+#[allow(dead_code)]
+fn set_aspiration_window_initial_width(engine: &mut Engine, width: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        aspiration_window_initial_width: Some(width as i32),
+        ..Default::default()
+    }));
+    format!("aspiration-window-initial-width set to {width}")
+}
+
+#[allow(dead_code)]
+fn set_aspiration_window_grow_rate(engine: &mut Engine, grow_rate: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        aspiration_window_grow_rate: Some(grow_rate as i32),
+        ..Default::default()
+    }));
+    format!("aspiration-window-grow-rate set to {grow_rate}")
 }

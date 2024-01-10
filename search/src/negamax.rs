@@ -4,6 +4,7 @@ use crate::search::{
     PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW, REPETITIONS_TO_DRAW,
 };
 use crate::search_data::SearchData;
+use crate::search_params::SearchParamsEachAlgo;
 use crate::time_manager::TimeManager;
 use crate::SearchOptions;
 use crossbeam_channel::{Receiver, Sender};
@@ -36,6 +37,8 @@ impl Search for Negamax {
     fn clear_hash_table(&mut self) {
         self.transpos_table.clear();
     }
+
+    fn set_params(&mut self, _params: SearchParamsEachAlgo) {}
 
     fn search(
         &mut self,
