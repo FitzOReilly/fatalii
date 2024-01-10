@@ -115,6 +115,15 @@ impl Search for AlphaBeta {
         if let Some(rfpmd) = abp.reverse_futility_pruning_max_depth {
             self.search_params.reverse_futility_pruning_max_depth = rfpmd;
         }
+        if let Some(lmpb) = abp.late_move_pruning_base {
+            self.search_params.late_move_pruning_base = lmpb;
+        }
+        if let Some(lmpf) = abp.late_move_pruning_factor {
+            self.search_params.late_move_pruning_factor = lmpf;
+        }
+        if let Some(lmpmd) = abp.late_move_pruning_min_depth {
+            self.search_params.late_move_pruning_min_depth = lmpmd;
+        }
         if let Some(awiw) = abp.aspiration_window_initial_width {
             self.search_params.aspiration_window_initial_width = awiw;
         }

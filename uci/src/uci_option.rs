@@ -1,7 +1,16 @@
 use engine::{Engine, Variant, DEFAULT_HASH_MB, DEFAULT_MOVE_OVERHEAD_MILLIS};
 use eval::Score;
 use movegen::file::File;
-use search::search_params::{AlphaBetaParams, SearchParamsEachAlgo};
+use search::{
+    alpha_beta::{
+        FUTILITY_MARGIN_BASE, FUTILITY_MARGIN_PER_DEPTH, FUTILITY_PRUNING_MAX_DEPTH,
+        LATE_MOVE_PRUNING_BASE, LATE_MOVE_PRUNING_FACTOR, LATE_MOVE_PRUNING_MIN_DEPTH,
+        REVERSE_FUTILITY_MARGIN_BASE, REVERSE_FUTILITY_MARGIN_PER_DEPTH,
+        REVERSE_FUTILITY_PRUNING_MAX_DEPTH,
+    },
+    aspiration_window::{GROW_RATE, INITIAL_WIDTH},
+    search_params::{AlphaBetaParams, SearchParamsEachAlgo},
+};
 use std::time::Duration;
 
 #[allow(dead_code)]
@@ -30,7 +39,7 @@ pub struct UciOption {
     pub r#type: OptionType,
 }
 
-pub const OPTIONS: [UciOption; 3] = [
+pub const OPTIONS: [UciOption; 14] = [
     UciOption {
         name: "Hash",
         r#type: OptionType::Spin(SpinProps {
@@ -54,6 +63,105 @@ pub const OPTIONS: [UciOption; 3] = [
         r#type: OptionType::Check(CheckProps {
             default: false,
             fun: set_chess_960,
+        }),
+    },
+    UciOption {
+        name: "futility-margin-base",
+        r#type: OptionType::Spin(SpinProps {
+            default: FUTILITY_MARGIN_BASE as i64,
+            min: 0,
+            max: 300,
+            fun: set_futility_margin_base,
+        }),
+    },
+    UciOption {
+        name: "futility-margin-per-depth",
+        r#type: OptionType::Spin(SpinProps {
+            default: FUTILITY_MARGIN_PER_DEPTH as i64,
+            min: 0,
+            max: 300,
+            fun: set_futility_margin_per_depth,
+        }),
+    },
+    UciOption {
+        name: "futility-pruning-max-depth",
+        r#type: OptionType::Spin(SpinProps {
+            default: FUTILITY_PRUNING_MAX_DEPTH as i64,
+            min: 0,
+            max: 8,
+            fun: set_futility_pruning_max_depth,
+        }),
+    },
+    UciOption {
+        name: "reverse-futility-margin-base",
+        r#type: OptionType::Spin(SpinProps {
+            default: REVERSE_FUTILITY_MARGIN_BASE as i64,
+            min: 0,
+            max: 300,
+            fun: set_reverse_futility_margin_base,
+        }),
+    },
+    UciOption {
+        name: "reverse-futility-margin-per-depth",
+        r#type: OptionType::Spin(SpinProps {
+            default: REVERSE_FUTILITY_MARGIN_PER_DEPTH as i64,
+            min: 0,
+            max: 300,
+            fun: set_reverse_futility_margin_per_depth,
+        }),
+    },
+    UciOption {
+        name: "reverse-futility-pruning-max-depth",
+        r#type: OptionType::Spin(SpinProps {
+            default: REVERSE_FUTILITY_PRUNING_MAX_DEPTH as i64,
+            min: 0,
+            max: 8,
+            fun: set_reverse_futility_pruning_max_depth,
+        }),
+    },
+    UciOption {
+        name: "late-move-pruning-base",
+        r#type: OptionType::Spin(SpinProps {
+            default: LATE_MOVE_PRUNING_BASE as i64,
+            min: 0,
+            max: 16,
+            fun: set_late_move_pruning_base,
+        }),
+    },
+    UciOption {
+        name: "late-move-pruning-factor",
+        r#type: OptionType::Spin(SpinProps {
+            default: LATE_MOVE_PRUNING_FACTOR as i64,
+            min: 0,
+            max: 8,
+            fun: set_late_move_pruning_factor,
+        }),
+    },
+    UciOption {
+        name: "late-move-pruning-min-depth",
+        r#type: OptionType::Spin(SpinProps {
+            default: LATE_MOVE_PRUNING_MIN_DEPTH as i64,
+            min: 1,
+            max: 8,
+            fun: set_late_move_pruning_min_depth,
+        }),
+    },
+    UciOption {
+        name: "aspiration-window-initial-width",
+        r#type: OptionType::Spin(SpinProps {
+            default: INITIAL_WIDTH as i64,
+            min: 1,
+            max: 200,
+            fun: set_aspiration_window_initial_width,
+        }),
+    },
+    UciOption {
+        name: "aspiration-window-grow-rate",
+        r#type: OptionType::Spin(SpinProps {
+            default: GROW_RATE as i64,
+            min: 2,
+            max: 40,
+            fun: set_aspiration_window_grow_rate,
         }),
     },
 ];
@@ -129,6 +237,33 @@ fn set_reverse_futility_pruning_max_depth(engine: &mut Engine, depth: i64) -> St
         ..Default::default()
     }));
     format!("reverse-futility-pruning-max-depth set to {depth}")
+}
+
+#[allow(dead_code)]
+fn set_late_move_pruning_base(engine: &mut Engine, base: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        late_move_pruning_base: Some(base as usize),
+        ..Default::default()
+    }));
+    format!("late-move-pruning-base set to {base}")
+}
+
+#[allow(dead_code)]
+fn set_late_move_pruning_factor(engine: &mut Engine, factor: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        late_move_pruning_factor: Some(factor as usize),
+        ..Default::default()
+    }));
+    format!("late-move-pruning-factor set to {factor}")
+}
+
+#[allow(dead_code)]
+fn set_late_move_pruning_min_depth(engine: &mut Engine, depth: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        late_move_pruning_min_depth: Some(depth as usize),
+        ..Default::default()
+    }));
+    format!("late-move-pruning-min-depth set to {depth}")
 }
 
 #[allow(dead_code)]
