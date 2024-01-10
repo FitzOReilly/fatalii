@@ -48,7 +48,7 @@ pub fn run_command(
                 }
                 OptionType::Spin(props) => {
                     let val = match value {
-                        Some(v) => match v.parse::<usize>() {
+                        Some(v) => match v.parse::<i64>() {
                             Ok(v) => v,
                             Err(_) => return make_err_invalid_argument(args),
                         },

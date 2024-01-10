@@ -1,3 +1,4 @@
+use crate::search_params::SearchParamsEachAlgo;
 use crate::SearchOptions;
 use crossbeam_channel::{Receiver, Sender};
 use eval::Score;
@@ -129,6 +130,7 @@ impl fmt::Display for SearchResult {
 pub enum SearchCommand {
     SetHashSize(usize, Sender<()>),
     ClearHashTable(Sender<()>),
+    SetSearchParams(SearchParamsEachAlgo, Sender<()>),
     Search(Box<(PositionHistory, SearchOptions)>),
     Stop,
     Terminate,
@@ -155,6 +157,8 @@ pub trait Search {
     fn set_hash_size(&mut self, bytes: usize);
 
     fn clear_hash_table(&mut self);
+
+    fn set_params(&mut self, params: SearchParamsEachAlgo);
 
     fn search(
         &mut self,

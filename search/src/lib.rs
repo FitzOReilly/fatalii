@@ -1,12 +1,13 @@
 pub use search_options::SearchOptions;
 
 pub mod alpha_beta;
+pub mod aspiration_window;
 pub mod negamax;
 pub mod search;
+pub mod search_params;
 pub mod searcher;
 
 mod alpha_beta_entry;
-mod aspiration_window;
 mod counter_table;
 mod history_table;
 mod move_candidates;

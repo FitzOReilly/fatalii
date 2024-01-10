@@ -1,5 +1,6 @@
 use crate::{
     search::{Search, SearchCommand, SearchInfo},
+    search_params::SearchParamsEachAlgo,
     SearchOptions,
 };
 use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
@@ -33,6 +34,16 @@ impl Searcher {
         receiver
             .recv()
             .expect_err("Expected sender to disconnect after ClearHashTable");
+    }
+
+    pub fn set_search_params(&self, search_params: SearchParamsEachAlgo) {
+        let (sender, receiver) = bounded(1);
+        self.command_sender
+            .send(SearchCommand::SetSearchParams(search_params, sender))
+            .expect("Error sending SearchCommand");
+        receiver
+            .recv()
+            .expect_err("Expected sender to disconnect after SetSearchParams");
     }
 
     pub fn search(&self, pos_hist: PositionHistory, search_options: SearchOptions) {
@@ -114,6 +125,9 @@ impl Worker {
                 SearchCommand::ClearHashTable(_sender) => {
                     Self::clear_hash_table(&mut search_algo);
                 }
+                SearchCommand::SetSearchParams(search_params, _sender) => {
+                    Self::set_search_params(&mut search_algo, search_params);
+                }
                 SearchCommand::Search(inner) => {
                     let (pos_hist, search_options) = *inner;
                     Self::search(
@@ -139,6 +153,10 @@ impl Worker {
 
     fn clear_hash_table(search: &mut impl Search) {
         search.clear_hash_table();
+    }
+
+    fn set_search_params(search: &mut impl Search, search_params: SearchParamsEachAlgo) {
+        search.set_params(search_params);
     }
 
     fn search(

@@ -1,5 +1,5 @@
 use crate::alpha_beta_entry::{AlphaBetaEntry, ScoreType};
-use crate::aspiration_window::AspirationWindow;
+use crate::aspiration_window::{AspirationWindow, GROW_RATE, INITIAL_WIDTH};
 use crate::counter_table::CounterTable;
 use crate::history_table::HistoryTable;
 use crate::move_selector::MoveSelector;
@@ -8,11 +8,12 @@ use crate::search::{
     PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW, REPETITIONS_TO_DRAW,
 };
 use crate::search_data::SearchData;
+use crate::search_params::SearchParamsEachAlgo;
 use crate::time_manager::TimeManager;
 use crate::SearchOptions;
 use crossbeam_channel::{Receiver, Sender};
 use eval::score::is_valid;
-use eval::{Eval, Score, BLACK_WIN, EQ_POSITION, NEG_INF, WHITE_WIN};
+use eval::{Eval, Score, BLACK_WIN, EQ_POSITION, NEG_INF, POS_INF, WHITE_WIN};
 use movegen::move_generator::MoveGenerator;
 use movegen::piece;
 use movegen::position_history::PositionHistory;
@@ -35,14 +36,14 @@ const MIN_NULL_MOVE_PRUNE_DEPTH: usize = 3;
 const MIN_LATE_MOVE_REDUCTION_DEPTH: usize = 3;
 
 // Enable futility pruning if the evaluation plus this value is less than alpha.
-const FUTILITY_MARGIN_BASE: Score = 0;
-const FUTILITY_MARGIN_PER_DEPTH: Score = 120;
-const FUTILITY_PRUNING_MAX_DEPTH: usize = 2;
+pub const FUTILITY_MARGIN_BASE: Score = 12;
+pub const FUTILITY_MARGIN_PER_DEPTH: Score = 235;
+pub const FUTILITY_PRUNING_MAX_DEPTH: usize = 5;
 
 // Enable reverse futility pruning if the evaluation plus this value is greater than or equal to beta.
-const REVERSE_FUTILITY_MARGIN_BASE: Score = 0;
-const REVERSE_FUTILITY_MARGIN_PER_DEPTH: Score = 120;
-const REVERSE_FUTILITY_PRUNING_MAX_DEPTH: usize = 2;
+pub const REVERSE_FUTILITY_MARGIN_BASE: Score = 115;
+pub const REVERSE_FUTILITY_MARGIN_PER_DEPTH: Score = 51;
+pub const REVERSE_FUTILITY_PRUNING_MAX_DEPTH: usize = 6;
 
 // Prune a move if the static evaluation plus the move's potential improvement
 // plus this value is less than alpha.
@@ -51,12 +52,24 @@ const DELTA_PRUNING_MARGIN_MOVE: Score = 200;
 // Prune all moves if the static evaluation plus this value is less than alpha.
 const DELTA_PRUNING_MARGIN_ALL_MOVES: Score = 1800;
 
+struct SearchParams {
+    futility_margin_base: Score,
+    futility_margin_per_depth: Score,
+    futility_pruning_max_depth: usize,
+    reverse_futility_margin_base: Score,
+    reverse_futility_margin_per_depth: Score,
+    reverse_futility_pruning_max_depth: usize,
+    aspiration_window_initial_width: i32,
+    aspiration_window_grow_rate: i32,
+}
+
 // Alpha-beta search with fail-hard cutoffs
 pub struct AlphaBeta {
     evaluator: Box<dyn Eval + Send>,
     transpos_table: AlphaBetaTable,
     counter_table: CounterTable,
     history_table: HistoryTable,
+    search_params: SearchParams,
 }
 
 impl Search for AlphaBeta {
@@ -72,6 +85,35 @@ impl Search for AlphaBeta {
         self.transpos_table.clear();
         self.history_table.clear();
         self.counter_table.clear();
+    }
+
+    fn set_params(&mut self, params: SearchParamsEachAlgo) {
+        if let SearchParamsEachAlgo::AlphaBeta(abp) = params {
+            if let Some(fmb) = abp.futility_margin_base {
+                self.search_params.futility_margin_base = fmb;
+            }
+            if let Some(fmpd) = abp.futility_margin_per_depth {
+                self.search_params.futility_margin_per_depth = fmpd;
+            }
+            if let Some(fpmd) = abp.futility_pruning_max_depth {
+                self.search_params.futility_pruning_max_depth = fpmd;
+            }
+            if let Some(rfmb) = abp.reverse_futility_margin_base {
+                self.search_params.reverse_futility_margin_base = rfmb;
+            }
+            if let Some(rfmpd) = abp.reverse_futility_margin_per_depth {
+                self.search_params.reverse_futility_margin_per_depth = rfmpd;
+            }
+            if let Some(rfpmd) = abp.reverse_futility_pruning_max_depth {
+                self.search_params.reverse_futility_pruning_max_depth = rfpmd;
+            }
+            if let Some(awiw) = abp.aspiration_window_initial_width {
+                self.search_params.aspiration_window_initial_width = awiw;
+            }
+            if let Some(awgr) = abp.aspiration_window_grow_rate {
+                self.search_params.aspiration_window_grow_rate = awgr;
+            }
+        }
     }
 
     fn search(
@@ -134,17 +176,23 @@ impl Search for AlphaBeta {
                     Some(rel_alpha_beta_res) => {
                         if rel_alpha_beta_res.score() <= aw.alpha() {
                             // Fail low
+                            debug_assert!(aw.alpha() > NEG_INF);
                             search_data.reset_current_search_depth();
                             aw.widen_down();
                             continue;
                         }
                         if rel_alpha_beta_res.score() >= aw.beta() {
+                            debug_assert!(aw.beta() < POS_INF);
                             // Fail high
                             search_data.reset_current_search_depth();
                             aw.widen_up();
                             continue;
                         }
-                        aw = AspirationWindow::new(rel_alpha_beta_res.score());
+                        aw = AspirationWindow::new(
+                            rel_alpha_beta_res.score(),
+                            self.search_params.aspiration_window_initial_width,
+                            self.search_params.aspiration_window_grow_rate,
+                        );
                         let abs_alpha_beta_res = match search_data.current_pos().side_to_move() {
                             Side::White => rel_alpha_beta_res,
                             Side::Black => -rel_alpha_beta_res,
@@ -199,6 +247,16 @@ impl AlphaBeta {
             transpos_table: AlphaBetaTable::new(table_size),
             counter_table: CounterTable::new(),
             history_table: HistoryTable::new(),
+            search_params: SearchParams {
+                futility_margin_base: FUTILITY_MARGIN_BASE,
+                futility_margin_per_depth: FUTILITY_MARGIN_PER_DEPTH,
+                futility_pruning_max_depth: FUTILITY_PRUNING_MAX_DEPTH,
+                reverse_futility_margin_base: REVERSE_FUTILITY_MARGIN_BASE,
+                reverse_futility_margin_per_depth: REVERSE_FUTILITY_MARGIN_PER_DEPTH,
+                reverse_futility_pruning_max_depth: REVERSE_FUTILITY_PRUNING_MAX_DEPTH,
+                aspiration_window_initial_width: INITIAL_WIDTH,
+                aspiration_window_grow_rate: GROW_RATE,
+            },
         }
     }
 
@@ -286,6 +344,7 @@ impl AlphaBeta {
                 && search_data.ply() != 0
                 && search_data.prev_pv_depth() == 0
                 && is_quiet
+                && best_score > NEG_INF
                 && !search_data.pos_history_mut().gives_check(m)
             {
                 debug_assert_ne!(search_data.ply(), 0);
@@ -456,11 +515,15 @@ impl AlphaBeta {
 
     fn prune_futility(&mut self, search_data: &mut SearchData<'_>, alpha: Score) -> bool {
         let depth = search_data.remaining_depth();
-        if depth <= FUTILITY_PRUNING_MAX_DEPTH
+        if depth <= self.search_params.futility_pruning_max_depth
             && !search_data.is_in_check(search_data.current_pos().side_to_move())
         {
             let score = search_data.eval_relative(&mut self.evaluator);
-            if score + FUTILITY_MARGIN_BASE + depth as Score * FUTILITY_MARGIN_PER_DEPTH < alpha {
+            if score
+                + self.search_params.futility_margin_base
+                + (depth - 1) as Score * self.search_params.futility_margin_per_depth
+                < alpha
+            {
                 return true;
             }
         }
@@ -476,15 +539,15 @@ impl AlphaBeta {
         let depth = search_data.remaining_depth();
         let is_pv_node = alpha != beta - 1;
         if !is_pv_node
-            && depth <= REVERSE_FUTILITY_PRUNING_MAX_DEPTH
+            && depth <= self.search_params.reverse_futility_pruning_max_depth
             && !search_data.is_in_check(search_data.current_pos().side_to_move())
         {
             debug_assert_ne!(search_data.ply(), 0);
             debug_assert_eq!(search_data.prev_pv_depth(), 0);
             let score = search_data.eval_relative(&mut self.evaluator);
             if score
-                - REVERSE_FUTILITY_MARGIN_BASE
-                - depth as Score * REVERSE_FUTILITY_MARGIN_PER_DEPTH
+                - self.search_params.reverse_futility_margin_base
+                - (depth - 1) as Score * self.search_params.reverse_futility_margin_per_depth
                 >= beta
             {
                 let node = AlphaBetaEntry::new(
