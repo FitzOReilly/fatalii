@@ -61,21 +61,25 @@ Fatalii supports both standard chess and Chess960 (a.k.a. Fischer Random Chess).
   - Aspiration windows
   - Quiescence search
   - Move ordering
-    - Root move ordering based on the previous iteration
+    - Root move ordering based on the previous iteration and on subtree size
     - Principal variation move
     - Hash move from the transposition table (if there are multiple TT entries
       for the position, all of them will be used)
     - Queen promotions
-    - Most valuable victim - least valuable attacker (MVV-LVA)
+    - Winning and equal captures (estimated by static exchange evaluation (SEE))
     - Killer heuristic
     - Countermove heuristic
     - History heuristic
+    - Losing captures (negative SEE)
     - Underpromotions last
   - Pruning
-    - Alpha-Beta pruning
+    - Fail-soft alpha-beta pruning
     - Null move pruning
     - Futility pruning
     - Reverse futility pruning
+    - Late move reductions
+    - Delta pruning in quiescence search
+  - Check extensions
 - Transposition table
   - Zobrist hashing
   - 4 entries per bucket
@@ -107,3 +111,5 @@ Fatalii supports both standard chess and Chess960 (a.k.a. Fischer Random Chess).
   - Good explanation of gradient descent optimization algorithms:
     https://www.ruder.io/optimizing-gradient-descent/
   - The Zurichess datasets: https://bitbucket.org/zurichess/tuner/downloads/
+- Tuning search parameters
+  - https://chess-tuning-tools.readthedocs.io/en/latest/
