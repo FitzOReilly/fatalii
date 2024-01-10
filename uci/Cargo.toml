@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 regex = "1"
-thiserror = "1.0.39"
+thiserror = "1.0.56"
 engine = { path = "../engine" }
 eval = { path = "../eval" }
 movegen = { path = "../movegen" }
