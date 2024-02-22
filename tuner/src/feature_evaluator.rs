@@ -4,7 +4,7 @@ use nalgebra::SVector;
 use crate::position_features::{
     EvalType, PositionFeatures, NUM_FEATURES, PST_SIZE, START_IDX_BACKWARD_PAWN,
     START_IDX_BISHOP_PAIR, START_IDX_DOUBLED_PAWN, START_IDX_ISOLATED_PAWN, START_IDX_MOBILITY,
-    START_IDX_PASSED_PAWN, START_IDX_PST, START_IDX_TEMPO,
+    START_IDX_PASSED_PAWN, START_IDX_PST, START_IDX_ROOK_ON_OPEN_FILE, START_IDX_TEMPO,
 };
 
 type Weight = f64;
@@ -80,6 +80,11 @@ pub fn initialize_weights() -> WeightVector {
 
     weights[START_IDX_BISHOP_PAIR] = params::BISHOP_PAIR.0.into();
     weights[START_IDX_BISHOP_PAIR + 1] = params::BISHOP_PAIR.1.into();
+
+    weights[START_IDX_ROOK_ON_OPEN_FILE] = params::ROOK_ON_OPEN_FILE.0.into();
+    weights[START_IDX_ROOK_ON_OPEN_FILE + 1] = params::ROOK_ON_OPEN_FILE.1.into();
+    weights[START_IDX_ROOK_ON_OPEN_FILE + 2] = params::ROOK_ON_SEMI_OPEN_FILE.0.into();
+    weights[START_IDX_ROOK_ON_OPEN_FILE + 3] = params::ROOK_ON_SEMI_OPEN_FILE.1.into();
 
     weights
 }

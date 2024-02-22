@@ -36,8 +36,15 @@ impl Eval for Complex {
         let pawn_scores = self.pawn_structure.scores();
         let mobility_scores = self.mobility.scores(pos);
         let bishop_pair_scores = Self::bishop_pair_factor(pos) * params::BISHOP_PAIR;
-        let scores =
-            self.pst_scores + tempo_scores + pawn_scores + mobility_scores + bishop_pair_scores;
+        let (open_file_factor, semi_open_file_factor) = Self::rook_on_open_file_factor(pos);
+        let rook_on_open_file_scores = open_file_factor * params::ROOK_ON_OPEN_FILE
+            + semi_open_file_factor * params::ROOK_ON_SEMI_OPEN_FILE;
+        let scores = self.pst_scores
+            + tempo_scores
+            + pawn_scores
+            + mobility_scores
+            + bishop_pair_scores
+            + rook_on_open_file_scores;
         let game_phase = self.game_phase.game_phase_clamped();
         let tapered_score = ((game_phase as i64 * scores.0 as i64
             + (GamePhase::MAX - game_phase) as i64 * scores.1 as i64)
@@ -158,11 +165,47 @@ impl Complex {
     pub fn bishop_pair_factor(pos: &Position) -> Score {
         pos.has_bishop_pair(Side::White) as Score - pos.has_bishop_pair(Side::Black) as Score
     }
+
+    pub fn rook_on_open_file_factor(pos: &Position) -> (Score, Score) {
+        let mut open_file_factor = 0;
+        let mut semi_open_file_factor = 0;
+
+        let white_pawns = pos.piece_occupancy(Side::White, piece::Type::Pawn);
+        let black_pawns = pos.piece_occupancy(Side::Black, piece::Type::Pawn);
+
+        let mut white_rooks = pos.piece_occupancy(Side::White, piece::Type::Rook);
+        while white_rooks != Bitboard::EMPTY {
+            let white_rook = white_rooks.square_scan_forward_reset();
+            let white_rook_file = Bitboard::from_square(white_rook).file_fill();
+            if white_rook_file & white_pawns == Bitboard::EMPTY {
+                if white_rook_file & black_pawns == Bitboard::EMPTY {
+                    open_file_factor += 1;
+                } else {
+                    semi_open_file_factor += 1;
+                }
+            }
+        }
+
+        let mut black_rooks = pos.piece_occupancy(Side::Black, piece::Type::Rook);
+        while black_rooks != Bitboard::EMPTY {
+            let black_rook = black_rooks.square_scan_forward_reset();
+            let black_rook_file = Bitboard::from_square(black_rook).file_fill();
+            if black_rook_file & black_pawns == Bitboard::EMPTY {
+                if black_rook_file & white_pawns == Bitboard::EMPTY {
+                    open_file_factor -= 1;
+                } else {
+                    semi_open_file_factor -= 1;
+                }
+            }
+        }
+
+        (open_file_factor, semi_open_file_factor)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use movegen::fen::Fen;
+    use movegen::{fen::Fen, piece, position::Position, square::Square};
 
     use crate::{Eval, EQ_POSITION};
 
@@ -209,5 +252,36 @@ mod tests {
                 "\nPosition: {non_draw}\n{pos}"
             );
         }
+    }
+
+    #[test]
+    fn rook_on_open_file_factor() {
+        let pos = Position::initial();
+        assert_eq!((0, 0), Complex::rook_on_open_file_factor(&pos));
+
+        let mut pos = Position::empty();
+        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
+        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
+        assert_eq!((0, 0), Complex::rook_on_open_file_factor(&pos));
+
+        pos.set_piece_at(Square::A1, Some(piece::Piece::WHITE_ROOK));
+        assert_eq!((1, 0), Complex::rook_on_open_file_factor(&pos));
+        pos.set_piece_at(Square::H1, Some(piece::Piece::WHITE_ROOK));
+        assert_eq!((2, 0), Complex::rook_on_open_file_factor(&pos));
+
+        pos.set_piece_at(Square::A8, Some(piece::Piece::BLACK_ROOK));
+        assert_eq!((1, 0), Complex::rook_on_open_file_factor(&pos));
+        pos.set_piece_at(Square::H8, Some(piece::Piece::BLACK_ROOK));
+        assert_eq!((0, 0), Complex::rook_on_open_file_factor(&pos));
+
+        pos.set_piece_at(Square::A2, Some(piece::Piece::WHITE_PAWN));
+        assert_eq!((0, -1), Complex::rook_on_open_file_factor(&pos));
+        pos.set_piece_at(Square::H2, Some(piece::Piece::WHITE_PAWN));
+        assert_eq!((0, -2), Complex::rook_on_open_file_factor(&pos));
+
+        pos.set_piece_at(Square::A7, Some(piece::Piece::BLACK_PAWN));
+        assert_eq!((0, -1), Complex::rook_on_open_file_factor(&pos));
+        pos.set_piece_at(Square::H7, Some(piece::Piece::BLACK_PAWN));
+        assert_eq!((0, 0), Complex::rook_on_open_file_factor(&pos));
     }
 }
