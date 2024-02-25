@@ -22,7 +22,7 @@ pub fn read_training_data(
     let mut training_data = Vec::new();
 
     if let Ok(lines) = read_lines(filename) {
-        for line in lines.flatten() {
+        for line in lines.map_while(Result::ok) {
             let mut s = line.split(" c9 ");
             let short_fen = s.next().unwrap();
             let pos = Fen::shortened_str_to_pos(short_fen).unwrap();
