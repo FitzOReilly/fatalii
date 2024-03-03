@@ -50,16 +50,20 @@ struct StaticExchangeEval<'a> {
     target_values: Vec<Score>,
     target_piece_value: Score,
     value_from_start: Score,
-    side_occupancies: [Bitboard; 2],
+    occupancy: Bitboard,
     side_to_move: Side,
     stages: [Stage; 2],
-    pawn_attackers: [Option<Bitboard>; 2],
-    knight_attackers: [Option<Bitboard>; 2],
+    pawn_attackers: [Bitboard; 2],
+    knight_attackers: [Bitboard; 2],
+    bishops: [Bitboard; 2],
+    rooks: [Bitboard; 2],
+    queens: [Bitboard; 2],
+    king_attacker: [Bitboard; 2],
 }
 
 impl<'a> StaticExchangeEval<'a> {
     fn new(pos: &'a Position, target: Square, value_already_exchanged: Score) -> Self {
-        StaticExchangeEval {
+        let mut see = StaticExchangeEval {
             pos,
             target,
             target_values: Vec::new(),
@@ -69,15 +73,21 @@ impl<'a> StaticExchangeEval<'a> {
                     .piece_type(),
             ),
             value_from_start: value_already_exchanged,
-            side_occupancies: [
-                pos.side_occupancy(Side::White),
-                pos.side_occupancy(Side::Black),
-            ],
+            occupancy: pos.occupancy(),
             side_to_move: pos.side_to_move(),
             stages: [Stage::Pawns, Stage::Pawns],
-            pawn_attackers: [None; 2],
-            knight_attackers: [None; 2],
-        }
+            pawn_attackers: [Bitboard::EMPTY; 2],
+            knight_attackers: [Bitboard::EMPTY; 2],
+            bishops: [Bitboard::EMPTY; 2],
+            rooks: [Bitboard::EMPTY; 2],
+            queens: [Bitboard::EMPTY; 2],
+            king_attacker: [Bitboard::EMPTY; 2],
+        };
+        see.init_pawn_attackers();
+        see.init_knight_attackers();
+        see.init_sliders();
+        see.init_king_attacker();
+        see
     }
 
     fn stage(&self) -> Stage {
@@ -88,73 +98,70 @@ impl<'a> StaticExchangeEval<'a> {
         self.stages[self.side_to_move as usize].next();
     }
 
-    fn init_pawn_attackers(&mut self, side: Side) {
-        if self.pawn_attackers[side as usize].is_none() {
-            match side {
-                Side::White => {
-                    self.pawn_attackers[Side::White as usize] = Some(
-                        Pawn::attack_origins(
-                            Bitboard::from_square(self.target) & !Bitboard::RANK_1,
-                            Side::White,
-                        ) & self.pos.piece_occupancy(Side::White, piece::Type::Pawn),
-                    );
-                }
-                Side::Black => {
-                    self.pawn_attackers[Side::Black as usize] = Some(
-                        Pawn::attack_origins(
-                            Bitboard::from_square(self.target) & !Bitboard::RANK_8,
-                            Side::Black,
-                        ) & self.pos.piece_occupancy(Side::Black, piece::Type::Pawn),
-                    );
-                }
-            }
-        }
+    fn init_pawn_attackers(&mut self) {
+        self.pawn_attackers = [
+            Pawn::attack_origins(
+                Bitboard::from_square(self.target) & !Bitboard::RANK_1,
+                Side::White,
+            ) & self.pos.piece_occupancy(Side::White, piece::Type::Pawn),
+            Pawn::attack_origins(
+                Bitboard::from_square(self.target) & !Bitboard::RANK_8,
+                Side::Black,
+            ) & self.pos.piece_occupancy(Side::Black, piece::Type::Pawn),
+        ];
     }
 
     fn pawn_attackers(&mut self, side: Side) -> Bitboard {
-        self.init_pawn_attackers(side);
-        self.pawn_attackers[side as usize].unwrap()
+        self.pawn_attackers[side as usize]
     }
 
     fn next_pawn_attacker_origin(&mut self) -> Option<Square> {
-        self.init_pawn_attackers(self.side_to_move);
         match self.pawn_attackers[self.side_to_move as usize] {
-            Some(Bitboard::EMPTY) => None,
-            Some(ref mut pa) => pa.square_scan_forward_reset().into(),
-            None => None,
+            Bitboard::EMPTY => None,
+            ref mut pa => pa.square_scan_forward_reset().into(),
         }
     }
 
-    fn init_knight_attackers(&mut self, side: Side) {
-        if self.knight_attackers[side as usize].is_none() {
-            let knight_targets = Knight::targets(self.target);
-            match side {
-                Side::White => {
-                    self.knight_attackers[side as usize] = Some(
-                        knight_targets & self.pos.piece_occupancy(Side::White, piece::Type::Knight),
-                    );
-                }
-                Side::Black => {
-                    self.knight_attackers[side as usize] = Some(
-                        knight_targets & self.pos.piece_occupancy(Side::Black, piece::Type::Knight),
-                    );
-                }
-            }
-        }
+    fn init_knight_attackers(&mut self) {
+        let knight_targets = Knight::targets(self.target);
+        self.knight_attackers = [
+            knight_targets & self.pos.piece_occupancy(Side::White, piece::Type::Knight),
+            knight_targets & self.pos.piece_occupancy(Side::Black, piece::Type::Knight),
+        ];
     }
 
     fn knight_attackers(&mut self, side: Side) -> Bitboard {
-        self.init_knight_attackers(side);
-        self.knight_attackers[side as usize].unwrap()
+        self.knight_attackers[side as usize]
     }
 
     fn next_knight_attacker_origin(&mut self) -> Option<Square> {
-        self.init_knight_attackers(self.side_to_move);
         match self.knight_attackers[self.side_to_move as usize] {
-            Some(Bitboard::EMPTY) => None,
-            Some(ref mut pa) => pa.square_scan_forward_reset().into(),
-            None => None,
+            Bitboard::EMPTY => None,
+            ref mut pa => pa.square_scan_forward_reset().into(),
         }
+    }
+
+    fn init_sliders(&mut self) {
+        self.bishops = [
+            self.pos.piece_occupancy(Side::White, piece::Type::Bishop),
+            self.pos.piece_occupancy(Side::Black, piece::Type::Bishop),
+        ];
+        self.rooks = [
+            self.pos.piece_occupancy(Side::White, piece::Type::Rook),
+            self.pos.piece_occupancy(Side::Black, piece::Type::Rook),
+        ];
+        self.queens = [
+            self.pos.piece_occupancy(Side::White, piece::Type::Queen),
+            self.pos.piece_occupancy(Side::Black, piece::Type::Queen),
+        ];
+    }
+
+    fn init_king_attacker(&mut self) {
+        let king_targets = King::targets(self.target);
+        self.king_attacker = [
+            king_targets & self.pos.piece_occupancy(Side::White, piece::Type::King),
+            king_targets & self.pos.piece_occupancy(Side::Black, piece::Type::King),
+        ];
     }
 
     fn static_exchange_eval(
@@ -163,26 +170,6 @@ impl<'a> StaticExchangeEval<'a> {
         value_already_exchanged: Score,
     ) -> Score {
         let mut see = StaticExchangeEval::new(pos, target, value_already_exchanged);
-
-        let mut bishops = [
-            pos.piece_occupancy(Side::White, piece::Type::Bishop),
-            pos.piece_occupancy(Side::Black, piece::Type::Bishop),
-        ];
-        let mut rooks = [
-            pos.piece_occupancy(Side::White, piece::Type::Rook),
-            pos.piece_occupancy(Side::Black, piece::Type::Rook),
-        ];
-        let mut queens = [
-            pos.piece_occupancy(Side::White, piece::Type::Queen),
-            pos.piece_occupancy(Side::Black, piece::Type::Queen),
-        ];
-        let mut king_attacker = {
-            let king_targets = King::targets(target);
-            [
-                king_targets & pos.piece_occupancy(Side::White, piece::Type::Knight),
-                king_targets & pos.piece_occupancy(Side::Black, piece::Type::Knight),
-            ]
-        };
 
         loop {
             match see.stage() {
@@ -208,14 +195,13 @@ impl<'a> StaticExchangeEval<'a> {
                 },
                 Stage::Sliders => {
                     // Bishops
-                    let potential_diagonal_attackers =
-                        Bishop::targets(target, see.side_occupancies[see.side_to_move as usize]);
+                    let potential_diagonal_attackers = Bishop::targets(target, see.occupancy);
                     let bishop_attackers =
-                        potential_diagonal_attackers & bishops[see.side_to_move as usize];
+                        potential_diagonal_attackers & see.bishops[see.side_to_move as usize];
                     if bishop_attackers != Bitboard::EMPTY {
                         let next_attacker_origin = bishop_attackers.square_scan_forward();
                         // TODO probably not necessary
-                        bishops[see.side_to_move as usize] &=
+                        see.bishops[see.side_to_move as usize] &=
                             !Bitboard::from_square(next_attacker_origin);
                         let next_attacker_value = piece_type_value(piece::Type::Bishop);
                         see.update_target(next_attacker_origin, next_attacker_value);
@@ -226,14 +212,13 @@ impl<'a> StaticExchangeEval<'a> {
                     }
 
                     // Rooks
-                    let potential_line_attackers =
-                        Rook::targets(target, see.side_occupancies[see.side_to_move as usize]);
+                    let potential_line_attackers = Rook::targets(target, see.occupancy);
                     let rook_attackers =
-                        potential_line_attackers & rooks[see.side_to_move as usize];
+                        potential_line_attackers & see.rooks[see.side_to_move as usize];
                     if rook_attackers != Bitboard::EMPTY {
                         let next_attacker_origin = rook_attackers.square_scan_forward();
                         // TODO probably not necessary
-                        rooks[see.side_to_move as usize] &=
+                        see.rooks[see.side_to_move as usize] &=
                             !Bitboard::from_square(next_attacker_origin);
                         let next_attacker_value = piece_type_value(piece::Type::Rook);
                         see.update_target(next_attacker_origin, next_attacker_value);
@@ -245,11 +230,11 @@ impl<'a> StaticExchangeEval<'a> {
 
                     // Queens (diagonal)
                     let queen_attackers =
-                        potential_diagonal_attackers & queens[see.side_to_move as usize];
+                        potential_diagonal_attackers & see.queens[see.side_to_move as usize];
                     if queen_attackers != Bitboard::EMPTY {
                         let next_attacker_origin = queen_attackers.square_scan_forward();
                         // TODO probably not necessary
-                        queens[see.side_to_move as usize] &=
+                        see.queens[see.side_to_move as usize] &=
                             !Bitboard::from_square(next_attacker_origin);
                         let next_attacker_value = piece_type_value(piece::Type::Queen);
                         see.update_target(next_attacker_origin, next_attacker_value);
@@ -261,11 +246,11 @@ impl<'a> StaticExchangeEval<'a> {
 
                     // Queens (lines)
                     let queen_attackers =
-                        potential_line_attackers & queens[see.side_to_move as usize];
+                        potential_line_attackers & see.queens[see.side_to_move as usize];
                     if queen_attackers != Bitboard::EMPTY {
                         let next_attacker_origin = queen_attackers.square_scan_forward();
                         // TODO probably not necessary
-                        queens[see.side_to_move as usize] &=
+                        see.queens[see.side_to_move as usize] &=
                             !Bitboard::from_square(next_attacker_origin);
                         let next_attacker_value = piece_type_value(piece::Type::Queen);
                         see.update_target(next_attacker_origin, next_attacker_value);
@@ -278,21 +263,21 @@ impl<'a> StaticExchangeEval<'a> {
                     see.next_stage();
                 }
                 Stage::King => {
-                    if king_attacker[see.side_to_move as usize] != Bitboard::EMPTY
+                    if see.king_attacker[see.side_to_move as usize] != Bitboard::EMPTY
                         && see.pawn_attackers(!see.side_to_move) == Bitboard::EMPTY
                         && see.knight_attackers(!see.side_to_move) == Bitboard::EMPTY
-                        && king_attacker[!see.side_to_move as usize] == Bitboard::EMPTY
-                        && Bishop::targets(target, see.side_occupancies[!see.side_to_move as usize])
-                            & (bishops[!see.side_to_move as usize]
-                                | queens[!see.side_to_move as usize])
+                        && see.king_attacker[!see.side_to_move as usize] == Bitboard::EMPTY
+                        && Bishop::targets(target, see.occupancy)
+                            & (see.bishops[!see.side_to_move as usize]
+                                | see.queens[!see.side_to_move as usize])
                             == Bitboard::EMPTY
-                        && Rook::targets(target, see.side_occupancies[!see.side_to_move as usize])
-                            & (rooks[!see.side_to_move as usize]
-                                | queens[!see.side_to_move as usize])
+                        && Rook::targets(target, see.occupancy)
+                            & (see.rooks[!see.side_to_move as usize]
+                                | see.queens[!see.side_to_move as usize])
                             == Bitboard::EMPTY
                     {
-                        let next_attacker_origin =
-                            king_attacker[see.side_to_move as usize].square_scan_forward_reset();
+                        let next_attacker_origin = see.king_attacker[see.side_to_move as usize]
+                            .square_scan_forward_reset();
                         let next_attacker_value = piece_type_value(piece::Type::King);
                         see.update_target(next_attacker_origin, next_attacker_value);
                     }
@@ -303,8 +288,8 @@ impl<'a> StaticExchangeEval<'a> {
 
         // todo!(
         //     "
-        // - Abort early
-        // - Promotions?
+        // x Abort early
+        // ? Promotions
         // - Legality check
         // "
         // );
@@ -316,23 +301,13 @@ impl<'a> StaticExchangeEval<'a> {
         value_to_end
     }
 
-    fn update_target(
-        &mut self,
-        // target_values: &mut Vec<Score>,
-        // target_piece_value: &mut Score,
-        // value_from_start: &mut Score,
-        // side_occupancies: &mut [Bitboard; 2],
-        // side_to_move: &mut Side,
-        next_attacker_origin: Square,
-        next_attacker_value: Score,
-    ) {
+    fn update_target(&mut self, next_attacker_origin: Square, next_attacker_value: Score) {
         let victim_value = self.target_piece_value;
         self.target_values.push(victim_value);
         self.value_from_start = victim_value - self.value_from_start;
-        // Remove attacker from its origin square and store its type for
-        // the target square
-        self.side_occupancies[self.side_to_move as usize] &=
-            !Bitboard::from_square(next_attacker_origin);
+        // Remove attacker from its origin square and store its value for the
+        // target square
+        self.occupancy &= !Bitboard::from_square(next_attacker_origin);
         self.target_piece_value = next_attacker_value;
         self.side_to_move = !self.side_to_move;
     }
