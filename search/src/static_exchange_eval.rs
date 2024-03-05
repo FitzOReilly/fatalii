@@ -200,10 +200,9 @@ impl<'a> StaticExchangeEval<'a> {
                         potential_diagonal_attackers & see.bishops[see.side_to_move as usize];
                     if bishop_attackers != Bitboard::EMPTY {
                         let next_attacker_origin = bishop_attackers.square_scan_forward();
-                        // TODO probably not necessary
+                        let next_attacker_value = piece_type_value(piece::Type::Bishop);
                         see.bishops[see.side_to_move as usize] &=
                             !Bitboard::from_square(next_attacker_origin);
-                        let next_attacker_value = piece_type_value(piece::Type::Bishop);
                         see.update_target(next_attacker_origin, next_attacker_value);
                         if see.value_from_start > next_attacker_value {
                             break;
@@ -217,10 +216,9 @@ impl<'a> StaticExchangeEval<'a> {
                         potential_line_attackers & see.rooks[see.side_to_move as usize];
                     if rook_attackers != Bitboard::EMPTY {
                         let next_attacker_origin = rook_attackers.square_scan_forward();
-                        // TODO probably not necessary
+                        let next_attacker_value = piece_type_value(piece::Type::Rook);
                         see.rooks[see.side_to_move as usize] &=
                             !Bitboard::from_square(next_attacker_origin);
-                        let next_attacker_value = piece_type_value(piece::Type::Rook);
                         see.update_target(next_attacker_origin, next_attacker_value);
                         if see.value_from_start > next_attacker_value {
                             break;
@@ -233,10 +231,9 @@ impl<'a> StaticExchangeEval<'a> {
                         potential_diagonal_attackers & see.queens[see.side_to_move as usize];
                     if queen_attackers != Bitboard::EMPTY {
                         let next_attacker_origin = queen_attackers.square_scan_forward();
-                        // TODO probably not necessary
+                        let next_attacker_value = piece_type_value(piece::Type::Queen);
                         see.queens[see.side_to_move as usize] &=
                             !Bitboard::from_square(next_attacker_origin);
-                        let next_attacker_value = piece_type_value(piece::Type::Queen);
                         see.update_target(next_attacker_origin, next_attacker_value);
                         if see.value_from_start > next_attacker_value {
                             break;
@@ -249,10 +246,9 @@ impl<'a> StaticExchangeEval<'a> {
                         potential_line_attackers & see.queens[see.side_to_move as usize];
                     if queen_attackers != Bitboard::EMPTY {
                         let next_attacker_origin = queen_attackers.square_scan_forward();
-                        // TODO probably not necessary
+                        let next_attacker_value = piece_type_value(piece::Type::Queen);
                         see.queens[see.side_to_move as usize] &=
                             !Bitboard::from_square(next_attacker_origin);
-                        let next_attacker_value = piece_type_value(piece::Type::Queen);
                         see.update_target(next_attacker_origin, next_attacker_value);
                         if see.value_from_start > next_attacker_value {
                             break;
@@ -285,14 +281,6 @@ impl<'a> StaticExchangeEval<'a> {
                 }
             }
         }
-
-        // todo!(
-        //     "
-        // x Abort early
-        // ? Promotions
-        // - Legality check
-        // "
-        // );
 
         let mut value_to_end = 0;
         while let Some(target_value) = see.target_values.pop() {
