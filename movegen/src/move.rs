@@ -1,3 +1,5 @@
+use smallvec::{SmallVec, ToSmallVec};
+
 use crate::piece;
 use crate::square::Square;
 use std::fmt;
@@ -151,15 +153,15 @@ impl fmt::Display for Move {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MoveList(Vec<Move>);
+pub struct MoveList(SmallVec<[Move; 32]>);
 
 impl MoveList {
     pub fn new() -> MoveList {
-        MoveList(Vec::new())
+        MoveList(SmallVec::new())
     }
 
     pub fn with_capacity(capacity: usize) -> MoveList {
-        MoveList(Vec::with_capacity(capacity))
+        MoveList(SmallVec::with_capacity(capacity))
     }
 
     pub fn truncate_at_null_move(&mut self) {
@@ -176,7 +178,7 @@ impl Default for MoveList {
 }
 
 impl Deref for MoveList {
-    type Target = Vec<Move>;
+    type Target = SmallVec<[Move; 32]>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -191,7 +193,7 @@ impl DerefMut for MoveList {
 
 impl From<Vec<Move>> for MoveList {
     fn from(moves: Vec<Move>) -> Self {
-        Self(moves)
+        Self(moves.to_smallvec())
     }
 }
 
