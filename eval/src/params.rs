@@ -4,6 +4,14 @@ use crate::{score_pair::ScorePair, Score};
 
 pub type PieceSquareTable = [ScorePair; 64];
 
+pub const KNIGHT_MOB_LEN: usize = 9;
+pub const BISHOP_MOB_LEN: usize = 14;
+pub const ROOK_MOB_LEN: usize = 15;
+pub const QUEEN_MOB_LEN: usize = 28;
+pub const MOB_LEN: usize = KNIGHT_MOB_LEN + BISHOP_MOB_LEN + ROOK_MOB_LEN + QUEEN_MOB_LEN;
+
+pub const DISTANCE_LEN: usize = 8;
+
 // (middlegame, endgame)
 const MATERIAL_KING: ScorePair = ScorePair(0, 0);
 const MATERIAL_QUEEN: ScorePair = ScorePair(0, 0);
@@ -13,49 +21,80 @@ const MATERIAL_KNIGHT: ScorePair = ScorePair(0, 0);
 const MATERIAL_PAWN: ScorePair = ScorePair(0, 0);
 
 // The side to move gets a small bonus
-pub const TEMPO: ScorePair = ScorePair(26, 21);
+pub const TEMPO: ScorePair = ScorePair(42, 25);
 
-pub const PASSED_PAWN: ScorePair = ScorePair(-10, 30);
-pub const ISOLATED_PAWN: ScorePair = ScorePair(-14, -6);
-pub const BACKWARD_PAWN: ScorePair = ScorePair(-10, -2);
-pub const DOUBLED_PAWN: ScorePair = ScorePair(-6, -5);
+pub const PASSED_PAWN: ScorePair = ScorePair(-3, 36);
+pub const ISOLATED_PAWN: ScorePair = ScorePair(-23, -6);
+pub const BACKWARD_PAWN: ScorePair = ScorePair(-19, 1);
+pub const DOUBLED_PAWN: ScorePair = ScorePair(-6, -4);
 
-pub const BISHOP_PAIR: ScorePair = ScorePair(32, 28);
-
-pub const KNIGHT_MOB_LEN: usize = 9;
-pub const BISHOP_MOB_LEN: usize = 14;
-pub const ROOK_MOB_LEN: usize = 15;
-pub const QUEEN_MOB_LEN: usize = 28;
-pub const MOB_LEN: usize = KNIGHT_MOB_LEN + BISHOP_MOB_LEN + ROOK_MOB_LEN + QUEEN_MOB_LEN;
+pub const BISHOP_PAIR: ScorePair = ScorePair(49, 21);
 
 const MOBILITY_KNIGHT_MG_EG: ([Score; KNIGHT_MOB_LEN], [Score; KNIGHT_MOB_LEN]) = (
-    [-16, 26, 35, 41, 49, 50, 52, 48, 50],
-    [0, -37, -42, -40, -38, -39, -36, -34, -40],
+    [-26, 41, 53, 58, 68, 71, 71, 68, 68],
+    [-3, 4, -15, -19, -15, -7, -4, 6, -2],
 );
 const MOBILITY_BISHOP_MG_EG: ([Score; BISHOP_MOB_LEN], [Score; BISHOP_MOB_LEN]) = (
-    [15, 26, 37, 37, 44, 48, 47, 52, 63, 58, 73, 74, 53, 32],
-    [
-        -54, -57, -41, -41, -40, -25, -21, -16, -22, -13, -13, -14, -13, 6,
-    ],
+    [0, 9, 24, 30, 36, 41, 48, 54, 66, 59, 78, 88, 40, 33],
+    [-35, -23, -23, -24, -9, -2, 6, 5, 3, 12, 8, 14, 21, 42],
 );
 const MOBILITY_ROOK_MG_EG: ([Score; ROOK_MOB_LEN], [Score; ROOK_MOB_LEN]) = (
-    [
-        -32, -26, -22, -19, -17, -13, -4, -4, 0, 9, 16, 15, 33, 28, 26,
-    ],
-    [
-        -42, -37, -22, -28, -20, -18, -23, -20, -12, -8, -15, -8, -8, -4, -1,
-    ],
+    [2, 8, 7, 13, 15, 15, 28, 41, 39, 54, 56, 58, 81, 81, 65],
+    [-27, -27, 7, -3, 4, 13, 5, 0, 13, 22, 8, 17, 14, 26, 21],
 );
 const MOBILITY_QUEEN_MG_EG: ([Score; QUEEN_MOB_LEN], [Score; QUEEN_MOB_LEN]) = (
     [
-        -19, -28, -15, -12, -4, 5, 11, 17, 13, 11, 26, 16, 25, 26, 23, 30, 35, 28, 38, 39, 33, 60,
-        51, 67, 37, 38, 12, 10,
+        -29, -8, 9, 3, 14, 19, 25, 30, 23, 38, 38, 36, 41, 45, 42, 52, 46, 49, 66, 54, 52, 70, 55,
+        63, 11, 31, 9, 8,
     ],
     [
-        -5, -4, -13, -4, -50, -10, -37, -32, -9, 14, 19, 34, 23, 30, 41, 47, 47, 63, 75, 70, 57,
-        55, 39, 54, 44, 48, 17, 11,
+        0, 0, 5, 4, -11, -2, -13, -14, 5, 22, 23, 48, 51, 36, 49, 53, 35, 66, 61, 69, 63, 63, 54,
+        57, 14, 45, 15, 14,
     ],
 );
+
+const DISTANCE_FRIENDLY_PAWN_MG_EG: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) =
+    ([0, 61, 41, 21, 11, -8, 8, 25], [0, 3, 11, 7, 6, 18, 12, 9]);
+const DISTANCE_ENEMY_PAWN_MG_EG: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) = (
+    [0, -35, -50, -23, -21, -24, -20, 14],
+    [0, 27, 3, -11, -15, -19, -19, -31],
+);
+const DISTANCE_FRIENDLY_KNIGHT_MG_EG: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) = (
+    [0, 89, 89, 81, 65, 75, 76, -4],
+    [0, -4, -11, -10, -4, -12, -15, 1],
+);
+const DISTANCE_ENEMY_KNIGHT_MG_EG: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) = (
+    [0, -83, -136, -77, -58, -53, -42, -23],
+    [0, 22, 22, 4, 5, -4, 13, -7],
+);
+const DISTANCE_FRIENDLY_BISHOP_MG_EG: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) = (
+    [0, 100, 102, 93, 101, 88, 91, 32],
+    [0, 4, -1, -1, -14, 1, -1, 6],
+);
+const DISTANCE_ENEMY_BISHOP_MG_EG: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) = (
+    [0, -191, -101, -69, -71, -56, -55, -63],
+    [0, 34, 13, -5, 0, -7, -14, -17],
+);
+const DISTANCE_FRIENDLY_ROOK_MG_EG: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) = (
+    [0, 73, 74, 88, 77, 89, 77, 87],
+    [0, 8, 19, 5, 14, 11, 17, 18],
+);
+const DISTANCE_ENEMY_ROOK_MG_EG: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) = (
+    [0, -119, -89, -96, -83, -81, -57, -40],
+    [0, -10, -4, -8, -13, -8, -20, -28],
+);
+const DISTANCE_FRIENDLY_QUEEN_MG_EG: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) = (
+    [0, 142, 142, 138, 128, 123, 111, 107],
+    [0, 90, 112, 134, 129, 121, 142, 84],
+);
+const DISTANCE_ENEMY_QUEEN_MG_EG: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) = (
+    [0, -274, -182, -113, -96, -81, -77, -68],
+    [0, -129, -144, -143, -119, -119, -94, -62],
+);
+const DISTANCE_FRIENDLY_KING_MG_EG: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) =
+    ([0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]);
+const DISTANCE_ENEMY_KING_MG_EG: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) =
+    ([0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]);
 
 // Piece square tables:
 // We only define values for the queenside (left side) and mirror them to the
@@ -64,138 +103,138 @@ const MOBILITY_QUEEN_MG_EG: ([Score; QUEEN_MOB_LEN], [Score; QUEEN_MOB_LEN]) = (
 const PST_PAWN_MG_EG: ([Score; 32], [Score; 32]) = (
     [
            0,    0,    0,    0,
-         115,  147,  137,  175,
-          77,   95,  128,  107,
-          90,  101,   99,  124,
-          68,   83,  100,  118,
-          84,   96,  104,  112,
-          79,  104,  103,  106,
+         150,  124,  156,  176,
+          78,  108,  169,  142,
+          95,  106,  107,  129,
+          64,   80,  101,  113,
+          76,   91,   91,   93,
+          62,  101,   78,   68,
            0,    0,    0,    0,
     ],
     [
            0,    0,    0,    0,
-         266,  249,  244,  191,
-         165,  149,  121,  125,
-          91,   79,   77,   60,
-          75,   69,   58,   54,
-          70,   62,   58,   57,
-          71,   63,   65,   65,
+         268,  283,  264,  216,
+         169,  140,  123,  135,
+          78,   67,   70,   48,
+          64,   57,   48,   37,
+          51,   47,   45,   47,
+          58,   45,   52,   55,
            0,    0,    0,    0,
     ],
 );
 #[rustfmt::skip]
 const PST_KNIGHT_MG_EG: ([Score; 32], [Score; 32]) = (
     [
-         197,  285,  238,  264,
-         282,  277,  369,  351,
-         293,  323,  364,  378,
-         319,  317,  335,  340,
-         299,  322,  336,  334,
-         299,  323,  328,  340,
-         304,  299,  307,  333,
-         278,  307,  300,  289,
+         236,  297,  274,  300,
+         256,  284,  383,  344,
+         279,  319,  348,  355,
+         335,  316,  347,  344,
+         284,  312,  346,  327,
+         296,  307,  331,  343,
+         318,  308,  322,  335,
+         295,  315,  322,  296,
     ],
     [
-         210,  281,  305,  294,
-         278,  298,  277,  288,
-         277,  293,  318,  300,
-         293,  313,  326,  319,
-         298,  289,  309,  310,
-         281,  285,  284,  301,
-         265,  281,  289,  289,
-         278,  268,  295,  303,
+         246,  284,  273,  301,
+         288,  297,  274,  292,
+         299,  297,  333,  315,
+         299,  325,  320,  315,
+         321,  295,  309,  319,
+         296,  312,  293,  301,
+         275,  290,  308,  301,
+         288,  274,  298,  307,
     ],
 );
 #[rustfmt::skip]
 const PST_BISHOP_MG_EG: ([Score; 32], [Score; 32]) = (
     [
-         276,  300,  271,  246,
-         320,  313,  303,  306,
-         345,  336,  337,  351,
-         309,  313,  303,  346,
-         320,  312,  314,  343,
-         334,  340,  346,  331,
-         330,  352,  332,  335,
-         328,  318,  323,  329,
+         333,  307,  277,  269,
+         278,  306,  304,  275,
+         324,  312,  358,  352,
+         304,  311,  279,  334,
+         301,  312,  312,  354,
+         337,  344,  355,  329,
+         329,  372,  331,  337,
+         326,  307,  315,  321,
     ],
     [
-         297,  302,  256,  276,
-         270,  294,  289,  287,
-         280,  281,  292,  288,
-         279,  299,  300,  310,
-         278,  297,  297,  302,
-         281,  284,  286,  292,
-         282,  287,  288,  291,
-         275,  305,  290,  301,
+         302,  300,  269,  293,
+         289,  308,  306,  297,
+         294,  317,  300,  304,
+         304,  312,  323,  328,
+         300,  303,  315,  302,
+         287,  299,  294,  308,
+         284,  274,  283,  287,
+         298,  315,  290,  308,
     ],
 );
 #[rustfmt::skip]
 const PST_ROOK_MG_EG: ([Score; 32], [Score; 32]) = (
     [
-         485,  489,  523,  513,
-         495,  483,  512,  527,
-         519,  528,  506,  523,
-         477,  506,  486,  504,
-         476,  487,  465,  492,
-         472,  504,  500,  496,
-         456,  506,  498,  510,
-         502,  505,  519,  527,
+         504,  513,  519,  524,
+         551,  528,  553,  543,
+         537,  513,  498,  501,
+         522,  495,  502,  511,
+         475,  479,  483,  510,
+         473,  508,  507,  519,
+         463,  525,  526,  543,
+         544,  544,  573,  582,
     ],
     [
-         514,  519,  493,  493,
-         503,  514,  515,  500,
-         494,  498,  494,  490,
-         496,  483,  498,  492,
-         482,  495,  507,  491,
-         474,  476,  481,  487,
-         503,  485,  476,  491,
-         469,  476,  473,  471,
+         526,  523,  510,  512,
+         515,  519,  518,  511,
+         502,  510,  514,  512,
+         490,  501,  510,  509,
+         496,  517,  514,  510,
+         487,  483,  498,  496,
+         511,  496,  493,  505,
+         471,  476,  480,  478,
     ],
 );
 #[rustfmt::skip]
 const PST_QUEEN_MG_EG: ([Score; 32], [Score; 32]) = (
     [
-         935,  914,  937,  918,
-         908,  879,  926,  868,
-         936,  931,  931,  941,
-         919,  886,  897,  900,
-         905,  909,  917,  904,
-         914,  919,  918,  914,
-         922,  936,  940,  931,
-         913,  928,  936,  941,
+         968,  922,  928,  924,
+         945,  899,  929,  833,
+         928,  921,  916,  910,
+         920,  899,  915,  900,
+         899,  906,  918,  900,
+         924,  940,  937,  929,
+         944,  968,  963,  956,
+         949,  954,  973,  974,
     ],
     [
-         921,  933,  938,  924,
-         925,  939,  948,  965,
-         912,  920,  936,  953,
-         900,  935,  935,  960,
-         941,  911,  917,  961,
-         874,  894,  923,  912,
-         913,  902,  884,  917,
-         891,  879,  885,  875,
+         947,  934,  941,  920,
+         923,  943,  926,  940,
+         886,  900,  937,  941,
+         905,  918,  936,  949,
+         955,  922,  931,  961,
+         908,  916,  925,  924,
+         917,  935,  887,  923,
+         937,  915,  907,  902,
     ],
 );
 #[rustfmt::skip]
 const PST_KING_MG_EG: ([Score; 32], [Score; 32]) = (
     [
-           9,   -4,    7,    6,
-           5,    1,   30,   23,
-           8,   14,    9,   19,
-           3,    5,  -11,  -10,
-         -23,    6,  -24,  -43,
-          -7,  -13,  -50,  -69,
-          28,   23,  -25,  -48,
-          43,   60,   11,   15,
+           3,    3,   -1,   -3,
+           3,    5,   15,   10,
+         -10,   19,   16,   21,
+          -2,   17,   23,    9,
+         -20,   -7,  -11,  -23,
+         -19,   15,  -12,  -69,
+          18,   52,  -15,  -71,
+          31,   66,  -27,  -33,
     ],
     [
-         -30,   -2,  -17,   -1,
-           0,   10,    6,   17,
-          -1,   25,   30,   12,
-         -12,    7,   18,   24,
-         -15,    0,   24,   28,
-         -20,    5,   24,   32,
-         -24,   -4,   10,   21,
-         -71,  -44,  -18,  -33,
+         -27,   -4,  -21,  -17,
+           9,    6,    9,   18,
+          -8,    7,   16,   20,
+          -3,    3,    7,   12,
+         -19,   -5,   13,   18,
+         -11,   -1,    9,   27,
+         -24,   -7,   14,   41,
+         -58,  -35,    5,    5,
     ],
 );
 
@@ -212,6 +251,20 @@ const fn human_readable_to_file_rank(piece_value: Score, pst: [Score; 32]) -> [S
         idx += 1;
     }
     res
+}
+
+const fn convert_distance(
+    mg_eg: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]),
+) -> [ScorePair; DISTANCE_LEN] {
+    let mg = mg_eg.0;
+    let eg = mg_eg.1;
+    let mut scores = [ScorePair(0, 0); DISTANCE_LEN];
+    let mut idx = 0;
+    while idx < DISTANCE_LEN {
+        scores[idx] = ScorePair(mg[idx], eg[idx]);
+        idx += 1;
+    }
+    scores
 }
 
 pub const MOBILITY_KNIGHT: [ScorePair; 9] = {
@@ -261,6 +314,38 @@ pub const MOBILITY_QUEEN: [ScorePair; 28] = {
     }
     table
 };
+
+pub const DISTANCE_FRIENDLY_PAWN: [ScorePair; DISTANCE_LEN] =
+    convert_distance(DISTANCE_FRIENDLY_PAWN_MG_EG);
+pub const DISTANCE_ENEMY_PAWN: [ScorePair; DISTANCE_LEN] =
+    convert_distance(DISTANCE_ENEMY_PAWN_MG_EG);
+
+pub const DISTANCE_FRIENDLY_KNIGHT: [ScorePair; DISTANCE_LEN] =
+    convert_distance(DISTANCE_FRIENDLY_KNIGHT_MG_EG);
+pub const DISTANCE_ENEMY_KNIGHT: [ScorePair; DISTANCE_LEN] =
+    convert_distance(DISTANCE_ENEMY_KNIGHT_MG_EG);
+
+pub const DISTANCE_FRIENDLY_BISHOP: [ScorePair; DISTANCE_LEN] =
+    convert_distance(DISTANCE_FRIENDLY_BISHOP_MG_EG);
+pub const DISTANCE_ENEMY_BISHOP: [ScorePair; DISTANCE_LEN] =
+    convert_distance(DISTANCE_ENEMY_BISHOP_MG_EG);
+
+pub const DISTANCE_FRIENDLY_ROOK: [ScorePair; DISTANCE_LEN] =
+    convert_distance(DISTANCE_FRIENDLY_ROOK_MG_EG);
+pub const DISTANCE_ENEMY_ROOK: [ScorePair; DISTANCE_LEN] =
+    convert_distance(DISTANCE_ENEMY_ROOK_MG_EG);
+
+pub const DISTANCE_FRIENDLY_QUEEN: [ScorePair; DISTANCE_LEN] =
+    convert_distance(DISTANCE_FRIENDLY_QUEEN_MG_EG);
+pub const DISTANCE_ENEMY_QUEEN: [ScorePair; DISTANCE_LEN] =
+    convert_distance(DISTANCE_ENEMY_QUEEN_MG_EG);
+
+// This will always be 0, but is included to avoid branches
+pub const DISTANCE_FRIENDLY_KING: [ScorePair; DISTANCE_LEN] =
+    convert_distance(DISTANCE_FRIENDLY_KING_MG_EG);
+// Both sides will cancel each other out, but it is included to avoid branches
+pub const DISTANCE_ENEMY_KING: [ScorePair; DISTANCE_LEN] =
+    convert_distance(DISTANCE_ENEMY_KING_MG_EG);
 
 pub const PST_PAWN: PieceSquareTable = {
     let mg = human_readable_to_file_rank(MATERIAL_PAWN.0, PST_PAWN_MG_EG.0);
