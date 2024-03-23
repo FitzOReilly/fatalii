@@ -91,12 +91,12 @@ impl Square {
 
     pub fn file(&self) -> File {
         debug_assert!(self.idx() < Self::NUM_SQUARES);
-        File::from_idx(self.idx() / Rank::NUM_RANKS)
+        File::from_idx(self.idx() >> 3)
     }
 
     pub fn rank(&self) -> Rank {
         debug_assert!(self.idx() < Self::NUM_SQUARES);
-        Rank::from_idx(self.idx() % Rank::NUM_RANKS)
+        Rank::from_idx(self.idx() & 0x7)
     }
 
     pub fn from_ascii(s: &[u8; 2]) -> Result<Self, String> {
@@ -172,6 +172,12 @@ impl Square {
         } else {
             self.mirror_horizontal()
         }
+    }
+
+    pub fn distance(self, other: Self) -> usize {
+        (self.file().idx() as i8 - other.file().idx() as i8)
+            .abs()
+            .max((self.rank().idx() as i8 - other.rank().idx() as i8).abs()) as usize
     }
 }
 
@@ -347,6 +353,20 @@ mod tests {
         assert_eq!(Square::B1, Square::fold_to_queenside(Square::G1));
         assert_eq!(Square::A2, Square::fold_to_queenside(Square::H2));
         assert_eq!(Square::A8, Square::fold_to_queenside(Square::H8));
+    }
+
+    #[test]
+    fn distance() {
+        assert_eq!(0, Square::A1.distance(Square::A1));
+        assert_eq!(1, Square::A1.distance(Square::A2));
+        assert_eq!(1, Square::A1.distance(Square::B1));
+        assert_eq!(1, Square::A1.distance(Square::B2));
+        assert_eq!(7, Square::A1.distance(Square::A8));
+        assert_eq!(7, Square::A1.distance(Square::H1));
+        assert_eq!(7, Square::A1.distance(Square::H8));
+        assert_eq!(7, Square::H8.distance(Square::H1));
+        assert_eq!(7, Square::H8.distance(Square::A8));
+        assert_eq!(7, Square::H8.distance(Square::A1));
     }
 
     #[test]
