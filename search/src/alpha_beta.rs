@@ -445,9 +445,7 @@ impl AlphaBeta {
         }
 
         // Reduced depth, null window search
-        let Some(mut neg_res) = self.search_recursive(search_data, -alpha - 1, -alpha) else {
-            return None;
-        };
+        let mut neg_res = self.search_recursive(search_data, -alpha - 1, -alpha)?;
         let score = -neg_res.score();
         if score > alpha && score < beta && search_data.current_reduction() != 0 {
             search_data.set_current_reduction(0);
@@ -806,11 +804,8 @@ impl AlphaBeta {
     }
 
     fn is_draw(search_data: &mut SearchData, is_pv_node: bool) -> Option<AlphaBetaEntry> {
-        let Some(node) =
-            Self::is_draw_by_rep(search_data).or_else(|| Self::is_draw_by_moves(search_data))
-        else {
-            return None;
-        };
+        let node =
+            Self::is_draw_by_rep(search_data).or_else(|| Self::is_draw_by_moves(search_data))?;
         if is_pv_node {
             search_data.update_pv_move_and_truncate(node.best_move());
             search_data.end_prev_pv();
