@@ -1,10 +1,10 @@
-use eval::params;
+use eval::params::{self, DISTANCE_LEN};
 use nalgebra::SVector;
 
 use crate::position_features::{
     EvalType, PositionFeatures, NUM_FEATURES, PST_SIZE, START_IDX_BACKWARD_PAWN,
-    START_IDX_BISHOP_PAIR, START_IDX_DOUBLED_PAWN, START_IDX_ISOLATED_PAWN, START_IDX_MOBILITY,
-    START_IDX_PASSED_PAWN, START_IDX_PST, START_IDX_TEMPO,
+    START_IDX_BISHOP_PAIR, START_IDX_DOUBLED_PAWN, START_IDX_ISOLATED_PAWN, START_IDX_KING_TROPISM,
+    START_IDX_MOBILITY, START_IDX_PASSED_PAWN, START_IDX_PST, START_IDX_TEMPO,
 };
 
 type Weight = f64;
@@ -80,6 +80,28 @@ pub fn initialize_weights() -> WeightVector {
 
     weights[START_IDX_BISHOP_PAIR] = params::BISHOP_PAIR.0.into();
     weights[START_IDX_BISHOP_PAIR + 1] = params::BISHOP_PAIR.1.into();
+
+    let mut king_tropism_idx = START_IDX_KING_TROPISM;
+    for distance in [
+        params::DISTANCE_FRIENDLY_PAWN,
+        params::DISTANCE_ENEMY_PAWN,
+        params::DISTANCE_FRIENDLY_KNIGHT,
+        params::DISTANCE_ENEMY_KNIGHT,
+        params::DISTANCE_FRIENDLY_BISHOP,
+        params::DISTANCE_ENEMY_BISHOP,
+        params::DISTANCE_FRIENDLY_ROOK,
+        params::DISTANCE_ENEMY_ROOK,
+        params::DISTANCE_FRIENDLY_QUEEN,
+        params::DISTANCE_ENEMY_QUEEN,
+        params::DISTANCE_FRIENDLY_KING,
+        params::DISTANCE_ENEMY_KING,
+    ] {
+        for distance_idx in 0..DISTANCE_LEN {
+            weights[king_tropism_idx + 2 * distance_idx] = distance[distance_idx].0.into();
+            weights[king_tropism_idx + 2 * distance_idx + 1] = distance[distance_idx].1.into();
+        }
+        king_tropism_idx += 2 * DISTANCE_LEN;
+    }
 
     weights
 }

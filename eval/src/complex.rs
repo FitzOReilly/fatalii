@@ -18,6 +18,7 @@ pub struct Complex {
     pst_scores: ScorePair,
     pawn_structure: PawnStructure,
     mobility: Mobility,
+    king_tropism: ScorePair,
 }
 
 impl Eval for Complex {
@@ -36,8 +37,12 @@ impl Eval for Complex {
         let pawn_scores = self.pawn_structure.scores();
         let mobility_scores = self.mobility.scores(pos);
         let bishop_pair_scores = Self::bishop_pair_factor(pos) * params::BISHOP_PAIR;
-        let scores =
-            self.pst_scores + tempo_scores + pawn_scores + mobility_scores + bishop_pair_scores;
+        let scores = self.pst_scores
+            + tempo_scores
+            + pawn_scores
+            + mobility_scores
+            + bishop_pair_scores
+            + self.king_tropism;
         let game_phase = self.game_phase.game_phase_clamped();
         let tapered_score = ((game_phase as i64 * scores.0 as i64
             + (GamePhase::MAX - game_phase) as i64 * scores.1 as i64)
@@ -105,17 +110,58 @@ impl Complex {
             pst_scores: ScorePair(0, 0),
             pawn_structure: PawnStructure::new(),
             mobility: Mobility,
+            king_tropism: ScorePair(0, 0),
         }
     }
 
     fn update(&mut self, pos: &Position) {
-        for (piece_type, table) in [
-            (piece::Type::Pawn, &params::PST_PAWN),
-            (piece::Type::Knight, &params::PST_KNIGHT),
-            (piece::Type::Bishop, &params::PST_BISHOP),
-            (piece::Type::Rook, &params::PST_ROOK),
-            (piece::Type::Queen, &params::PST_QUEEN),
-            (piece::Type::King, &params::PST_KING),
+        let old_white_king = self
+            .current_pos
+            .piece_occupancy(Side::White, piece::Type::King);
+        let new_white_king = pos.piece_occupancy(Side::White, piece::Type::King);
+        let old_black_king = self
+            .current_pos
+            .piece_occupancy(Side::Black, piece::Type::King);
+        let new_black_king = pos.piece_occupancy(Side::Black, piece::Type::King);
+        let white_king = new_white_king.to_square();
+        let black_king = new_black_king.to_square();
+        for (piece_type, table, friendly_distance, enemy_distance) in [
+            (
+                piece::Type::Pawn,
+                &params::PST_PAWN,
+                &params::DISTANCE_FRIENDLY_PAWN,
+                &params::DISTANCE_ENEMY_PAWN,
+            ),
+            (
+                piece::Type::Knight,
+                &params::PST_KNIGHT,
+                &params::DISTANCE_FRIENDLY_KNIGHT,
+                &params::DISTANCE_ENEMY_KNIGHT,
+            ),
+            (
+                piece::Type::Bishop,
+                &params::PST_BISHOP,
+                &params::DISTANCE_FRIENDLY_BISHOP,
+                &params::DISTANCE_ENEMY_BISHOP,
+            ),
+            (
+                piece::Type::Rook,
+                &params::PST_ROOK,
+                &params::DISTANCE_FRIENDLY_ROOK,
+                &params::DISTANCE_ENEMY_ROOK,
+            ),
+            (
+                piece::Type::Queen,
+                &params::PST_QUEEN,
+                &params::DISTANCE_FRIENDLY_QUEEN,
+                &params::DISTANCE_ENEMY_QUEEN,
+            ),
+            (
+                piece::Type::King,
+                &params::PST_KING,
+                &params::DISTANCE_FRIENDLY_KING,
+                &params::DISTANCE_ENEMY_KING,
+            ),
         ] {
             let old_white = self.current_pos.piece_occupancy(Side::White, piece_type);
             let new_white = pos.piece_occupancy(Side::White, piece_type);
@@ -127,32 +173,101 @@ impl Complex {
                 self.game_phase.remove_piece(piece_type);
                 self.piece_counts
                     .remove(Piece::new(Side::White, piece_type));
+                self.king_tropism -= friendly_distance[white_king.distance(square)];
+                self.king_tropism += enemy_distance[black_king.distance(square)];
             }
             while white_add != Bitboard::EMPTY {
                 let square = white_add.square_scan_forward_reset();
                 self.pst_scores += table[square.idx()];
                 self.game_phase.add_piece(piece_type);
                 self.piece_counts.add(Piece::new(Side::White, piece_type));
+                self.king_tropism += friendly_distance[white_king.distance(square)];
+                self.king_tropism -= enemy_distance[black_king.distance(square)];
             }
             let old_black = self.current_pos.piece_occupancy(Side::Black, piece_type);
             let new_black = pos.piece_occupancy(Side::Black, piece_type);
             let mut black_remove = old_black & !new_black;
             let mut black_add = new_black & !old_black;
             while black_remove != Bitboard::EMPTY {
-                let square_flipped = black_remove.square_scan_forward_reset().flip_vertical();
+                let square = black_remove.square_scan_forward_reset();
+                let square_flipped = square.flip_vertical();
                 self.pst_scores += table[square_flipped.idx()];
                 self.game_phase.remove_piece(piece_type);
                 self.piece_counts
                     .remove(Piece::new(Side::Black, piece_type));
+                self.king_tropism -= enemy_distance[white_king.distance(square)];
+                self.king_tropism += friendly_distance[black_king.distance(square)];
             }
             while black_add != Bitboard::EMPTY {
-                let square_flipped = black_add.square_scan_forward_reset().flip_vertical();
+                let square = black_add.square_scan_forward_reset();
+                let square_flipped = square.flip_vertical();
                 self.pst_scores -= table[square_flipped.idx()];
                 self.game_phase.add_piece(piece_type);
                 self.piece_counts.add(Piece::new(Side::Black, piece_type));
+                self.king_tropism += enemy_distance[white_king.distance(square)];
+                self.king_tropism -= friendly_distance[black_king.distance(square)];
             }
         }
+        if old_white_king != new_white_king || old_black_king != new_black_king {
+            // A king was moved, calculate king tropism for all pieces
+            self.king_tropism(pos);
+        }
         self.current_pos = pos.clone();
+    }
+
+    fn king_tropism(&mut self, pos: &Position) {
+        let white_king = pos
+            .piece_occupancy(Side::White, piece::Type::King)
+            .to_square();
+        let black_king = pos
+            .piece_occupancy(Side::Black, piece::Type::King)
+            .to_square();
+        self.king_tropism = ScorePair(0, 0);
+        for (piece_type, friendly_distance, enemy_distance) in [
+            (
+                piece::Type::Pawn,
+                &params::DISTANCE_FRIENDLY_PAWN,
+                &params::DISTANCE_ENEMY_PAWN,
+            ),
+            (
+                piece::Type::Knight,
+                &params::DISTANCE_FRIENDLY_KNIGHT,
+                &params::DISTANCE_ENEMY_KNIGHT,
+            ),
+            (
+                piece::Type::Bishop,
+                &params::DISTANCE_FRIENDLY_BISHOP,
+                &params::DISTANCE_ENEMY_BISHOP,
+            ),
+            (
+                piece::Type::Rook,
+                &params::DISTANCE_FRIENDLY_ROOK,
+                &params::DISTANCE_ENEMY_ROOK,
+            ),
+            (
+                piece::Type::Queen,
+                &params::DISTANCE_FRIENDLY_QUEEN,
+                &params::DISTANCE_ENEMY_QUEEN,
+            ),
+            (
+                piece::Type::King,
+                &params::DISTANCE_FRIENDLY_KING,
+                &params::DISTANCE_ENEMY_KING,
+            ),
+        ] {
+            let mut white_pieces = pos.piece_occupancy(Side::White, piece_type);
+            while white_pieces != Bitboard::EMPTY {
+                let square = white_pieces.square_scan_forward_reset();
+                self.king_tropism += friendly_distance[white_king.distance(square)];
+                self.king_tropism -= enemy_distance[black_king.distance(square)];
+            }
+            let mut black_pieces = pos.piece_occupancy(Side::Black, piece_type);
+            while black_pieces != Bitboard::EMPTY {
+                let square = black_pieces.square_scan_forward_reset();
+                self.king_tropism += enemy_distance[white_king.distance(square)];
+                self.king_tropism -= friendly_distance[black_king.distance(square)];
+            }
+        }
     }
 
     pub fn bishop_pair_factor(pos: &Position) -> Score {

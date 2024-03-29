@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use eval::{
-    params::{BISHOP_MOB_LEN, KNIGHT_MOB_LEN, MOB_LEN, QUEEN_MOB_LEN, ROOK_MOB_LEN},
+    params::{BISHOP_MOB_LEN, DISTANCE_LEN, KNIGHT_MOB_LEN, MOB_LEN, QUEEN_MOB_LEN, ROOK_MOB_LEN},
     score_pair::ScorePair,
     Score,
 };
@@ -10,8 +10,8 @@ use crate::{
     feature_evaluator::WeightVector,
     position_features::{
         PST_SIZE, START_IDX_BACKWARD_PAWN, START_IDX_BISHOP_PAIR, START_IDX_DOUBLED_PAWN,
-        START_IDX_ISOLATED_PAWN, START_IDX_MOBILITY, START_IDX_PASSED_PAWN, START_IDX_PST,
-        START_IDX_TEMPO,
+        START_IDX_ISOLATED_PAWN, START_IDX_KING_TROPISM, START_IDX_MOBILITY, START_IDX_PASSED_PAWN,
+        START_IDX_PST, START_IDX_TEMPO,
     },
 };
 
@@ -30,6 +30,18 @@ pub struct EvalParams {
     doubled_pawn: ScorePair,
     mobility: [ScorePair; MOB_LEN],
     bishop_pair: ScorePair,
+    distance_friendly_pawn: [ScorePair; DISTANCE_LEN],
+    distance_enemy_pawn: [ScorePair; DISTANCE_LEN],
+    distance_friendly_knight: [ScorePair; DISTANCE_LEN],
+    distance_enemy_knight: [ScorePair; DISTANCE_LEN],
+    distance_friendly_bishop: [ScorePair; DISTANCE_LEN],
+    distance_enemy_bishop: [ScorePair; DISTANCE_LEN],
+    distance_friendly_rook: [ScorePair; DISTANCE_LEN],
+    distance_enemy_rook: [ScorePair; DISTANCE_LEN],
+    distance_friendly_queen: [ScorePair; DISTANCE_LEN],
+    distance_enemy_queen: [ScorePair; DISTANCE_LEN],
+    distance_friendly_king: [ScorePair; DISTANCE_LEN],
+    distance_enemy_king: [ScorePair; DISTANCE_LEN],
 }
 
 impl Default for EvalParams {
@@ -48,6 +60,18 @@ impl Default for EvalParams {
             doubled_pawn: ScorePair(0, 0),
             mobility: [ScorePair(0, 0); MOB_LEN],
             bishop_pair: ScorePair(0, 0),
+            distance_friendly_pawn: [ScorePair(0, 0); DISTANCE_LEN],
+            distance_enemy_pawn: [ScorePair(0, 0); DISTANCE_LEN],
+            distance_friendly_knight: [ScorePair(0, 0); DISTANCE_LEN],
+            distance_enemy_knight: [ScorePair(0, 0); DISTANCE_LEN],
+            distance_friendly_bishop: [ScorePair(0, 0); DISTANCE_LEN],
+            distance_enemy_bishop: [ScorePair(0, 0); DISTANCE_LEN],
+            distance_friendly_rook: [ScorePair(0, 0); DISTANCE_LEN],
+            distance_enemy_rook: [ScorePair(0, 0); DISTANCE_LEN],
+            distance_friendly_queen: [ScorePair(0, 0); DISTANCE_LEN],
+            distance_enemy_queen: [ScorePair(0, 0); DISTANCE_LEN],
+            distance_friendly_king: [ScorePair(0, 0); DISTANCE_LEN],
+            distance_enemy_king: [ScorePair(0, 0); DISTANCE_LEN],
         }
     }
 }
@@ -93,6 +117,30 @@ impl From<&WeightVector> for EvalParams {
         eval_params.bishop_pair.0 = weights[START_IDX_BISHOP_PAIR].round() as Score;
         eval_params.bishop_pair.1 = weights[START_IDX_BISHOP_PAIR + 1].round() as Score;
 
+        let mut king_tropism_idx = START_IDX_KING_TROPISM;
+        for distance in [
+            &mut eval_params.distance_friendly_pawn,
+            &mut eval_params.distance_enemy_pawn,
+            &mut eval_params.distance_friendly_knight,
+            &mut eval_params.distance_enemy_knight,
+            &mut eval_params.distance_friendly_bishop,
+            &mut eval_params.distance_enemy_bishop,
+            &mut eval_params.distance_friendly_rook,
+            &mut eval_params.distance_enemy_rook,
+            &mut eval_params.distance_friendly_queen,
+            &mut eval_params.distance_enemy_queen,
+            &mut eval_params.distance_friendly_king,
+            &mut eval_params.distance_enemy_king,
+        ] {
+            for distance_idx in 0..DISTANCE_LEN {
+                distance[distance_idx].0 =
+                    weights[king_tropism_idx + 2 * distance_idx].round() as Score;
+                distance[distance_idx].1 =
+                    weights[king_tropism_idx + 2 * distance_idx + 1].round() as Score;
+            }
+            king_tropism_idx += 2 * DISTANCE_LEN;
+        }
+
         eval_params
     }
 }
@@ -132,6 +180,47 @@ impl Display for EvalParams {
         )?;
 
         self.fmt_mob(f)?;
+
+        for (name, distance) in [
+            ("DISTANCE_FRIENDLY_PAWN_MG_EG", self.distance_friendly_pawn),
+            ("DISTANCE_ENEMY_PAWN_MG_EG", self.distance_enemy_pawn),
+            (
+                "DISTANCE_FRIENDLY_KNIGHT_MG_EG",
+                self.distance_friendly_knight,
+            ),
+            ("DISTANCE_ENEMY_KNIGHT_MG_EG", self.distance_enemy_knight),
+            (
+                "DISTANCE_FRIENDLY_BISHOP_MG_EG",
+                self.distance_friendly_bishop,
+            ),
+            ("DISTANCE_ENEMY_BISHOP_MG_EG", self.distance_enemy_bishop),
+            ("DISTANCE_FRIENDLY_ROOK_MG_EG", self.distance_friendly_rook),
+            ("DISTANCE_ENEMY_ROOK_MG_EG", self.distance_enemy_rook),
+            (
+                "DISTANCE_FRIENDLY_QUEEN_MG_EG",
+                self.distance_friendly_queen,
+            ),
+            ("DISTANCE_ENEMY_QUEEN_MG_EG", self.distance_enemy_queen),
+            ("DISTANCE_FRIENDLY_KING_MG_EG", self.distance_friendly_king),
+            ("DISTANCE_ENEMY_KING_MG_EG", self.distance_enemy_king),
+        ] {
+            write!(
+                f,
+                "const {}: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) =
+    ([{}], [{}]);\n",
+                name,
+                distance
+                    .iter()
+                    .map(|d| d.0.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                distance
+                    .iter()
+                    .map(|d| d.1.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            )?;
+        }
 
         for (pst, piece) in [
             (self.pst_pawn, "PAWN"),
