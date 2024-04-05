@@ -519,6 +519,37 @@ fn run_command_go_twice() {
 }
 
 #[test]
+fn run_command_go_with_negative_value() {
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_SIZE);
+    let mut test_writer = TestBuffer::new();
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
+    let mut p = Parser::new(uci_out);
+
+    p.register_command(String::from("position"), Box::new(position::run_command));
+    p.register_command(String::from("go"), Box::new(go::run_command));
+    p.register_command(String::from("stop"), Box::new(stop::run_command));
+
+    assert!(p.run_command("position startpos\n", &mut engine).is_ok());
+    assert!(p
+        .run_command("go wtime 100 btime -1\n", &mut engine)
+        .is_ok());
+    std::thread::sleep(Duration::from_millis(400));
+    assert!(contains(test_writer.split_off(0), "bestmove"));
+    assert!(p.run_command("go wtime -1\n", &mut engine).is_ok());
+    std::thread::sleep(Duration::from_millis(400));
+    assert!(contains(test_writer.split_off(0), "bestmove"));
+    assert!(p.run_command("go depth -1\n", &mut engine).is_ok());
+    std::thread::sleep(Duration::from_millis(400));
+    assert!(contains(test_writer.split_off(0), "bestmove"));
+}
+
+#[test]
 fn run_command_isready_during_go() {
     let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_SIZE);
     let mut test_writer = TestBuffer::new();
