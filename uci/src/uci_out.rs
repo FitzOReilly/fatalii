@@ -169,6 +169,13 @@ impl UciOut {
         }
     }
 
+    pub fn warn(&self, s: &str) -> Result<(), Box<dyn Error>> {
+        match self.inner.lock() {
+            Ok(mut inner) => Ok(writeln!(inner.writer, "info string warning: {s}")?),
+            Err(e) => panic!("{e}"),
+        }
+    }
+
     fn option(&mut self, opt: &UciOption) -> Result<(), Box<dyn Error>> {
         match &opt.r#type {
             OptionType::Check(props) => match self.inner.lock() {
