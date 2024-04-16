@@ -6,10 +6,7 @@ pub struct Rook;
 
 impl Rook {
     pub fn targets(origin: Square, occupied: Bitboard) -> Bitboard {
-        Ray::north_targets(origin, occupied)
-            | Ray::east_targets(origin, occupied)
-            | Ray::south_targets(origin, occupied)
-            | Ray::west_targets(origin, occupied)
+        Ray::file_targets(origin, occupied) | Ray::rank_targets(origin, occupied)
     }
 }
 

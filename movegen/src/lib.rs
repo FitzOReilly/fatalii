@@ -23,4 +23,5 @@ mod castling_squares;
 mod direction;
 mod piece_targets;
 mod ray;
+mod ray_lookup_tables;
 mod repetition_tracker;

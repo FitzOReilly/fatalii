@@ -6,10 +6,7 @@ pub struct Bishop;
 
 impl Bishop {
     pub fn targets(origin: Square, occupied: Bitboard) -> Bitboard {
-        Ray::north_east_targets(origin, occupied)
-            | Ray::south_east_targets(origin, occupied)
-            | Ray::south_west_targets(origin, occupied)
-            | Ray::north_west_targets(origin, occupied)
+        Ray::diagonal_targets(origin, occupied) | Ray::anti_diagonal_targets(origin, occupied)
     }
 }
 
