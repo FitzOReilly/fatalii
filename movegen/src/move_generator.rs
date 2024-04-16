@@ -414,7 +414,21 @@ mod tests {
             Move::new(Square::E3, Square::E7, MoveType::CAPTURE),
         ];
 
-        assert_eq!(expected_moves.len(), move_list.len());
+        assert_eq!(
+            expected_moves.len(),
+            move_list.len(),
+            "\nExpected moves: {}\nActual moves: {}",
+            expected_moves
+                .iter()
+                .map(|m| m.to_string())
+                .collect::<Vec<_>>()
+                .join(" "),
+            move_list
+                .iter()
+                .map(|m| m.to_string())
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
         for exp_move in &expected_moves {
             assert!(move_list.contains(exp_move));
         }

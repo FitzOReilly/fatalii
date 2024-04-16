@@ -218,8 +218,7 @@ impl Bitboard {
         board
     }
 
-    #[allow(dead_code)]
-    fn east_fill(self) -> Self {
+    pub fn east_fill(self) -> Self {
         let mut board = self;
         board = board | board.east_one();
         board = board | board << 16;

@@ -6,14 +6,10 @@ pub struct Queen;
 
 impl Queen {
     pub fn targets(origin: Square, occupied: Bitboard) -> Bitboard {
-        Ray::north_targets(origin, occupied)
-            | Ray::east_targets(origin, occupied)
-            | Ray::south_targets(origin, occupied)
-            | Ray::west_targets(origin, occupied)
-            | Ray::north_east_targets(origin, occupied)
-            | Ray::south_east_targets(origin, occupied)
-            | Ray::south_west_targets(origin, occupied)
-            | Ray::north_west_targets(origin, occupied)
+        Ray::file_targets(origin, occupied)
+            | Ray::rank_targets(origin, occupied)
+            | Ray::diagonal_targets(origin, occupied)
+            | Ray::anti_diagonal_targets(origin, occupied)
     }
 }
 
