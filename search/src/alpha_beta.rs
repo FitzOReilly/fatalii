@@ -411,10 +411,6 @@ impl AlphaBeta {
                     } else {
                         search_data.update_pv_move_and_copy(best_move);
                     }
-                    // Root move ordering: move the new best move to the front
-                    if search_data.ply() == 0 {
-                        search_data.move_to_front(best_move);
-                    }
                 }
             }
             if search_data.ply() == 0 {
@@ -782,10 +778,6 @@ impl AlphaBeta {
                     (ScoreType::Exact, 0) => return Some(bounded),
                     (ScoreType::Exact, 1) => {
                         search_data.update_pv_move_and_truncate(bounded.best_move());
-                        // Root move ordering: move the new best move to the front
-                        if search_data.ply() == 0 {
-                            search_data.move_to_front(bounded.best_move());
-                        }
                         return Some(bounded);
                     }
                     (ScoreType::Exact, _) => {

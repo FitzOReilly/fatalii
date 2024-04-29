@@ -340,11 +340,6 @@ impl<'a> SearchData<'a> {
         self.root_moves_mut().set_subtree_size(m, node_count);
     }
 
-    pub fn move_to_front(&mut self, best_move: Move) {
-        self.root_moves_mut().move_to_front(best_move);
-        self.root_moves_mut().alpha_raised_count += 1;
-    }
-
     pub fn should_stop_search_immediately(&self) -> bool {
         if self.search_depth() > 1 {
             if let Ok(SearchCommand::Stop) = self.try_recv_cmd() {
