@@ -753,14 +753,15 @@ impl AlphaBeta {
     }
 
     fn lookup_table_entry(
-        &self,
+        &mut self,
         search_data: &SearchData<'_>,
         depth: usize,
     ) -> Option<AlphaBetaEntry> {
-        match self
-            .transpos_table
-            .get_depth(&search_data.current_pos_hash(), depth)
-        {
+        match self.transpos_table.get_depth(
+            &search_data.current_pos_hash(),
+            depth,
+            search_data.age(),
+        ) {
             Some(entry) if entry.depth() == depth => {
                 // Convert mate distance from the current position to the search root
                 Some(entry.with_increased_mate_distance(search_data.ply()))
@@ -770,7 +771,7 @@ impl AlphaBeta {
     }
 
     fn usable_table_entry(
-        &self,
+        &mut self,
         search_data: &mut SearchData<'_>,
         alpha: Score,
         beta: Score,
