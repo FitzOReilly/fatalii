@@ -243,10 +243,11 @@ impl MoveSelector {
     fn select_hash_move(
         &mut self,
         search_data: &mut SearchData,
-        transpos_table: &AlphaBetaTable,
+        transpos_table: &mut AlphaBetaTable,
     ) -> Option<Move> {
         if self.hash_entry_idx == 0 {
-            self.hash_entries = transpos_table.get_all(&search_data.current_pos_hash());
+            self.hash_entries =
+                transpos_table.get_all(&search_data.current_pos_hash(), search_data.age());
         }
         for entry in self.hash_entries[self.hash_entry_idx..].iter().flatten() {
             self.hash_entry_idx += 1;

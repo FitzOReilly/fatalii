@@ -6,6 +6,8 @@ use movegen::r#move::MoveList;
 use movegen::transposition_table::{TranspositionTable, TtEntry};
 use movegen::zobrist::Zobrist;
 
+const AGE: u8 = 0;
+
 #[derive(Clone, Copy, Debug)]
 struct TableEntry {
     depth: usize,
@@ -18,8 +20,10 @@ impl TtEntry for TableEntry {
     }
 
     fn age(&self) -> u8 {
-        0
+        AGE
     }
+
+    fn set_age(&mut self, _age: u8) {}
 
     fn prio(&self, other: &Self, _age: u8) -> cmp::Ordering {
         self.depth.cmp(&other.depth).reverse()
@@ -50,7 +54,7 @@ impl PerformanceTester {
         depth: usize,
     ) -> usize {
         let hash = self.pos_history.current_pos_hash();
-        match self.transpos_table.get(&hash) {
+        match self.transpos_table.get_depth(&hash, depth, AGE) {
             Some(entry) if entry.depth == depth => entry.num_nodes,
             _ => {
                 let mut num_nodes = 0;

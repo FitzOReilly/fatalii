@@ -5,6 +5,8 @@ pub trait TtEntry {
 
     fn age(&self) -> u8;
 
+    fn set_age(&mut self, age: u8);
+
     fn prio(&self, other: &Self, age: u8) -> cmp::Ordering;
 }
 
@@ -104,13 +106,17 @@ where
     }
 
     // Return entry with matching key and depth. If the depth doesn't match,
-    // return entry with greatest depth.
-    pub fn get_depth(&self, k: &K, depth: usize) -> Option<&V> {
+    // return entry with greatest depth. Sets the age of the matching entry to
+    // new_age.
+    pub fn get_depth(&mut self, k: &K, depth: usize, new_age: u8) -> Option<&V> {
         let index = self.key_to_index(k);
         let mut most_relevant: Option<&V> = None;
-        for entry in &self.buckets[index] {
+        for entry in &mut self.buckets[index] {
             match entry {
-                Some(ref e) if e.0 == *k => {
+                Some(ref mut e) if e.0 == *k => {
+                    if e.1.age() != new_age {
+                        e.1.set_age(new_age);
+                    }
                     if e.1.depth() == depth {
                         return Some(&e.1);
                     }
@@ -129,13 +135,16 @@ where
         most_relevant
     }
 
-    pub fn get_all(&self, k: &K) -> [Option<V>; ENTRIES_PER_BUCKET] {
+    pub fn get_all(&mut self, k: &K, new_age: u8) -> [Option<V>; ENTRIES_PER_BUCKET] {
         let index = self.key_to_index(k);
         let mut entries = [None; ENTRIES_PER_BUCKET];
         let mut entry_idx = 0;
-        for entry in &self.buckets[index] {
+        for entry in &mut self.buckets[index] {
             match entry {
-                Some(ref e) if e.0 == *k => {
+                Some(ref mut e) if e.0 == *k => {
+                    if e.1.age() != new_age {
+                        e.1.set_age(new_age);
+                    }
                     entries[entry_idx] = Some(e.1);
                     entry_idx += 1;
                 }
@@ -239,6 +248,8 @@ mod tests {
         fn age(&self) -> u8 {
             (self % 256) as u8
         }
+
+        fn set_age(&mut self, _age: u8) {}
 
         fn prio(&self, other: &Self, age: u8) -> cmp::Ordering {
             let halfmoves_since_self = ((age as u16 + 256 - self.age() as u16) % 256) as u8;

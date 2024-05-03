@@ -66,6 +66,10 @@ impl TtEntry for NegamaxEntry {
         self.age
     }
 
+    fn set_age(&mut self, age: u8) {
+        self.age = age;
+    }
+
     fn prio(&self, other: &Self, age: u8) -> cmp::Ordering {
         let halfmoves_since_self = ((age as u16 + 256 - self.age() as u16) % 256) as u8;
         let halfmoves_since_other = ((age as u16 + 256 - other.age() as u16) % 256) as u8;
