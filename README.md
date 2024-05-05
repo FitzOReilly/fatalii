@@ -46,12 +46,14 @@ Fatalii supports both standard chess and Chess960 (a.k.a. Fischer Random Chess).
 
 ## Features
 - Bitboards using file rank mapping
+- Move generator using kindergarten bitboards for sliding pieces
 - Evaluation
   - Piece square tables (symmetrical)
   - Pawn structure: passed, isolated, backward and doubled pawns
   - Mobility
   - Bishop pair
   - Tempo
+  - King tropism
   - Tapered evaluation for all parameters
   - Tuned with training positions from the
     [Zurichess dataset quiet-labeled.v7](https://bitbucket.org/zurichess/tuner/downloads/quiet-labeled.v7.epd.gz)
