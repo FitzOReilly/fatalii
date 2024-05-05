@@ -5,9 +5,9 @@ authors = ["Patrick Heck <49785565+FitzOReilly@users.noreply.github.com>"]
 edition = "2021"
 
 [dependencies]
-bitflags = "2.4.1"
-smallvec = "1.13.1"
-thiserror = "1.0.56"
+bitflags = "2.5.0"
+smallvec = "1.13.2"
+thiserror = "1.0.59"
 
 [dev-dependencies]
 criterion = "0.5.1"
