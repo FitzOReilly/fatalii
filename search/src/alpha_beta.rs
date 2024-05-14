@@ -88,31 +88,30 @@ impl Search for AlphaBeta {
     }
 
     fn set_params(&mut self, params: SearchParamsEachAlgo) {
-        if let SearchParamsEachAlgo::AlphaBeta(abp) = params {
-            if let Some(fmb) = abp.futility_margin_base {
-                self.search_params.futility_margin_base = fmb;
-            }
-            if let Some(fmpd) = abp.futility_margin_per_depth {
-                self.search_params.futility_margin_per_depth = fmpd;
-            }
-            if let Some(fpmd) = abp.futility_pruning_max_depth {
-                self.search_params.futility_pruning_max_depth = fpmd;
-            }
-            if let Some(rfmb) = abp.reverse_futility_margin_base {
-                self.search_params.reverse_futility_margin_base = rfmb;
-            }
-            if let Some(rfmpd) = abp.reverse_futility_margin_per_depth {
-                self.search_params.reverse_futility_margin_per_depth = rfmpd;
-            }
-            if let Some(rfpmd) = abp.reverse_futility_pruning_max_depth {
-                self.search_params.reverse_futility_pruning_max_depth = rfpmd;
-            }
-            if let Some(awiw) = abp.aspiration_window_initial_width {
-                self.search_params.aspiration_window_initial_width = awiw;
-            }
-            if let Some(awgr) = abp.aspiration_window_grow_rate {
-                self.search_params.aspiration_window_grow_rate = awgr;
-            }
+        let SearchParamsEachAlgo::AlphaBeta(abp) = params;
+        if let Some(fmb) = abp.futility_margin_base {
+            self.search_params.futility_margin_base = fmb;
+        }
+        if let Some(fmpd) = abp.futility_margin_per_depth {
+            self.search_params.futility_margin_per_depth = fmpd;
+        }
+        if let Some(fpmd) = abp.futility_pruning_max_depth {
+            self.search_params.futility_pruning_max_depth = fpmd;
+        }
+        if let Some(rfmb) = abp.reverse_futility_margin_base {
+            self.search_params.reverse_futility_margin_base = rfmb;
+        }
+        if let Some(rfmpd) = abp.reverse_futility_margin_per_depth {
+            self.search_params.reverse_futility_margin_per_depth = rfmpd;
+        }
+        if let Some(rfpmd) = abp.reverse_futility_pruning_max_depth {
+            self.search_params.reverse_futility_pruning_max_depth = rfpmd;
+        }
+        if let Some(awiw) = abp.aspiration_window_initial_width {
+            self.search_params.aspiration_window_initial_width = awiw;
+        }
+        if let Some(awgr) = abp.aspiration_window_grow_rate {
+            self.search_params.aspiration_window_grow_rate = awgr;
         }
     }
 

@@ -2,11 +2,6 @@ use eval::Score;
 
 pub trait SearchParams {}
 
-#[derive(Debug)]
-pub struct NegamaxParams {}
-
-impl SearchParams for NegamaxParams {}
-
 #[derive(Debug, Default)]
 pub struct AlphaBetaParams {
     pub futility_margin_base: Option<Score>,
@@ -23,6 +18,5 @@ impl SearchParams for AlphaBetaParams {}
 
 #[derive(Debug)]
 pub enum SearchParamsEachAlgo {
-    Negamax(NegamaxParams),
     AlphaBeta(AlphaBetaParams),
 }
