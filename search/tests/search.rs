@@ -10,7 +10,6 @@ use movegen::r#move::{Move, MoveList, MoveType};
 use movegen::side::Side;
 use movegen::square::Square;
 use search::alpha_beta::AlphaBeta;
-use search::negamax::Negamax;
 use search::search::{Search, SearchInfo, SearchResult};
 use search::searcher::Searcher;
 use search::SearchOptions;
@@ -612,97 +611,6 @@ fn pv_truncated_after_mate(search_algo: impl Search + Send + 'static) {
         assert_eq!(exp_score, ScoreVariant::from(res.score()));
         assert_eq!(pv_len, res.principal_variation().len());
     }
-}
-
-#[test]
-#[ignore]
-fn negamax_search_results_independent_of_transposition_table_size() {
-    // Expected: The search result should be the same for different table sizes. The
-    // transposition table should only improve the performance of the search, but not the
-    // evaluation or the best move.
-
-    let max_table_size = TABLE_SIZE;
-    let min_depth = 1;
-    let max_depth = 2;
-    let mut searchers = Vec::new();
-    for table_size in (1024 * 1024..=max_table_size).step_by(1024 * 1024) {
-        searchers.push(SearchTester::new(Negamax::new(
-            Box::new(evaluator()),
-            table_size,
-        )));
-    }
-    search_results_equal(min_depth, max_depth, searchers);
-}
-
-#[test]
-fn negamax_checkmate_white() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
-    let depth = 2;
-    checkmate_white(negamax, depth);
-}
-
-#[test]
-fn negamax_checkmate_black() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
-    let depth = 2;
-    checkmate_black(negamax, depth);
-}
-
-#[test]
-fn negamax_stalemate() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
-    stalemate(negamax);
-}
-
-#[test]
-fn negamax_search_quiescence() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
-    search_quiescence(negamax);
-}
-
-#[test]
-fn negamax_pv_valid_after_hash_table_hit_depth_1() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
-    pv_valid_after_hash_table_hit_depth_1(negamax);
-}
-
-#[test]
-#[ignore]
-fn negamax_pv_valid_after_hash_table_hit_depth_greater_than_1() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
-    pv_valid_after_hash_table_hit_depth_greater_than_1(negamax);
-}
-
-#[test]
-fn negamax_play_threefold_repetition_in_losing_position() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
-    play_threefold_repetition_in_losing_position(negamax);
-}
-
-#[test]
-fn negamax_avoid_threefold_repetition_in_winning_position() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
-    avoid_threefold_repetition_in_winning_position(negamax);
-}
-
-#[test]
-fn negamax_fifty_move_rule() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
-    fifty_move_rule(negamax);
-}
-
-#[test]
-#[ignore]
-fn negamax_mate_in_x_no_capture_no_check() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
-    mate_in_x_no_capture_no_check(negamax);
-}
-
-#[test]
-#[ignore]
-fn negamax_mate_in_x_capture_and_check() {
-    let negamax = Negamax::new(Box::new(evaluator()), TABLE_SIZE);
-    mate_in_x_capture_and_check(negamax);
 }
 
 #[test]

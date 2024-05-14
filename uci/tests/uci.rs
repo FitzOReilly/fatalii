@@ -8,7 +8,6 @@ use movegen::fen::Fen;
 use movegen::position::Position;
 use regex::Regex;
 use search::alpha_beta::AlphaBeta;
-use search::negamax::Negamax;
 use search::search::Search;
 use std::str;
 use std::sync::{Arc, Mutex};
@@ -743,12 +742,6 @@ fn mate_in_one_black_to_move() {
     let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
     println!("{}", out_str);
     assert!(out_str.contains("bestmove g7g2"));
-}
-
-#[test]
-fn negamax_threefold_repetition() {
-    let negamax = Negamax::new(Box::new(EVALUATOR), TABLE_SIZE);
-    threefold_repetition(negamax);
 }
 
 #[test]
