@@ -42,7 +42,7 @@ impl MoveCandidates {
 
     pub fn order_by_subtree_size(&mut self) {
         self.move_list[self.alpha_raised_count..]
-            .sort_unstable_by_key(|md| std::u64::MAX - md.subtree_size);
+            .sort_unstable_by_key(|md| u64::MAX - md.subtree_size);
     }
 
     pub fn reset_counts(&mut self) {

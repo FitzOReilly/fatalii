@@ -256,7 +256,7 @@ mod tests {
             let halfmoves_since_other = ((age as u16 + 256 - other.age() as u16) % 256) as u8;
             match halfmoves_since_self.cmp(&halfmoves_since_other) {
                 cmp::Ordering::Less => cmp::Ordering::Less,
-                cmp::Ordering::Equal => self.cmp(&other).reverse(),
+                cmp::Ordering::Equal => self.cmp(other).reverse(),
                 cmp::Ordering::Greater => cmp::Ordering::Greater,
             }
         }
@@ -269,7 +269,7 @@ mod tests {
         // Always reserve memory for at least two buckets
         let tt = TranspositionTable::<u64, u64>::new(0);
         assert_eq!(2 * bucket_size, tt.reserved_memory());
-        let tt = TranspositionTable::<u64, u64>::new(1 * bucket_size);
+        let tt = TranspositionTable::<u64, u64>::new(bucket_size);
         assert_eq!(2 * bucket_size, tt.reserved_memory());
         let tt = TranspositionTable::<u64, u64>::new(2 * bucket_size);
         assert_eq!(2 * bucket_size, tt.reserved_memory());
@@ -293,12 +293,12 @@ mod tests {
         let entry_size = mem::size_of::<Option<(u64, u64)>>();
         let mut tt = TranspositionTable::<u64, u64>::new(capacity * entry_size);
 
-        assert_eq!(false, tt.contains_key(&0));
+        assert!(!tt.contains_key(&0));
         assert_eq!(None, tt.get(&0));
-        assert_eq!(false, tt.contains_key(&1));
+        assert!(!tt.contains_key(&1));
         assert_eq!(None, tt.get(&1));
         assert_eq!(0, tt.len());
-        assert_eq!(true, tt.is_empty());
+        assert!(tt.is_empty());
         assert_eq!(capacity, tt.capacity());
         assert_eq!(0, tt.load_factor_permille());
 
@@ -310,12 +310,12 @@ mod tests {
 
         for i in 0..ENTRIES_PER_BUCKET {
             let num = i as u64;
-            assert_eq!(true, tt.contains_key(&num));
+            assert!(tt.contains_key(&num));
             assert_eq!(Some(&num), tt.get(&num));
         }
 
         assert_eq!(ENTRIES_PER_BUCKET, tt.len());
-        assert_eq!(false, tt.is_empty());
+        assert!(!tt.is_empty());
         assert_eq!(capacity, tt.capacity());
         assert_eq!(
             (1000 * tt.len() / tt.capacity()) as u16,
@@ -323,28 +323,28 @@ mod tests {
         );
 
         let inserted = ENTRIES_PER_BUCKET as u64;
-        assert_eq!(false, tt.contains_key(&inserted));
+        assert!(!tt.contains_key(&inserted));
         assert_eq!(None, tt.get(&inserted));
 
         let replaced = tt.insert(inserted, inserted);
         assert_eq!(Some((0, 0)), replaced);
-        assert_eq!(false, tt.contains_key(&0));
+        assert!(!tt.contains_key(&0));
         assert_eq!(None, tt.get(&0));
-        assert_eq!(true, tt.contains_key(&1));
+        assert!(tt.contains_key(&1));
         assert_eq!(Some(&1), tt.get(&1));
-        assert_eq!(true, tt.contains_key(&inserted));
+        assert!(tt.contains_key(&inserted));
         assert_eq!(Some(&inserted), tt.get(&inserted));
 
         let replaced = tt.insert(inserted + 1, inserted + 1);
         assert_eq!(Some((1, 1)), replaced);
-        assert_eq!(false, tt.contains_key(&1));
+        assert!(!tt.contains_key(&1));
         assert_eq!(None, tt.get(&1));
-        assert_eq!(true, tt.contains_key(&inserted));
+        assert!(tt.contains_key(&inserted));
         assert_eq!(Some(&inserted), tt.get(&inserted));
 
         let _ = tt.insert(0xff00_0000_0000_0000, 2);
         assert_eq!(ENTRIES_PER_BUCKET + 1, tt.len());
-        assert_eq!(false, tt.is_empty());
+        assert!(!tt.is_empty());
         assert_eq!(capacity, tt.capacity());
         assert_eq!(
             (1000 * tt.len() / tt.capacity()) as u16,
@@ -352,14 +352,14 @@ mod tests {
         );
 
         tt.clear();
-        assert_eq!(false, tt.contains_key(&0));
+        assert!(!tt.contains_key(&0));
         assert_eq!(None, tt.get(&0));
-        assert_eq!(false, tt.contains_key(&1));
+        assert!(!tt.contains_key(&1));
         assert_eq!(None, tt.get(&1));
-        assert_eq!(false, tt.contains_key(&inserted));
+        assert!(!tt.contains_key(&inserted));
         assert_eq!(None, tt.get(&inserted));
         assert_eq!(0, tt.len());
-        assert_eq!(true, tt.is_empty());
+        assert!(tt.is_empty());
         assert_eq!(capacity, tt.capacity());
         assert_eq!(0, tt.load_factor_permille());
     }
@@ -372,11 +372,11 @@ mod tests {
 
         let mut pos_history = PositionHistory::new(Position::initial());
         let hash = pos_history.current_pos_hash();
-        assert_eq!(false, tt.contains_key(&hash));
+        assert!(!tt.contains_key(&hash));
         assert_eq!(None, tt.get(&hash));
         let old_entry = tt.insert(hash, 0);
         assert_eq!(None, old_entry);
-        assert_eq!(true, tt.contains_key(&hash));
+        assert!(tt.contains_key(&hash));
         assert_eq!(Some(&0), tt.get(&hash));
 
         pos_history.do_move(Move::new(
@@ -385,20 +385,20 @@ mod tests {
             MoveType::DOUBLE_PAWN_PUSH,
         ));
         let hash = pos_history.current_pos_hash();
-        assert_eq!(false, tt.contains_key(&hash));
+        assert!(!tt.contains_key(&hash));
         assert_eq!(None, tt.get(&hash));
         let old_entry = tt.insert(hash, 1);
         assert_eq!(None, old_entry);
-        assert_eq!(true, tt.contains_key(&hash));
+        assert!(tt.contains_key(&hash));
         assert_eq!(Some(&1), tt.get(&hash));
 
         pos_history.undo_last_move();
         let hash = pos_history.current_pos_hash();
-        assert_eq!(true, tt.contains_key(&hash));
+        assert!(tt.contains_key(&hash));
         assert_eq!(Some(&0), tt.get(&hash));
         let old_entry = tt.insert(hash, 0);
         assert_eq!(Some((hash, 0)), old_entry);
-        assert_eq!(true, tt.contains_key(&hash));
+        assert!(tt.contains_key(&hash));
         assert_eq!(Some(&0), tt.get(&hash));
     }
 

@@ -356,11 +356,10 @@ mod tests {
     #[test]
     fn calculate_file_a_targets() {
         let mut file_a_targets = [[Bitboard::EMPTY; 64]; 8];
-        for square_idx in 0..8 {
+        for (square_idx, file_a_targets_for_square) in file_a_targets.iter_mut().enumerate() {
             let square = Square::from_idx(square_idx);
-            for occupancy_idx in 0..64 {
+            for (occupancy_idx, targets) in file_a_targets_for_square.iter_mut().enumerate() {
                 let occupancy = Bitboard((occupancy_idx as u64) << 1);
-                let targets = &mut file_a_targets[square_idx][occupancy_idx];
                 *targets =
                     Ray::north_targets(square, occupancy) | Ray::south_targets(square, occupancy);
                 *targets = targets.east_fill();
