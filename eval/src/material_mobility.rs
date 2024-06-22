@@ -13,6 +13,12 @@ use movegen::side::Side;
 #[derive(Debug, Clone)]
 pub struct MaterialMobility;
 
+impl Default for MaterialMobility {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MaterialMobility {
     pub const fn new() -> Self {
         MaterialMobility

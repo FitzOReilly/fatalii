@@ -6,6 +6,12 @@ pub struct TestBuffer {
     buf: Arc<Mutex<Vec<u8>>>,
 }
 
+impl Default for TestBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestBuffer {
     pub fn new() -> Self {
         Self {

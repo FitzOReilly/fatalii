@@ -19,7 +19,6 @@ use std::time::Duration;
 
 const TABLE_SIZE: usize = 16 * 1024 * 1024;
 const TIMEOUT_PER_TEST: Duration = Duration::from_millis(30000);
-const HASH_LOAD_FACTOR_MIN: u16 = 0;
 const HASH_LOAD_FACTOR_MAX: u16 = 1000;
 
 fn evaluator() -> impl Eval {
@@ -132,7 +131,6 @@ fn checkmate_white(search_algo: impl Search + Send + 'static, depth: usize) {
     let actual = tester.search(pos_history, depth);
     assert_eq!(expected.depth(), actual.depth());
     assert_eq!(expected.score(), actual.score());
-    assert!(actual.hash_load_factor_permille() >= HASH_LOAD_FACTOR_MIN);
     assert!(actual.hash_load_factor_permille() <= HASH_LOAD_FACTOR_MAX);
     assert_eq!(expected.best_move(), actual.best_move());
 }
@@ -162,7 +160,6 @@ fn checkmate_black(search_algo: impl Search + Send + 'static, depth: usize) {
     let actual = tester.search(pos_history, depth);
     assert_eq!(expected.depth(), actual.depth());
     assert_eq!(expected.score(), actual.score());
-    assert!(actual.hash_load_factor_permille() >= HASH_LOAD_FACTOR_MIN);
     assert!(actual.hash_load_factor_permille() <= HASH_LOAD_FACTOR_MAX);
     assert_eq!(expected.best_move(), actual.best_move());
 }
@@ -183,7 +180,6 @@ fn stalemate(search_algo: impl Search + Send + 'static) {
     assert_eq!(expected.depth(), actual.depth());
     assert_eq!(expected.score(), actual.score());
     assert_eq!(expected.nodes(), actual.nodes());
-    assert!(actual.hash_load_factor_permille() >= HASH_LOAD_FACTOR_MIN);
     assert!(actual.hash_load_factor_permille() <= HASH_LOAD_FACTOR_MAX);
     assert_eq!(expected.best_move(), actual.best_move());
 }
@@ -629,7 +625,7 @@ fn negamax_search_results_independent_of_transposition_table_size() {
     let min_depth = 1;
     let max_depth = 2;
     let mut searchers = Vec::new();
-    for table_size in (1 * 1024 * 1024..=max_table_size).step_by(1024 * 1024) {
+    for table_size in (1024 * 1024..=max_table_size).step_by(1024 * 1024) {
         searchers.push(SearchTester::new(Negamax::new(
             Box::new(evaluator()),
             table_size,
@@ -720,7 +716,7 @@ fn alpha_beta_search_results_independent_of_transposition_table_size() {
     let min_depth = 1;
     let max_depth = 5;
     let mut searchers = Vec::new();
-    for table_size in (1 * 1024 * 1024..=max_table_size).step_by(1024 * 1024) {
+    for table_size in (1024 * 1024..=max_table_size).step_by(1024 * 1024) {
         searchers.push(SearchTester::new(AlphaBeta::new(
             Box::new(evaluator()),
             table_size,

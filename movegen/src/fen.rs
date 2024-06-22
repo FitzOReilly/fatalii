@@ -594,10 +594,10 @@ mod tests {
         assert_eq!(fen, Fen::pos_to_str(&pos));
         assert_eq!(
             pos,
-            Fen::str_to_pos(&fen).unwrap(),
+            Fen::str_to_pos(fen).unwrap(),
             "\nExpected Position as FEN: {}\nActual Position as FEN:   {}\n",
             fen,
-            Fen::pos_to_str(&Fen::str_to_pos(&fen).unwrap())
+            Fen::pos_to_str(&Fen::str_to_pos(fen).unwrap())
         );
 
         // Position after 1. e4
@@ -609,10 +609,10 @@ mod tests {
         assert_eq!(fen, Fen::pos_to_str(&pos));
         assert_eq!(
             pos,
-            Fen::str_to_pos(&fen).unwrap(),
+            Fen::str_to_pos(fen).unwrap(),
             "\nExpected Position as FEN: {}\nActual Position as FEN:   {}\n",
             fen,
-            Fen::pos_to_str(&Fen::str_to_pos(&fen).unwrap())
+            Fen::pos_to_str(&Fen::str_to_pos(fen).unwrap())
         );
 
         // Position after 1. e4 c5
@@ -625,10 +625,10 @@ mod tests {
         assert_eq!(fen, Fen::pos_to_str(&pos));
         assert_eq!(
             pos,
-            Fen::str_to_pos(&fen).unwrap(),
+            Fen::str_to_pos(fen).unwrap(),
             "\nExpected Position as FEN: {}\nActual Position as FEN:   {}\n",
             fen,
-            Fen::pos_to_str(&Fen::str_to_pos(&fen).unwrap())
+            Fen::pos_to_str(&Fen::str_to_pos(fen).unwrap())
         );
 
         // Position after 1. e4 c5 2. Nf3
@@ -641,10 +641,10 @@ mod tests {
         assert_eq!(fen, Fen::pos_to_str(&pos));
         assert_eq!(
             pos,
-            Fen::str_to_pos(&fen).unwrap(),
+            Fen::str_to_pos(fen).unwrap(),
             "\nExpected Position as FEN: {}\nActual Position as FEN:   {}\n",
             fen,
-            Fen::pos_to_str(&Fen::str_to_pos(&fen).unwrap())
+            Fen::pos_to_str(&Fen::str_to_pos(fen).unwrap())
         );
 
         // Check castling rights
@@ -656,10 +656,10 @@ mod tests {
         assert_eq!(fen, Fen::pos_to_str(&pos));
         assert_eq!(
             pos,
-            Fen::str_to_pos(&fen).unwrap(),
+            Fen::str_to_pos(fen).unwrap(),
             "\nExpected Position as FEN: {}\nActual Position as FEN:   {}\n",
             fen,
-            Fen::pos_to_str(&Fen::str_to_pos(&fen).unwrap())
+            Fen::pos_to_str(&Fen::str_to_pos(fen).unwrap())
         );
     }
 
@@ -675,7 +675,8 @@ mod tests {
 
     #[test]
     fn invalid_fen_chess_960() {
-        for fen in ["rkqbbnnr/pppppppp/8/8/8/8/PPPPPPPP/RKQBBNNR w AHah - 0 1"] {
+        {
+            let fen = "rkqbbnnr/pppppppp/8/8/8/8/PPPPPPPP/RKQBBNNR w AHah - 0 1";
             let res = Fen::str_to_pos_chess_960(fen);
             assert!(
                 res.is_err(),
@@ -693,10 +694,10 @@ mod tests {
         assert_eq!(fen, Fen::pos_to_str_chess_960(&pos));
         assert_eq!(
             pos,
-            Fen::str_to_pos_chess_960(&fen).unwrap(),
+            Fen::str_to_pos_chess_960(fen).unwrap(),
             "\nExpected Position as FEN: {}\nActual Position as FEN:   {}\n",
             fen,
-            Fen::pos_to_str_chess_960(&Fen::str_to_pos_chess_960(&fen).unwrap())
+            Fen::pos_to_str_chess_960(&Fen::str_to_pos_chess_960(fen).unwrap())
         );
         let fen_no_castling_rights = "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b - - 1 2";
         assert!(Fen::str_to_pos_chess_960(fen_no_castling_rights).is_ok());
