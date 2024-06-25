@@ -573,7 +573,7 @@ impl AlphaBeta {
             return entry;
         }
 
-        if let Some(entry) = self.lookup_table_entry(search_data, depth) {
+        if let Some(entry) = self.lookup_table_entry(search_data) {
             if let Some(bounded) = entry.bound_soft(alpha, beta) {
                 search_data.increment_cache_hits();
                 return bounded;
@@ -751,17 +751,10 @@ impl AlphaBeta {
         );
     }
 
-    fn lookup_table_entry(
-        &mut self,
-        search_data: &SearchData<'_>,
-        depth: usize,
-    ) -> Option<AlphaBetaEntry> {
-        match self.transpos_table.get_depth(
-            &search_data.current_pos_hash(),
-            depth,
-            search_data.age(),
-        ) {
-            Some(entry) if entry.depth() == depth => {
+    fn lookup_table_entry(&mut self, search_data: &SearchData<'_>) -> Option<AlphaBetaEntry> {
+        let depth = search_data.remaining_depth();
+        match self.transpos_table.get(&search_data.current_pos_hash()) {
+            Some(entry) if entry.depth() >= depth => {
                 // Convert mate distance from the current position to the search root
                 Some(entry.with_increased_mate_distance(search_data.ply()))
             }
@@ -775,7 +768,7 @@ impl AlphaBeta {
         alpha: Score,
         beta: Score,
     ) -> Option<AlphaBetaEntry> {
-        if let Some(entry) = self.lookup_table_entry(search_data, search_data.remaining_depth()) {
+        if let Some(entry) = self.lookup_table_entry(search_data) {
             if let Some(bounded) = entry.bound_soft(alpha, beta) {
                 search_data.increment_cache_hits();
                 match (bounded.score_type(), search_data.remaining_depth()) {
