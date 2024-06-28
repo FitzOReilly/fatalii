@@ -4,8 +4,9 @@ use eval::Score;
 use movegen::r#move::Move;
 use movegen::transposition_table::TtEntry;
 use movegen::zobrist::Zobrist;
+use std::cmp::Ordering;
+use std::mem;
 use std::ops::Neg;
-use std::{cmp, mem};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -52,13 +53,19 @@ impl TtEntry for AlphaBetaEntry {
         self.age = age;
     }
 
-    fn prio(&self, other: &Self, age: u8) -> cmp::Ordering {
+    fn prio(&self, other: &Self, age: u8) -> Ordering {
+        if self.score_type() == ScoreType::Exact && other.score_type() != ScoreType::Exact {
+            return Ordering::Less;
+        }
+        if other.score_type() == ScoreType::Exact && self.score_type() != ScoreType::Exact {
+            return Ordering::Greater;
+        }
         let halfmoves_since_self = ((age as u16 + 256 - self.age() as u16) % 256) as u8;
         let halfmoves_since_other = ((age as u16 + 256 - other.age() as u16) % 256) as u8;
         match halfmoves_since_self.cmp(&halfmoves_since_other) {
-            cmp::Ordering::Less => cmp::Ordering::Less,
-            cmp::Ordering::Equal => self.depth().cmp(&other.depth()).reverse(),
-            cmp::Ordering::Greater => cmp::Ordering::Greater,
+            Ordering::Less => Ordering::Less,
+            Ordering::Equal => self.depth().cmp(&other.depth()).reverse(),
+            Ordering::Greater => Ordering::Greater,
         }
     }
 }

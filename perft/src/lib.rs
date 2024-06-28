@@ -54,7 +54,7 @@ impl PerformanceTester {
         depth: usize,
     ) -> usize {
         let hash = self.pos_history.current_pos_hash();
-        match self.transpos_table.get_depth(&hash, depth, AGE) {
+        match self.transpos_table.get(&hash) {
             Some(entry) if entry.depth == depth => entry.num_nodes,
             _ => {
                 let mut num_nodes = 0;

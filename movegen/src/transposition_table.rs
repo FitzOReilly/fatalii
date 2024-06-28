@@ -11,7 +11,6 @@ pub trait TtEntry {
 }
 
 pub const ENTRIES_PER_BUCKET: usize = 4;
-const MAX_MATCHING_KEYS_PER_BUCKET: usize = 4;
 
 type Bucket<K, V> = [Option<(K, V)>; ENTRIES_PER_BUCKET];
 
@@ -78,8 +77,8 @@ where
     }
 
     pub fn contains_key(&self, k: &K) -> bool {
-        let index = self.key_to_index(k);
-        for entry in self.buckets[index] {
+        let bucket_idx = self.key_to_index(k);
+        for entry in self.buckets[bucket_idx] {
             match entry {
                 Some(e) if e.0 == *k => return true,
                 _ => {}
@@ -88,138 +87,82 @@ where
         false
     }
 
-    // Return entry with matching key and the greatest depth
+    // Return entry with matching key
     pub fn get(&self, k: &K) -> Option<&V> {
-        let index = self.key_to_index(k);
-        let mut most_relevant: Option<&V> = None;
-        for entry in &self.buckets[index] {
+        let bucket_idx = self.key_to_index(k);
+        for entry in &self.buckets[bucket_idx] {
             match entry {
-                Some(ref e) if e.0 == *k => match most_relevant {
-                    Some(mr) if e.1.depth() > mr.depth() => most_relevant = Some(&e.1),
-                    None => most_relevant = Some(&e.1),
-                    _ => {}
-                },
+                Some(ref e) if e.0 == *k => return Some(&e.1),
                 _ => {}
             }
         }
-        most_relevant
-    }
-
-    // Return entry with matching key and depth. If the depth doesn't match,
-    // return entry with greatest depth. Sets the age of the matching entry to
-    // new_age.
-    pub fn get_depth(&mut self, k: &K, depth: usize, new_age: u8) -> Option<&V> {
-        let index = self.key_to_index(k);
-        let mut most_relevant: Option<&V> = None;
-        for entry in &mut self.buckets[index] {
-            match entry {
-                Some(ref mut e) if e.0 == *k => {
-                    if e.1.age() != new_age {
-                        e.1.set_age(new_age);
-                    }
-                    if e.1.depth() == depth {
-                        return Some(&e.1);
-                    }
-                    match most_relevant {
-                        Some(mr) => {
-                            if e.1.depth() > mr.depth() {
-                                most_relevant = Some(&e.1)
-                            }
-                        }
-                        None => most_relevant = Some(&e.1),
-                    }
-                }
-                _ => {}
-            }
-        }
-        most_relevant
-    }
-
-    pub fn get_all(&mut self, k: &K, new_age: u8) -> [Option<V>; ENTRIES_PER_BUCKET] {
-        let index = self.key_to_index(k);
-        let mut entries = [None; ENTRIES_PER_BUCKET];
-        let mut entry_idx = 0;
-        for entry in &mut self.buckets[index] {
-            match entry {
-                Some(ref mut e) if e.0 == *k => {
-                    if e.1.age() != new_age {
-                        e.1.set_age(new_age);
-                    }
-                    entries[entry_idx] = Some(e.1);
-                    entry_idx += 1;
-                }
-                _ => {}
-            }
-        }
-        entries[0..entry_idx]
-            .sort_by_key(|e| cmp::Reverse(e.expect("Expected Some(_) entry, got None").depth()));
-        entries
+        None
     }
 
     // Inserts a value into the table
     //
-    // Replacement scheme (the new entry is always inserted):
-    // 1. Entry with the same hash value and depth (even if there are None entries)
-    // 2. Entry with the same hash value if the bucket contains the maximum number of matching keys
-    // 3. None entry
-    // 4. Least important entry (i.e. highest prio)
+    // Replacement scheme:
+    // 1. Entry with the same hash value (will only be replaced if new depth >= old depth)
+    // 2. None entry
+    // 3. Least important entry (i.e. highest prio)
     //
     // Note:
     // std::collections::HashMap::insert returns Option<V>
     // This method returns Option<(K, V)>, because the returned key can be
     // different from k. Only the indexes must be equal.
     pub fn insert(&mut self, k: K, value: V) -> Option<(K, V)> {
-        let index = self.key_to_index(&k);
-
-        let mut least_relevant = 0;
-        let mut least_relevant_matching_key = 0;
-        let mut matching_key_count = 0;
-
-        for (i, entry) in self.buckets[index].iter().enumerate() {
+        let bucket_idx = self.key_to_index(&k);
+        let mut replaced_idx = None;
+        let mut replaced = None;
+        let mut insert_value = value;
+        let bucket = &mut self.buckets[bucket_idx];
+        for (i, entry) in bucket.iter_mut().enumerate() {
             match entry {
-                Some(e) => {
-                    if e.0 == k {
-                        if e.1.depth() == value.depth() {
-                            least_relevant = i;
-                            break;
+                Some(ent) => {
+                    if ent.0 == k {
+                        // The hash value was already in the TT
+                        replaced_idx = Some(i);
+                        replaced = Some(*ent);
+                        // Update age
+                        ent.1.set_age(value.age());
+                        if let cmp::Ordering::Greater = value.prio(&ent.1, value.age()) {
+                            // Keep existing entry
+                            insert_value = ent.1;
                         }
-                        matching_key_count += 1;
-                        if least_relevant_matching_key != i {
-                            let replaced_matching_key = &self.buckets[index]
-                                [least_relevant_matching_key]
-                                .expect("Expected Some(_) value to be replaced");
-                            match replaced_matching_key.1.prio(&e.1, value.age()) {
-                                cmp::Ordering::Less | cmp::Ordering::Equal => {
-                                    least_relevant_matching_key = i
-                                }
-                                cmp::Ordering::Greater => {}
+                        break;
+                    } else {
+                        // Different hash value
+                        match replaced {
+                            None => {
+                                replaced_idx = Some(i);
+                                replaced = Some(*ent);
                             }
-                        }
-                        if matching_key_count == MAX_MATCHING_KEYS_PER_BUCKET {
-                            least_relevant = least_relevant_matching_key;
-                            break;
-                        }
-                    }
-                    if least_relevant != i {
-                        let replaced = &self.buckets[index][least_relevant]
-                            .expect("Expected Some(_) value to be replaced");
-                        match replaced.1.prio(&e.1, value.age()) {
-                            cmp::Ordering::Less | cmp::Ordering::Equal => least_relevant = i,
-                            cmp::Ordering::Greater => {}
+                            Some(rep) => match ent.1.prio(&rep.1, value.age()) {
+                                cmp::Ordering::Less | cmp::Ordering::Equal => {}
+                                cmp::Ordering::Greater => {
+                                    replaced_idx = Some(i);
+                                    replaced = Some(*ent);
+                                }
+                            },
                         }
                     }
                 }
                 _ => {
                     // Entry is None => replace it
-                    least_relevant = i;
+                    replaced_idx = Some(i);
+                    replaced = None;
                     break;
                 }
             }
         }
-        let replaced = self.buckets[index][least_relevant];
-        self.buckets[index][least_relevant] = Some((k, value));
-        self.len += replaced.is_none() as usize;
-        replaced
+        match replaced_idx {
+            Some(rep_idx) => {
+                self.buckets[bucket_idx][rep_idx] = Some((k, insert_value));
+                self.len += replaced.is_none() as usize;
+                replaced
+            }
+            None => None,
+        }
     }
 
     pub fn reserved_memory(&self) -> usize {
@@ -335,12 +278,13 @@ mod tests {
         assert!(tt.contains_key(&inserted));
         assert_eq!(Some(&inserted), tt.get(&inserted));
 
-        let replaced = tt.insert(inserted + 1, inserted + 1);
+        let another_inserted = inserted + 1;
+        let replaced = tt.insert(another_inserted, another_inserted);
         assert_eq!(Some((1, 1)), replaced);
         assert!(!tt.contains_key(&1));
         assert_eq!(None, tt.get(&1));
-        assert!(tt.contains_key(&inserted));
-        assert_eq!(Some(&inserted), tt.get(&inserted));
+        assert!(tt.contains_key(&another_inserted));
+        assert_eq!(Some(&another_inserted), tt.get(&another_inserted));
 
         let _ = tt.insert(0xff00_0000_0000_0000, 2);
         assert_eq!(ENTRIES_PER_BUCKET + 1, tt.len());
@@ -412,12 +356,14 @@ mod tests {
         let replaced = tt.insert(0, 0);
         assert_eq!(None, replaced);
         let replaced = tt.insert(0, 1);
+        assert_eq!(Some((0, 0)), replaced);
+        assert_eq!(1, tt.len());
+
+        let replaced = tt.insert(1, 1);
         assert_eq!(None, replaced);
         assert_eq!(2, tt.len());
 
         let replaced = tt.insert(0, 0);
-        assert_eq!(Some((0, 0)), replaced);
-        let replaced = tt.insert(0, 1);
         assert_eq!(Some((0, 1)), replaced);
         assert_eq!(2, tt.len());
     }
