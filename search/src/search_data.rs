@@ -176,19 +176,11 @@ impl<'a> SearchData<'a> {
         self.ply
     }
 
-    pub fn prev_pv_depth(&self) -> usize {
-        self.prev_pv_depth
-    }
-
     pub fn pv_table(&self) -> &PvTable {
         &self.pv_table
     }
 
-    pub fn pv(&self, depth: usize) -> &[Move] {
-        self.pv_table().pv(depth)
-    }
-
-    pub fn pv_owned(&self, depth: usize) -> MoveList {
+    pub fn pv(&self, depth: usize) -> MoveList {
         self.pv_table().pv_into_movelist(depth)
     }
 
@@ -262,10 +254,6 @@ impl<'a> SearchData<'a> {
         self.root_moves_mut().reset_counts();
     }
 
-    pub fn decrease_prev_pv_depth(&mut self) {
-        self.prev_pv_depth -= 1;
-    }
-
     pub fn end_prev_pv(&mut self) {
         self.prev_pv_depth = 0;
     }
@@ -303,10 +291,6 @@ impl<'a> SearchData<'a> {
     pub fn set_root_moves(&mut self, root_moves: &MoveList) {
         debug_assert!(self.root_moves.move_list.is_empty());
         self.root_moves = MoveCandidates::from(root_moves);
-    }
-
-    pub fn root_moves(&self) -> &MoveCandidates {
-        &self.root_moves
     }
 
     pub fn root_moves_mut(&mut self) -> &mut MoveCandidates {

@@ -205,7 +205,7 @@ impl Search for AlphaBeta {
                             start_time.elapsed().as_micros() as u64,
                             self.transpos_table.load_factor_permille(),
                             abs_alpha_beta_res.best_move(),
-                            search_data.pv_owned(d),
+                            search_data.pv(d),
                         );
                         search_data.send_info(SearchInfo::DepthFinished(search_res));
                         best_move = abs_alpha_beta_res.best_move();
@@ -341,7 +341,6 @@ impl AlphaBeta {
             let is_quiet = !m.is_capture() && !m.is_promotion();
             if futility_pruning
                 && search_data.ply() != 0
-                && search_data.prev_pv_depth() == 0
                 && is_quiet
                 && best_score > NEG_INF
                 && !search_data.pos_history_mut().gives_check(m)
@@ -476,7 +475,6 @@ impl AlphaBeta {
     ) -> Option<Option<AlphaBetaEntry>> {
         let depth = search_data.remaining_depth();
         if depth >= MIN_NULL_MOVE_PRUNE_DEPTH
-            && search_data.prev_pv_depth() == 0
             && search_data.pos_history().last_move() != Some(&Move::NULL)
             && !search_data.is_in_check(search_data.current_pos().side_to_move())
             && search_data.eval_relative(&mut self.evaluator) >= beta
@@ -540,7 +538,6 @@ impl AlphaBeta {
             && !search_data.is_in_check(search_data.current_pos().side_to_move())
         {
             debug_assert_ne!(search_data.ply(), 0);
-            debug_assert_eq!(search_data.prev_pv_depth(), 0);
             let score = search_data.eval_relative(&mut self.evaluator);
             if score
                 - self.search_params.reverse_futility_margin_base

@@ -11,7 +11,6 @@ use movegen::r#move::{Move, MoveList};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 enum Stage {
-    PrincipalVariation,
     Hash,
     QueenPromoCaptures,
     QueenPromos,
@@ -39,7 +38,7 @@ pub struct MoveSelector {
 impl MoveSelector {
     pub fn new(move_list: MoveList) -> Self {
         MoveSelector {
-            stage: Stage::PrincipalVariation,
+            stage: Stage::Hash,
             moves: move_list
                 .iter()
                 .map(|&x| MoveInfo {
@@ -58,22 +57,7 @@ impl MoveSelector {
         history_table: &HistoryTable,
     ) -> Option<Move> {
         if search_data.search_depth() > 1 && search_data.ply() == 0 {
-            if self.stage == Stage::PrincipalVariation {
-                if let Some(m) = self.select_pv_move(search_data) {
-                    search_data.root_moves_mut().move_to_front(m);
-                    search_data.root_moves_mut().current_idx += 1;
-                    return Some(m);
-                }
-                self.stage = Stage::Hash;
-            }
             return self.select_root_move(search_data);
-        }
-
-        if self.stage == Stage::PrincipalVariation {
-            if let Some(m) = self.select_pv_move(search_data) {
-                return Some(m);
-            }
-            self.stage = Stage::Hash;
         }
 
         if self.stage == Stage::Hash {
@@ -160,7 +144,7 @@ impl MoveSelector {
         search_data: &mut SearchData,
         transpos_table: &mut AlphaBetaTable,
     ) -> Option<Move> {
-        if self.stage == Stage::PrincipalVariation || self.stage == Stage::Hash {
+        if self.stage == Stage::Hash {
             if let Some(m) = self.select_hash_move(search_data, transpos_table) {
                 return Some(m);
             }
@@ -193,44 +177,6 @@ impl MoveSelector {
             return Some(m);
         }
 
-        None
-    }
-
-    fn select_pv_move(&mut self, search_data: &mut SearchData) -> Option<Move> {
-        if search_data.prev_pv_depth() > 0 {
-            // Select the PV move from the previous iteration
-            let prev_pv = search_data.pv(search_data.search_depth() - 1);
-            let pv_move = prev_pv[search_data.ply()];
-            let idx = self
-                .moves
-                .iter()
-                .position(|x| x.r#move == pv_move)
-                .unwrap_or_else(|| {
-                    let move_list =
-                        MoveList::from(self.moves.iter().map(|x| x.r#move).collect::<Vec<_>>());
-                    panic!(
-                        "\nPV move not found in move list\n\
-                        Search depth: {}\nNet search depth: {}\nRemaining depth: {}\nPly: {}\nPrevious PV depth: {}\n\
-                        Total extensions: {}\nTotal reductions: {}\n\
-                        Move list: {}\nPV move: {}, {:?}\nPV table:\n{}\
-                        Position:\n{}",
-                        search_data.search_depth(),
-                        search_data.net_search_depth(),
-                        search_data.remaining_depth(),
-                        search_data.ply(),
-                        search_data.prev_pv_depth(),
-                        search_data.total_extensions(),
-                        search_data.total_reductions(),
-                        move_list,
-                        pv_move,
-                        pv_move,
-                        search_data.pv_table(),
-                        search_data.current_pos(),
-                    )
-                });
-            search_data.decrease_prev_pv_depth();
-            return Some(self.moves.swap_remove(idx).r#move);
-        }
         None
     }
 
@@ -453,7 +399,6 @@ impl MoveSelector {
     }
 
     fn select_root_move(&mut self, search_data: &mut SearchData) -> Option<Move> {
-        debug_assert_ne!(0, search_data.root_moves().current_idx);
         let candidates = search_data.root_moves_mut();
         let moves = &candidates.move_list;
         let idx = &mut candidates.current_idx;
