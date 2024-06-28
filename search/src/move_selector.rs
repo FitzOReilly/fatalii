@@ -1,5 +1,4 @@
 use crate::alpha_beta::AlphaBetaTable;
-use crate::alpha_beta_entry::AlphaBetaEntry;
 use crate::counter_table::CounterTable;
 use crate::history_table::HistoryTable;
 use crate::search_data::SearchData;
@@ -8,7 +7,6 @@ use eval::Score;
 use movegen::piece;
 use movegen::position::Position;
 use movegen::r#move::{Move, MoveList};
-use movegen::transposition_table::ENTRIES_PER_BUCKET;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -35,8 +33,6 @@ struct MoveInfo {
 
 pub struct MoveSelector {
     stage: Stage,
-    hash_entries: [Option<AlphaBetaEntry>; ENTRIES_PER_BUCKET],
-    hash_entry_idx: usize,
     moves: Vec<MoveInfo>,
 }
 
@@ -44,8 +40,6 @@ impl MoveSelector {
     pub fn new(move_list: MoveList) -> Self {
         MoveSelector {
             stage: Stage::PrincipalVariation,
-            hash_entries: [None; ENTRIES_PER_BUCKET],
-            hash_entry_idx: 0,
             moves: move_list
                 .iter()
                 .map(|&x| MoveInfo {
@@ -245,12 +239,7 @@ impl MoveSelector {
         search_data: &mut SearchData,
         transpos_table: &mut AlphaBetaTable,
     ) -> Option<Move> {
-        if self.hash_entry_idx == 0 {
-            self.hash_entries =
-                transpos_table.get_all(&search_data.current_pos_hash(), search_data.age());
-        }
-        for entry in self.hash_entries[self.hash_entry_idx..].iter().flatten() {
-            self.hash_entry_idx += 1;
+        if let Some(entry) = transpos_table.get(&search_data.current_pos_hash()) {
             if let Some(idx) = self
                 .moves
                 .iter()
