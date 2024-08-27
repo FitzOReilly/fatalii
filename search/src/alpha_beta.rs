@@ -282,21 +282,16 @@ impl AlphaBeta {
             return Some(self.search_quiescence(search_data, alpha, beta));
         }
 
-        let mut move_list = MoveList::new();
-        MoveGenerator::generate_moves(&mut move_list, search_data.current_pos());
-        let node = if move_list.is_empty() {
-            self.checkmate_or_stalemate(search_data, alpha, beta)
-        } else {
-            match self.search_recursive_next_ply(search_data, alpha, beta, move_list) {
-                Some(n) => n,
-                None => return None,
+        match self.search_recursive_next_ply(search_data, alpha, beta) {
+            Some(node) => {
+                // If the score is not valid, we need to widen the aspiration window.
+                if is_valid(node.score()) {
+                    self.update_table(search_data, node);
+                }
+                Some(node)
             }
-        };
-        // If the score is not valid, we need to widen the aspiration window.
-        if is_valid(node.score()) {
-            self.update_table(search_data, node);
+            None => None,
         }
-        Some(node)
     }
 
     fn search_recursive_next_ply(
@@ -304,7 +299,6 @@ impl AlphaBeta {
         search_data: &mut SearchData,
         mut alpha: Score,
         beta: Score,
-        move_list: MoveList,
     ) -> Option<AlphaBetaEntry> {
         if let Some(node) = self.prune_reverse_futility(search_data, alpha, beta) {
             return Some(node);
@@ -314,6 +308,12 @@ impl AlphaBeta {
 
         if let Some(opt_node) = self.prune_null_move(search_data, alpha, beta) {
             return opt_node;
+        }
+
+        let mut move_list = MoveList::new();
+        MoveGenerator::generate_moves(&mut move_list, search_data.current_pos());
+        if move_list.is_empty() {
+            return Some(self.checkmate_or_stalemate(search_data, alpha, beta));
         }
 
         let mut score_type = ScoreType::UpperBound;
@@ -326,6 +326,7 @@ impl AlphaBeta {
         let mut move_selector = MoveSelector::new(move_list);
         let mut prev_node_count = search_data.node_counter().sum_nodes();
         search_data.reset_killers_next_ply();
+
         while let Some(m) = move_selector.select_next_move(
             search_data,
             &mut self.transpos_table,
