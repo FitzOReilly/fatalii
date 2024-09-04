@@ -323,6 +323,7 @@ impl AlphaBeta {
         let depth = search_data.remaining_depth();
         let mut pvs_full_window = true;
         let mut quiet_move_count = 0;
+        let mut quiets_tried = MoveList::new();
         let mut move_selector = MoveSelector::new(move_list);
         let mut prev_node_count = search_data.node_counter().sum_nodes();
         search_data.reset_killers_next_ply();
@@ -387,12 +388,8 @@ impl AlphaBeta {
                     if let (Some(lmp), Some(lm)) = (last_moved_piece, last_move) {
                         self.counter_table.update(lmp, lm.target(), m);
                     }
-                    let piece_to_move = search_data
-                        .current_pos()
-                        .piece_at(m.origin())
-                        .expect("Expected a piece at move origin");
                     self.history_table
-                        .prioritize(piece_to_move, m.target(), depth);
+                        .update(m, depth, &quiets_tried, search_data.current_pos());
                 }
 
                 return Some(node);
@@ -416,6 +413,9 @@ impl AlphaBeta {
                         search_data.move_to_front(best_move);
                     }
                 }
+            }
+            if is_quiet {
+                quiets_tried.push(m);
             }
             if search_data.ply() == 0 {
                 let node_count = search_data.node_counter().sum_nodes();

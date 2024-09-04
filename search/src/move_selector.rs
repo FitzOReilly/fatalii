@@ -441,7 +441,7 @@ impl MoveSelector {
                     .current_pos()
                     .piece_at(x.r#move.origin())
                     .expect("Expected a piece at move origin");
-                history_table.priority(p, x.r#move.target())
+                history_table.value(p, x.r#move.target())
             })
         {
             debug_assert_eq!(m.r#move, self.moves[idx].r#move);
