@@ -845,7 +845,7 @@ impl AlphaBeta {
 
     fn null_move_depth_reduction(depth: usize) -> usize {
         debug_assert!(depth >= MIN_NULL_MOVE_PRUNE_DEPTH);
-        (depth / 2).min(4)
+        (4 + depth / 4).min(depth - 2)
     }
 
     fn checkmate_or_stalemate(
