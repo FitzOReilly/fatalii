@@ -45,6 +45,11 @@ pub const REVERSE_FUTILITY_MARGIN_BASE: Score = 115;
 pub const REVERSE_FUTILITY_MARGIN_PER_DEPTH: Score = 51;
 pub const REVERSE_FUTILITY_PRUNING_MAX_DEPTH: usize = 6;
 
+// Late move pruning
+pub const LATE_MOVE_PRUNING_BASE: usize = 4;
+pub const LATE_MOVE_PRUNING_FACTOR: usize = 1;
+pub const LATE_MOVE_PRUNING_MAX_DEPTH: usize = 5;
+
 // Prune a move if the static evaluation plus the move's potential improvement
 // plus this value is less than alpha.
 const DELTA_PRUNING_MARGIN_MOVE: Score = 200;
@@ -59,6 +64,9 @@ struct SearchParams {
     reverse_futility_margin_base: Score,
     reverse_futility_margin_per_depth: Score,
     reverse_futility_pruning_max_depth: usize,
+    late_move_pruning_base: usize,
+    late_move_pruning_factor: usize,
+    late_move_pruning_max_depth: usize,
     aspiration_window_initial_width: i32,
     aspiration_window_grow_rate: i32,
 }
@@ -253,6 +261,9 @@ impl AlphaBeta {
                 reverse_futility_margin_base: REVERSE_FUTILITY_MARGIN_BASE,
                 reverse_futility_margin_per_depth: REVERSE_FUTILITY_MARGIN_PER_DEPTH,
                 reverse_futility_pruning_max_depth: REVERSE_FUTILITY_PRUNING_MAX_DEPTH,
+                late_move_pruning_base: LATE_MOVE_PRUNING_BASE,
+                late_move_pruning_factor: LATE_MOVE_PRUNING_FACTOR,
+                late_move_pruning_max_depth: LATE_MOVE_PRUNING_MAX_DEPTH,
                 aspiration_window_initial_width: INITIAL_WIDTH,
                 aspiration_window_grow_rate: GROW_RATE,
             },
@@ -304,11 +315,11 @@ impl AlphaBeta {
             return Some(node);
         }
 
-        let futility_pruning = self.prune_futility(search_data, alpha);
-
         if let Some(opt_node) = self.prune_null_move(search_data, alpha, beta) {
             return opt_node;
         }
+
+        let mut skip_quiets = self.prune_futility(search_data, alpha);
 
         let mut move_list = MoveList::new();
         MoveGenerator::generate_moves(&mut move_list, search_data.current_pos());
@@ -322,7 +333,7 @@ impl AlphaBeta {
 
         let depth = search_data.remaining_depth();
         let mut pvs_full_window = true;
-        let mut quiet_move_count = 0;
+        let mut move_count = 0;
         let mut quiets_tried = MoveList::new();
         let mut move_selector = MoveSelector::new(move_list);
         let mut prev_node_count = search_data.node_counter().sum_nodes();
@@ -340,11 +351,14 @@ impl AlphaBeta {
                 true
             });
 
+            let is_pv_node = alpha != beta - 1;
             let is_quiet = !m.is_capture() && !m.is_promotion();
-            if futility_pruning
+
+            skip_quiets |= self.prune_late_move(search_data, move_count);
+            if skip_quiets
+                && is_quiet
                 && search_data.ply() != 0
                 && search_data.prev_pv_depth() == 0
-                && is_quiet
                 && best_score > NEG_INF
                 && !search_data.pos_history_mut().gives_check(m)
             {
@@ -352,19 +366,17 @@ impl AlphaBeta {
                 continue;
             }
 
-            quiet_move_count += is_quiet as usize;
             search_data.do_move(m);
             let extension = search_data.calc_extension(m);
             search_data.set_current_extension(extension);
 
-            let is_pv_node = alpha != beta - 1;
             // Late move reductions
             let reduction = if !is_pv_node
                 && depth >= MIN_LATE_MOVE_REDUCTION_DEPTH
                 && extension == 0
                 && is_quiet
             {
-                Self::late_move_depth_reduction(depth, quiet_move_count)
+                Self::late_move_depth_reduction(depth, quiets_tried.len())
             } else {
                 0
             };
@@ -414,6 +426,7 @@ impl AlphaBeta {
                     }
                 }
             }
+            move_count += 1;
             if is_quiet {
                 quiets_tried.push(m);
             }
@@ -559,6 +572,15 @@ impl AlphaBeta {
             }
         }
         None
+    }
+
+    fn prune_late_move(&self, search_data: &mut SearchData<'_>, move_count: usize) -> bool {
+        let depth = search_data.remaining_depth();
+        let late_move_count = self.search_params.late_move_pruning_base
+            + self.search_params.late_move_pruning_factor * depth * depth;
+        depth <= self.search_params.late_move_pruning_max_depth
+            && move_count >= late_move_count
+            && !search_data.is_in_check(search_data.current_pos().side_to_move())
     }
 
     fn search_quiescence(
@@ -877,6 +899,6 @@ impl AlphaBeta {
 
     fn late_move_depth_reduction(depth: usize, move_count: usize) -> usize {
         debug_assert!(depth >= MIN_LATE_MOVE_REDUCTION_DEPTH);
-        (move_count / 6).min(depth / 3)
+        ((move_count + 1) / 6).min(depth / 3)
     }
 }
