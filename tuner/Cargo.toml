@@ -6,11 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.5.4", features = ["derive"] }
-nalgebra = { version = "0.32.5", features = ["serde-serialize"] }
+clap = { version = "4.5.20", features = ["derive"] }
+nalgebra = { version = "0.32.6", features = ["serde-serialize"] }
 nalgebra-sparse = "0.9.0"
 rand = "0.8.5"
-serde = "1.0.200"
-serde_json = "1.0.116"
+serde = "1.0.210"
+serde_json = "1.0.128"
 eval = { path = "../eval" }
 movegen = { path = "../movegen" }
