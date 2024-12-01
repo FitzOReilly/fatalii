@@ -253,30 +253,30 @@ mod tests {
 
     #[test]
     fn from_ascii() {
-        assert_eq!(Ok(Square::A1), Square::from_ascii(&[b'a', b'1']));
-        assert_eq!(Ok(Square::H1), Square::from_ascii(&[b'h', b'1']));
-        assert_eq!(Ok(Square::D4), Square::from_ascii(&[b'd', b'4']));
-        assert_eq!(Ok(Square::E5), Square::from_ascii(&[b'e', b'5']));
-        assert_eq!(Ok(Square::A8), Square::from_ascii(&[b'a', b'8']));
-        assert_eq!(Ok(Square::H8), Square::from_ascii(&[b'h', b'8']));
+        assert_eq!(Ok(Square::A1), Square::from_ascii(b"a1"));
+        assert_eq!(Ok(Square::H1), Square::from_ascii(b"h1"));
+        assert_eq!(Ok(Square::D4), Square::from_ascii(b"d4"));
+        assert_eq!(Ok(Square::E5), Square::from_ascii(b"e5"));
+        assert_eq!(Ok(Square::A8), Square::from_ascii(b"a8"));
+        assert_eq!(Ok(Square::H8), Square::from_ascii(b"h8"));
         assert_eq!(
             Err(String::from("Invalid square `i1`")),
-            Square::from_ascii(&[b'i', b'1'])
+            Square::from_ascii(b"i1")
         );
         assert_eq!(
             Err(String::from("Invalid square `a9`")),
-            Square::from_ascii(&[b'a', b'9'])
+            Square::from_ascii(b"a9")
         );
     }
 
     #[test]
     fn to_ascii() {
-        assert_eq!([b'a', b'1'], Square::A1.to_ascii());
-        assert_eq!([b'h', b'1'], Square::H1.to_ascii());
-        assert_eq!([b'd', b'4'], Square::D4.to_ascii());
-        assert_eq!([b'e', b'5'], Square::E5.to_ascii());
-        assert_eq!([b'a', b'8'], Square::A8.to_ascii());
-        assert_eq!([b'h', b'8'], Square::H8.to_ascii());
+        assert_eq!(*b"a1", Square::A1.to_ascii());
+        assert_eq!(*b"h1", Square::H1.to_ascii());
+        assert_eq!(*b"d4", Square::D4.to_ascii());
+        assert_eq!(*b"e5", Square::E5.to_ascii());
+        assert_eq!(*b"a8", Square::A8.to_ascii());
+        assert_eq!(*b"h8", Square::H8.to_ascii());
     }
 
     #[test]

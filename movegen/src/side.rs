@@ -18,7 +18,7 @@ impl Not for Side {
     }
 }
 
-impl<'a> Not for &'a Side {
+impl Not for &Side {
     type Output = Side;
 
     fn not(self) -> Self::Output {
