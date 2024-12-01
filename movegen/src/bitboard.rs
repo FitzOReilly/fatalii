@@ -401,7 +401,7 @@ impl BitAnd for Bitboard {
     }
 }
 
-impl<'a> BitAnd<&'a Self> for Bitboard {
+impl BitAnd<&Self> for Bitboard {
     type Output = Self;
 
     fn bitand(self, rhs: &Self) -> Self::Output {
@@ -409,7 +409,7 @@ impl<'a> BitAnd<&'a Self> for Bitboard {
     }
 }
 
-impl<'a> BitAnd for &'a Bitboard {
+impl BitAnd for &Bitboard {
     type Output = Bitboard;
 
     fn bitand(self, rhs: Self) -> Self::Output {
@@ -417,7 +417,7 @@ impl<'a> BitAnd for &'a Bitboard {
     }
 }
 
-impl<'a> BitAnd<Bitboard> for &'a Bitboard {
+impl BitAnd<Bitboard> for &Bitboard {
     type Output = Bitboard;
 
     fn bitand(self, rhs: Bitboard) -> Self::Output {
@@ -431,7 +431,7 @@ impl BitAndAssign for Bitboard {
     }
 }
 
-impl<'a> BitAndAssign<&'a Self> for Bitboard {
+impl BitAndAssign<&Self> for Bitboard {
     fn bitand_assign(&mut self, rhs: &Self) {
         self.0 &= rhs.0;
     }
@@ -445,7 +445,7 @@ impl BitOr for Bitboard {
     }
 }
 
-impl<'a> BitOr<&'a Self> for Bitboard {
+impl BitOr<&Self> for Bitboard {
     type Output = Self;
 
     fn bitor(self, rhs: &Self) -> Self::Output {
@@ -453,7 +453,7 @@ impl<'a> BitOr<&'a Self> for Bitboard {
     }
 }
 
-impl<'a> BitOr for &'a Bitboard {
+impl BitOr for &Bitboard {
     type Output = Bitboard;
 
     fn bitor(self, rhs: Self) -> Self::Output {
@@ -461,7 +461,7 @@ impl<'a> BitOr for &'a Bitboard {
     }
 }
 
-impl<'a> BitOr<Bitboard> for &'a Bitboard {
+impl BitOr<Bitboard> for &Bitboard {
     type Output = Bitboard;
 
     fn bitor(self, rhs: Bitboard) -> Self::Output {
@@ -475,7 +475,7 @@ impl BitOrAssign for Bitboard {
     }
 }
 
-impl<'a> BitOrAssign<&'a Self> for Bitboard {
+impl BitOrAssign<&Self> for Bitboard {
     fn bitor_assign(&mut self, rhs: &Self) {
         self.0 |= rhs.0;
     }
@@ -489,7 +489,7 @@ impl BitXor for Bitboard {
     }
 }
 
-impl<'a> BitXor<&'a Self> for Bitboard {
+impl BitXor<&Self> for Bitboard {
     type Output = Self;
 
     fn bitxor(self, rhs: &Self) -> Self::Output {
@@ -497,7 +497,7 @@ impl<'a> BitXor<&'a Self> for Bitboard {
     }
 }
 
-impl<'a> BitXor for &'a Bitboard {
+impl BitXor for &Bitboard {
     type Output = Bitboard;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
@@ -505,7 +505,7 @@ impl<'a> BitXor for &'a Bitboard {
     }
 }
 
-impl<'a> BitXor<Bitboard> for &'a Bitboard {
+impl BitXor<Bitboard> for &Bitboard {
     type Output = Bitboard;
 
     fn bitxor(self, rhs: Bitboard) -> Self::Output {
@@ -521,7 +521,7 @@ impl Not for Bitboard {
     }
 }
 
-impl<'a> Not for &'a Bitboard {
+impl Not for &Bitboard {
     type Output = Bitboard;
 
     fn not(self) -> Self::Output {
@@ -537,7 +537,7 @@ impl Shl<usize> for Bitboard {
     }
 }
 
-impl<'a> Shl<usize> for &'a Bitboard {
+impl Shl<usize> for &Bitboard {
     type Output = Bitboard;
 
     fn shl(self, rhs: usize) -> Self::Output {
@@ -553,7 +553,7 @@ impl Shr<usize> for Bitboard {
     }
 }
 
-impl<'a> Shr<usize> for &'a Bitboard {
+impl Shr<usize> for &Bitboard {
     type Output = Bitboard;
 
     fn shr(self, rhs: usize) -> Self::Output {

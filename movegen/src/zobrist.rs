@@ -96,7 +96,7 @@ impl BitXor for Zobrist {
     }
 }
 
-impl<'a> BitXor<&'a Self> for Zobrist {
+impl BitXor<&Self> for Zobrist {
     type Output = Self;
 
     fn bitxor(self, rhs: &Self) -> Self::Output {
@@ -104,7 +104,7 @@ impl<'a> BitXor<&'a Self> for Zobrist {
     }
 }
 
-impl<'a> BitXor for &'a Zobrist {
+impl BitXor for &Zobrist {
     type Output = Zobrist;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
@@ -112,7 +112,7 @@ impl<'a> BitXor for &'a Zobrist {
     }
 }
 
-impl<'a> BitXor<Zobrist> for &'a Zobrist {
+impl BitXor<Zobrist> for &Zobrist {
     type Output = Zobrist;
 
     fn bitxor(self, rhs: Zobrist) -> Self::Output {
@@ -126,7 +126,7 @@ impl BitXorAssign for Zobrist {
     }
 }
 
-impl<'a> BitXorAssign<&'a Self> for Zobrist {
+impl BitXorAssign<&Self> for Zobrist {
     fn bitxor_assign(&mut self, rhs: &Self) {
         self.0 ^= rhs.0;
     }
