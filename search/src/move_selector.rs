@@ -2,7 +2,7 @@ use crate::alpha_beta::AlphaBetaTable;
 use crate::counter_table::CounterTable;
 use crate::history_table::HistoryTable;
 use crate::search_data::SearchData;
-use crate::static_exchange_eval::{see_capture, CaptureType};
+use crate::static_exchange_eval::static_exchange_eval;
 use eval::Score;
 use movegen::piece;
 use movegen::position::Position;
@@ -15,8 +15,7 @@ enum Stage {
     Hash,
     QueenPromoCaptures,
     QueenPromos,
-    WinningCaptures,
-    EqualCaptures,
+    WinningOrEqualCaptures,
     Killers,
     Counters,
     History,
@@ -28,7 +27,6 @@ enum Stage {
 #[derive(Debug, Clone)]
 struct MoveInfo {
     r#move: Move,
-    static_exchange_eval: Option<CaptureType>,
 }
 
 pub struct MoveSelector {
@@ -40,13 +38,7 @@ impl MoveSelector {
     pub fn new(move_list: MoveList) -> Self {
         MoveSelector {
             stage: Stage::PrincipalVariation,
-            moves: move_list
-                .iter()
-                .map(|&x| MoveInfo {
-                    r#move: x,
-                    static_exchange_eval: None,
-                })
-                .collect(),
+            moves: move_list.iter().map(|&x| MoveInfo { r#move: x }).collect(),
         }
     }
 
@@ -94,18 +86,11 @@ impl MoveSelector {
             if let Some(m) = self.select_queen_promo() {
                 return Some(m);
             }
-            self.stage = Stage::WinningCaptures;
+            self.stage = Stage::WinningOrEqualCaptures;
         }
 
-        if self.stage == Stage::WinningCaptures {
+        if self.stage == Stage::WinningOrEqualCaptures {
             if let Some(m) = self.select_winning_capture(search_data) {
-                return Some(m);
-            }
-            self.stage = Stage::EqualCaptures;
-        }
-
-        if self.stage == Stage::EqualCaptures {
-            if let Some(m) = self.select_equal_capture(search_data) {
                 return Some(m);
             }
             self.stage = Stage::Killers;
@@ -178,22 +163,11 @@ impl MoveSelector {
             if let Some(m) = self.select_queen_promo() {
                 return Some(m);
             }
-            self.stage = Stage::WinningCaptures;
+            self.stage = Stage::WinningOrEqualCaptures;
         }
 
-        if self.stage == Stage::WinningCaptures {
-            if let Some(m) = self.select_winning_capture(search_data) {
-                return Some(m);
-            }
-            self.stage = Stage::EqualCaptures;
-        }
-
-        debug_assert_eq!(Stage::EqualCaptures, self.stage);
-        if let Some(m) = self.select_equal_capture(search_data) {
-            return Some(m);
-        }
-
-        None
+        debug_assert_eq!(Stage::WinningOrEqualCaptures, self.stage);
+        self.select_winning_capture(search_data)
     }
 
     fn select_pv_move(&mut self, search_data: &mut SearchData) -> Option<Move> {
@@ -313,45 +287,13 @@ impl MoveSelector {
             })
             .max_by_key(|&(_, _, cap_score)| cap_score)
         {
-            match Self::static_exchange_eval(search_data, &mut self.moves[idx]) {
-                CaptureType::Winning => {
-                    debug_assert_eq!(m, self.moves[idx].r#move);
-                    let next_move = self.moves.swap_remove(idx).r#move;
-                    return Some(next_move);
-                }
-                _ => {
-                    end -= 1;
-                    self.moves.swap(idx, end);
-                }
-            }
-        }
-        None
-    }
-
-    fn select_equal_capture(&mut self, search_data: &mut SearchData) -> Option<Move> {
-        let mut end = self.moves.len();
-        while let Some((idx, m, _)) = self.moves[..end]
-            .iter()
-            .enumerate()
-            .filter(|(_, x)| x.r#move.is_capture())
-            .map(|(idx, x)| {
-                let cap_score = Self::capture_score(search_data.current_pos(), x.r#move);
-                (idx, x.r#move, cap_score)
-            })
-            .max_by_key(|&(_, _, cap_score)| cap_score)
-        {
-            match Self::static_exchange_eval(search_data, &mut self.moves[idx]) {
-                CaptureType::Equal => {
-                    debug_assert_eq!(m, self.moves[idx].r#move);
-                    let next_move = self.moves.swap_remove(idx).r#move;
-                    return Some(next_move);
-                }
-                see => {
-                    debug_assert_eq!(CaptureType::Losing, see);
-                    end -= 1;
-                    self.moves.swap(idx, end);
-                    continue;
-                }
+            if static_exchange_eval(search_data.current_pos(), m, 0) {
+                debug_assert_eq!(m, self.moves[idx].r#move);
+                let next_move = self.moves.swap_remove(idx).r#move;
+                return Some(next_move);
+            } else {
+                end -= 1;
+                self.moves.swap(idx, end);
             }
         }
         None
@@ -463,17 +405,6 @@ impl MoveSelector {
             return Some(m);
         }
         None
-    }
-
-    fn static_exchange_eval(search_data: &mut SearchData, move_info: &mut MoveInfo) -> CaptureType {
-        match move_info.static_exchange_eval {
-            Some(see) => see,
-            None => {
-                let see = see_capture(search_data.pos_history_mut(), move_info.r#move);
-                move_info.static_exchange_eval = Some(see);
-                see
-            }
-        }
     }
 
     fn mvv_lva_score(attacker: piece::Type, target: piece::Type) -> Score {
