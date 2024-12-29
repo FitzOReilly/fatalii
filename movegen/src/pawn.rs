@@ -46,6 +46,11 @@ impl Pawn {
             | Self::west_attack_targets(pawns, side_to_move)
     }
 
+    pub fn attack_origins(pawns: Bitboard, side_to_move: Side) -> Bitboard {
+        Self::east_attack_origins(pawns, side_to_move)
+            | Self::west_attack_origins(pawns, side_to_move)
+    }
+
     pub fn single_push_origins(pawns: Bitboard, side_to_move: Side) -> Bitboard {
         [Bitboard::south_one, Bitboard::north_one][side_to_move as usize](pawns)
     }
