@@ -79,7 +79,7 @@ pub fn static_exchange_eval(pos: &Position, m: Move, threshold: Score) -> bool {
     side_to_move != pos.side_to_move()
 }
 
-fn gained_material_value(pos: &Position, m: Move) -> Score {
+pub fn gained_material_value(pos: &Position, m: Move) -> Score {
     if m.is_en_passant() {
         return piece_type_value(piece::Type::Pawn);
     }
