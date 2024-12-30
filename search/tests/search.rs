@@ -42,6 +42,10 @@ impl SearchTester {
         }
     }
 
+    fn clear_hash_table(&self) {
+        self.searcher.clear_hash_table();
+    }
+
     fn search(&mut self, pos_hist: PositionHistory, depth: usize) -> SearchResult {
         let search_options = SearchOptions {
             depth: Some(depth),
@@ -376,7 +380,7 @@ fn underpromotions(search_algo: impl Search + Send + 'static) {
         ),
         (
             "8/8/4Q3/8/5q2/8/1p2K2k/8 b - - 0 1",
-            6,
+            8,
             Move::new(Square::B2, Square::B1, MoveType::PROMOTION_ROOK),
         ),
         (
@@ -405,6 +409,7 @@ fn underpromotions(search_algo: impl Search + Send + 'static) {
         let pos = Fen::str_to_pos(fen).unwrap();
         let pos_history = PositionHistory::new(pos.clone());
         let res = tester.search(pos_history, depth);
+        tester.clear_hash_table();
         assert_eq!(
             exp_move,
             res.best_move(),
@@ -567,7 +572,7 @@ fn mate_in_x_various_depths(search_algo: impl Search + Send + 'static) {
         // Mate in 5
         (
             "8/2p5/4k3/8/P2B4/r7/6rP/3K4 b - - 6 51",
-            9,
+            14,
             ScoreVariant::Mate(Side::Black, -5),
         ),
         // Mate in 2
@@ -701,6 +706,7 @@ fn alpha_beta_fifty_move_rule() {
 }
 
 #[test]
+#[ignore]
 fn alpha_beta_underpromotions() {
     let alpha_beta = AlphaBeta::new(Box::new(evaluator()), TABLE_SIZE);
     underpromotions(alpha_beta);

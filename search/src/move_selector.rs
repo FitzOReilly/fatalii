@@ -8,9 +8,9 @@ use movegen::piece;
 use movegen::position::Position;
 use movegen::r#move::{Move, MoveList};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
-enum Stage {
+pub enum Stage {
     PrincipalVariation,
     Hash,
     QueenPromoCaptures,
@@ -40,6 +40,10 @@ impl MoveSelector {
             stage: Stage::PrincipalVariation,
             moves: move_list.iter().map(|&x| MoveInfo { r#move: x }).collect(),
         }
+    }
+
+    pub fn stage(&self) -> Stage {
+        self.stage
     }
 
     pub fn select_next_move(

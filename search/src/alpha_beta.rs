@@ -2,7 +2,7 @@ use crate::alpha_beta_entry::{AlphaBetaEntry, ScoreType};
 use crate::aspiration_window::{AspirationWindow, GROW_RATE, INITIAL_WIDTH};
 use crate::counter_table::CounterTable;
 use crate::history_table::HistoryTable;
-use crate::move_selector::MoveSelector;
+use crate::move_selector::{MoveSelector, Stage};
 use crate::search::{
     Search, SearchCommand, SearchInfo, SearchResult, MAX_SEARCH_DEPTH,
     PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW, REPETITIONS_TO_DRAW,
@@ -55,6 +55,11 @@ const DELTA_PRUNING_MARGIN_MOVE: Score = 200;
 
 // Prune all moves if the static evaluation plus this value is less than alpha.
 const DELTA_PRUNING_MARGIN_ALL_MOVES: Score = 1800;
+
+// Static exchange evaluation pruning
+const SEE_PRUNING_MARGIN_QUIET: Score = -100;
+const SEE_PRUNING_MARGIN_TACTICAL: Score = -50;
+const SEE_PRUNING_MAX_DEPTH: usize = 4;
 
 struct SearchParams {
     futility_margin_base: Score,
@@ -337,6 +342,10 @@ impl AlphaBeta {
         let mut move_selector = MoveSelector::new(move_list);
         let mut prev_node_count = search_data.node_counter().sum_nodes();
         search_data.reset_killers_next_ply();
+        let see_margins = [
+            SEE_PRUNING_MARGIN_TACTICAL * (depth * depth) as Score,
+            SEE_PRUNING_MARGIN_QUIET * depth as Score,
+        ];
 
         while let Some(m) = move_selector.select_next_move(
             search_data,
@@ -362,6 +371,19 @@ impl AlphaBeta {
                 && !search_data.pos_history_mut().gives_check(m)
             {
                 debug_assert_ne!(search_data.ply(), 0);
+                continue;
+            }
+
+            if search_data.ply() != 0
+                && depth <= SEE_PRUNING_MAX_DEPTH
+                && best_score > NEG_INF
+                && move_selector.stage() > Stage::WinningOrEqualCaptures
+                && !see::static_exchange_eval(
+                    search_data.current_pos(),
+                    m,
+                    see_margins[is_quiet as usize],
+                )
+            {
                 continue;
             }
 
