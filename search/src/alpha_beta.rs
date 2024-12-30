@@ -57,9 +57,9 @@ const DELTA_PRUNING_MARGIN_MOVE: Score = 200;
 const DELTA_PRUNING_MARGIN_ALL_MOVES: Score = 1800;
 
 // Static exchange evaluation pruning
-const SEE_PRUNING_MARGIN_QUIET: Score = -100;
-const SEE_PRUNING_MARGIN_TACTICAL: Score = -50;
-const SEE_PRUNING_MAX_DEPTH: usize = 4;
+pub const SEE_PRUNING_MARGIN_QUIET: Score = -100;
+pub const SEE_PRUNING_MARGIN_TACTICAL: Score = -50;
+pub const SEE_PRUNING_MAX_DEPTH: usize = 4;
 
 struct SearchParams {
     futility_margin_base: Score,
@@ -71,6 +71,9 @@ struct SearchParams {
     late_move_pruning_base: usize,
     late_move_pruning_factor: usize,
     late_move_pruning_max_depth: usize,
+    see_pruning_margin_quiet: Score,
+    see_pruning_margin_tactical: Score,
+    see_pruning_max_depth: usize,
     aspiration_window_initial_width: i32,
     aspiration_window_grow_rate: i32,
 }
@@ -118,6 +121,24 @@ impl Search for AlphaBeta {
         }
         if let Some(rfpmd) = abp.reverse_futility_pruning_max_depth {
             self.search_params.reverse_futility_pruning_max_depth = rfpmd;
+        }
+        if let Some(lmpb) = abp.late_move_pruning_base {
+            self.search_params.late_move_pruning_base = lmpb;
+        }
+        if let Some(lmpf) = abp.late_move_pruning_factor {
+            self.search_params.late_move_pruning_factor = lmpf;
+        }
+        if let Some(lmpmd) = abp.late_move_pruning_max_depth {
+            self.search_params.late_move_pruning_max_depth = lmpmd;
+        }
+        if let Some(spmq) = abp.see_pruning_margin_quiet {
+            self.search_params.see_pruning_margin_quiet = spmq;
+        }
+        if let Some(spmt) = abp.see_pruning_margin_tactical {
+            self.search_params.see_pruning_margin_tactical = spmt;
+        }
+        if let Some(spmd) = abp.see_pruning_max_depth {
+            self.search_params.see_pruning_max_depth = spmd;
         }
         if let Some(awiw) = abp.aspiration_window_initial_width {
             self.search_params.aspiration_window_initial_width = awiw;
@@ -268,6 +289,9 @@ impl AlphaBeta {
                 late_move_pruning_base: LATE_MOVE_PRUNING_BASE,
                 late_move_pruning_factor: LATE_MOVE_PRUNING_FACTOR,
                 late_move_pruning_max_depth: LATE_MOVE_PRUNING_MAX_DEPTH,
+                see_pruning_margin_quiet: SEE_PRUNING_MARGIN_QUIET,
+                see_pruning_margin_tactical: SEE_PRUNING_MARGIN_TACTICAL,
+                see_pruning_max_depth: SEE_PRUNING_MAX_DEPTH,
                 aspiration_window_initial_width: INITIAL_WIDTH,
                 aspiration_window_grow_rate: GROW_RATE,
             },
@@ -343,8 +367,8 @@ impl AlphaBeta {
         let mut prev_node_count = search_data.node_counter().sum_nodes();
         search_data.reset_killers_next_ply();
         let see_margins = [
-            SEE_PRUNING_MARGIN_TACTICAL * (depth * depth) as Score,
-            SEE_PRUNING_MARGIN_QUIET * depth as Score,
+            self.search_params.see_pruning_margin_tactical * (depth * depth) as Score,
+            self.search_params.see_pruning_margin_quiet * depth as Score,
         ];
 
         while let Some(m) = move_selector.select_next_move(
@@ -375,7 +399,7 @@ impl AlphaBeta {
             }
 
             if search_data.ply() != 0
-                && depth <= SEE_PRUNING_MAX_DEPTH
+                && depth <= self.search_params.see_pruning_max_depth
                 && best_score > NEG_INF
                 && move_selector.stage() > Stage::WinningOrEqualCaptures
                 && !see::static_exchange_eval(
