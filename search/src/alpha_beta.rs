@@ -10,12 +10,11 @@ use crate::search::{
 use crate::search_data::SearchData;
 use crate::search_params::SearchParamsEachAlgo;
 use crate::time_manager::TimeManager;
-use crate::SearchOptions;
+use crate::{static_exchange_eval as see, SearchOptions};
 use crossbeam_channel::{Receiver, Sender};
 use eval::score::is_valid;
 use eval::{Eval, Score, BLACK_WIN, EQ_POSITION, NEG_INF, POS_INF, WHITE_WIN};
 use movegen::move_generator::MoveGenerator;
-use movegen::piece;
 use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
@@ -644,30 +643,7 @@ impl AlphaBeta {
         while let Some(m) =
             move_selector.select_next_move_quiescence_capture(search_data, &mut self.transpos_table)
         {
-            let mut potential_improvement = if m.is_capture() {
-                if m.is_en_passant() {
-                    100
-                } else {
-                    match search_data
-                        .current_pos()
-                        .piece_at(m.target())
-                        .expect("No piece on target square")
-                        .piece_type()
-                    {
-                        piece::Type::Pawn => 100,
-                        piece::Type::Knight => 300,
-                        piece::Type::Bishop => 300,
-                        piece::Type::Rook => 500,
-                        piece::Type::Queen => 900,
-                        piece::Type::King => panic!("Cannot capture king"),
-                    }
-                }
-            } else {
-                0
-            };
-            if m.is_promotion() {
-                potential_improvement += 800;
-            }
+            let potential_improvement = see::gained_material_value(search_data.current_pos(), m);
             if stand_pat + potential_improvement + DELTA_PRUNING_MARGIN_MOVE < alpha {
                 continue;
             }
