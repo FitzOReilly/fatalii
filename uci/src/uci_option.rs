@@ -132,6 +132,60 @@ fn set_reverse_futility_pruning_max_depth(engine: &mut Engine, depth: i64) -> St
 }
 
 #[allow(dead_code)]
+fn set_late_move_pruning_base(engine: &mut Engine, base: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        late_move_pruning_base: Some(base as usize),
+        ..Default::default()
+    }));
+    format!("late-move-pruning-base set to {base}")
+}
+
+#[allow(dead_code)]
+fn set_late_move_pruning_factor(engine: &mut Engine, factor: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        late_move_pruning_factor: Some(factor as usize),
+        ..Default::default()
+    }));
+    format!("late-move-pruning-factor set to {factor}")
+}
+
+#[allow(dead_code)]
+fn set_late_move_pruning_max_depth(engine: &mut Engine, depth: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        late_move_pruning_max_depth: Some(depth as usize),
+        ..Default::default()
+    }));
+    format!("late-move-pruning-max-depth set to {depth}")
+}
+
+#[allow(dead_code)]
+fn set_see_pruning_margin_quiet(engine: &mut Engine, margin_quiet: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        see_pruning_margin_quiet: Some(margin_quiet as Score),
+        ..Default::default()
+    }));
+    format!("see-pruning-margin-quiet set to {margin_quiet}")
+}
+
+#[allow(dead_code)]
+fn set_see_pruning_margin_tactical(engine: &mut Engine, margin_tactical: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        see_pruning_margin_tactical: Some(margin_tactical as Score),
+        ..Default::default()
+    }));
+    format!("see-pruning-margin-tactical set to {margin_tactical}")
+}
+
+#[allow(dead_code)]
+fn set_see_pruning_max_depth(engine: &mut Engine, depth: i64) -> String {
+    engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
+        see_pruning_max_depth: Some(depth as usize),
+        ..Default::default()
+    }));
+    format!("see-pruning-max-depth set to {depth}")
+}
+
+#[allow(dead_code)]
 fn set_aspiration_window_initial_width(engine: &mut Engine, width: i64) -> String {
     engine.set_search_params(SearchParamsEachAlgo::AlphaBeta(AlphaBetaParams {
         aspiration_window_initial_width: Some(width as i32),
