@@ -1,4 +1,4 @@
-use crate::alpha_beta_entry::{AlphaBetaEntry, ScoreType};
+use crate::alpha_beta_entry::{AlphaBetaEntry, AlphaBetaResult, ScoreType};
 use crate::aspiration_window::{AspirationWindow, GROW_RATE, INITIAL_WIDTH};
 use crate::counter_table::CounterTable;
 use crate::history_table::HistoryTable;
@@ -303,7 +303,7 @@ impl AlphaBeta {
         search_data: &mut SearchData,
         alpha: Score,
         beta: Score,
-    ) -> Option<AlphaBetaEntry> {
+    ) -> Option<AlphaBetaResult> {
         if search_data.should_stop_search_immediately() {
             return None;
         }
@@ -338,7 +338,7 @@ impl AlphaBeta {
         search_data: &mut SearchData,
         mut alpha: Score,
         beta: Score,
-    ) -> Option<AlphaBetaEntry> {
+    ) -> Option<AlphaBetaResult> {
         if let Some(node) = self.prune_reverse_futility(search_data, alpha, beta) {
             return Some(node);
         }
@@ -358,6 +358,7 @@ impl AlphaBeta {
         let mut score_type = ScoreType::UpperBound;
         let mut best_score = NEG_INF;
         let mut best_move = Move::NULL;
+        let mut should_store = true;
 
         let depth = search_data.remaining_depth();
         let mut pvs_full_window = true;
@@ -436,8 +437,14 @@ impl AlphaBeta {
             let score = search_res.score();
 
             if score >= beta {
-                let node =
-                    AlphaBetaEntry::new(depth, score, ScoreType::LowerBound, m, search_data.age());
+                let node = AlphaBetaResult::new(
+                    depth,
+                    score,
+                    ScoreType::LowerBound,
+                    m,
+                    search_data.age(),
+                    search_res.should_store(),
+                );
                 if !m.is_capture() {
                     search_data.insert_killer(m);
                     let last_move = search_data.pos_history().last_move().copied();
@@ -454,6 +461,7 @@ impl AlphaBeta {
             if score > best_score {
                 best_score = score;
                 best_move = m;
+                should_store = search_res.should_store();
                 if score > alpha {
                     debug_assert_ne!(alpha + 1, beta);
                     alpha = score;
@@ -481,7 +489,14 @@ impl AlphaBeta {
                 prev_node_count = node_count;
             }
         }
-        let node = AlphaBetaEntry::new(depth, best_score, score_type, best_move, search_data.age());
+        let node = AlphaBetaResult::new(
+            depth,
+            best_score,
+            score_type,
+            best_move,
+            search_data.age(),
+            should_store,
+        );
         debug_assert!(
             node.score_type() == ScoreType::Exact || node.score_type() == ScoreType::UpperBound
         );
@@ -494,7 +509,7 @@ impl AlphaBeta {
         alpha: Score,
         beta: Score,
         pvs_full_window: bool,
-    ) -> Option<AlphaBetaEntry> {
+    ) -> Option<AlphaBetaResult> {
         if (pvs_full_window || search_data.remaining_depth() < MIN_PVS_DEPTH)
             && search_data.total_reductions() == 0
         {
@@ -532,7 +547,7 @@ impl AlphaBeta {
         search_data: &mut SearchData<'_>,
         alpha: Score,
         beta: Score,
-    ) -> Option<Option<AlphaBetaEntry>> {
+    ) -> Option<Option<AlphaBetaResult>> {
         let depth = search_data.remaining_depth();
         if depth >= MIN_NULL_MOVE_PRUNE_DEPTH
             && search_data.prev_pv_depth() == 0
@@ -553,12 +568,13 @@ impl AlphaBeta {
                     let search_res = -neg_search_res;
                     let score = search_res.score();
                     if score >= beta {
-                        let node = AlphaBetaEntry::new(
+                        let node = AlphaBetaResult::new(
                             depth,
                             score,
                             ScoreType::LowerBound,
                             Move::NULL,
                             search_data.age(),
+                            search_res.should_store(),
                         );
                         return Some(Some(node));
                     }
@@ -591,7 +607,7 @@ impl AlphaBeta {
         search_data: &mut SearchData<'_>,
         alpha: Score,
         beta: Score,
-    ) -> Option<AlphaBetaEntry> {
+    ) -> Option<AlphaBetaResult> {
         let depth = search_data.remaining_depth();
         let is_pv_node = alpha != beta - 1;
         if !is_pv_node
@@ -606,12 +622,13 @@ impl AlphaBeta {
                 - (depth - 1) as Score * self.search_params.reverse_futility_margin_per_depth
                 >= beta
             {
-                let node = AlphaBetaEntry::new(
+                let node = AlphaBetaResult::new(
                     depth,
                     score,
                     ScoreType::LowerBound,
                     Move::NULL,
                     search_data.age(),
+                    true,
                 );
                 return Some(node);
             }
@@ -633,7 +650,7 @@ impl AlphaBeta {
         search_data: &mut SearchData,
         mut alpha: Score,
         beta: Score,
-    ) -> AlphaBetaEntry {
+    ) -> AlphaBetaResult {
         let depth = 0;
 
         let is_pv_node = alpha + 1 != beta;
@@ -660,14 +677,16 @@ impl AlphaBeta {
         let mut score_type = ScoreType::UpperBound;
         let mut best_score = stand_pat;
         let mut best_move = Move::NULL;
+        let mut should_store = true;
 
         if score >= beta {
-            let node = AlphaBetaEntry::new(
+            let node = AlphaBetaResult::new(
                 depth,
                 score,
                 ScoreType::LowerBound,
                 Move::NULL,
                 search_data.age(),
+                true,
             );
             self.update_table(search_data, node);
             return node;
@@ -678,7 +697,8 @@ impl AlphaBeta {
         }
         if stand_pat + DELTA_PRUNING_MARGIN_ALL_MOVES < alpha {
             debug_assert!(score_type == ScoreType::UpperBound);
-            let node = AlphaBetaEntry::new(depth, alpha, score_type, best_move, search_data.age());
+            let node =
+                AlphaBetaResult::new(depth, alpha, score_type, best_move, search_data.age(), true);
             self.update_table(search_data, node);
             return node;
         }
@@ -700,14 +720,21 @@ impl AlphaBeta {
             search_data.undo_last_move();
 
             if score >= beta {
-                let node =
-                    AlphaBetaEntry::new(depth, score, ScoreType::LowerBound, m, search_data.age());
+                let node = AlphaBetaResult::new(
+                    depth,
+                    score,
+                    ScoreType::LowerBound,
+                    m,
+                    search_data.age(),
+                    search_result.should_store(),
+                );
                 self.update_table(search_data, node);
                 return node;
             }
             if score > best_score {
                 best_score = score;
                 best_move = m;
+                should_store = search_result.should_store();
                 if score > alpha {
                     alpha = score;
                     score_type = ScoreType::Exact;
@@ -715,7 +742,14 @@ impl AlphaBeta {
             }
         }
         debug_assert!(score_type == ScoreType::Exact || score_type == ScoreType::UpperBound);
-        let node = AlphaBetaEntry::new(depth, best_score, score_type, best_move, search_data.age());
+        let node = AlphaBetaResult::new(
+            depth,
+            best_score,
+            score_type,
+            best_move,
+            search_data.age(),
+            should_store,
+        );
         self.update_table(search_data, node);
         node
     }
@@ -725,7 +759,7 @@ impl AlphaBeta {
         search_data: &mut SearchData,
         mut alpha: Score,
         beta: Score,
-    ) -> AlphaBetaEntry {
+    ) -> AlphaBetaResult {
         debug_assert!(search_data.is_in_check(search_data.current_pos().side_to_move()));
 
         let depth = 0;
@@ -734,6 +768,7 @@ impl AlphaBeta {
         let mut score_type = ScoreType::UpperBound;
         let mut best_score = NEG_INF;
         let mut best_move = Move::NULL;
+        let mut should_store = true;
 
         let mut move_list = MoveList::new();
         MoveGenerator::generate_moves(&mut move_list, search_data.current_pos());
@@ -761,12 +796,13 @@ impl AlphaBeta {
                 search_data.undo_last_move();
 
                 if score >= beta {
-                    let node = AlphaBetaEntry::new(
+                    let node = AlphaBetaResult::new(
                         depth,
                         score,
                         ScoreType::LowerBound,
                         m,
                         search_data.age(),
+                        search_result.should_store(),
                     );
                     self.update_table(search_data, node);
                     return node;
@@ -774,6 +810,7 @@ impl AlphaBeta {
                 if score > best_score {
                     best_score = score;
                     best_move = m;
+                    should_store = search_result.should_store();
                     if score > alpha {
                         alpha = score;
                         score_type = ScoreType::Exact;
@@ -783,25 +820,34 @@ impl AlphaBeta {
         }
 
         debug_assert!(score_type == ScoreType::Exact || score_type == ScoreType::UpperBound);
-        let node = AlphaBetaEntry::new(depth, best_score, score_type, best_move, search_data.age());
+        let node = AlphaBetaResult::new(
+            depth,
+            best_score,
+            score_type,
+            best_move,
+            search_data.age(),
+            should_store,
+        );
         self.update_table(search_data, node);
         node
     }
 
-    fn update_table(&mut self, search_data: &SearchData<'_>, node: AlphaBetaEntry) {
-        self.transpos_table.insert(
-            search_data.current_pos_hash(),
-            // Convert mate distance from the search root to the current position
-            node.with_decreased_mate_distance(search_data.ply()),
-        );
+    fn update_table(&mut self, search_data: &SearchData<'_>, node: AlphaBetaResult) {
+        if node.should_store() {
+            self.transpos_table.insert(
+                search_data.current_pos_hash(),
+                // Convert mate distance from the search root to the current position
+                node.entry().with_decreased_mate_distance(search_data.ply()),
+            );
+        }
     }
 
-    fn lookup_table_entry(&mut self, search_data: &SearchData<'_>) -> Option<AlphaBetaEntry> {
+    fn lookup_table_entry(&mut self, search_data: &SearchData<'_>) -> Option<AlphaBetaResult> {
         let depth = search_data.remaining_depth();
         match self.transpos_table.get(&search_data.current_pos_hash()) {
             Some(entry) if entry.depth() >= depth => {
                 // Convert mate distance from the current position to the search root
-                Some(entry.with_increased_mate_distance(search_data.ply()))
+                Some(entry.with_increased_mate_distance(search_data.ply()).into())
             }
             _ => None,
         }
@@ -812,7 +858,7 @@ impl AlphaBeta {
         search_data: &mut SearchData<'_>,
         alpha: Score,
         beta: Score,
-    ) -> Option<AlphaBetaEntry> {
+    ) -> Option<AlphaBetaResult> {
         if let Some(entry) = self.lookup_table_entry(search_data) {
             if let Some(bounded) = entry.bound_soft(alpha, beta) {
                 search_data.increment_cache_hits();
@@ -841,7 +887,7 @@ impl AlphaBeta {
         None
     }
 
-    fn is_draw(search_data: &mut SearchData, is_pv_node: bool) -> Option<AlphaBetaEntry> {
+    fn is_draw(search_data: &mut SearchData, is_pv_node: bool) -> Option<AlphaBetaResult> {
         let node =
             Self::is_draw_by_rep(search_data).or_else(|| Self::is_draw_by_moves(search_data))?;
         if is_pv_node {
@@ -851,20 +897,21 @@ impl AlphaBeta {
         Some(node)
     }
 
-    fn is_draw_by_rep(search_data: &mut SearchData) -> Option<AlphaBetaEntry> {
+    fn is_draw_by_rep(search_data: &mut SearchData) -> Option<AlphaBetaResult> {
         if search_data.pos_history().current_pos_repetitions() < REPETITIONS_TO_DRAW {
             return None;
         }
-        Some(AlphaBetaEntry::new(
+        Some(AlphaBetaResult::new(
             search_data.remaining_depth(),
             EQ_POSITION,
             ScoreType::Exact,
             Move::NULL,
             search_data.age(),
+            false,
         ))
     }
 
-    fn is_draw_by_moves(search_data: &mut SearchData) -> Option<AlphaBetaEntry> {
+    fn is_draw_by_moves(search_data: &mut SearchData) -> Option<AlphaBetaResult> {
         if search_data.current_pos().plies_since_pawn_move_or_capture()
             < PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW
         {
@@ -878,12 +925,13 @@ impl AlphaBeta {
                 score = BLACK_WIN + search_data.ply() as Score;
             }
         }
-        Some(AlphaBetaEntry::new(
+        Some(AlphaBetaResult::new(
             search_data.remaining_depth(),
             score,
             ScoreType::Exact,
             Move::NULL,
             search_data.age(),
+            score != EQ_POSITION,
         ))
     }
 
@@ -897,7 +945,7 @@ impl AlphaBeta {
         search_data: &mut SearchData<'_>,
         alpha: Score,
         beta: Score,
-    ) -> AlphaBetaEntry {
+    ) -> AlphaBetaResult {
         let pos = search_data.current_pos();
         let mut score_type = ScoreType::UpperBound;
         let best_move = Move::NULL;
@@ -909,14 +957,21 @@ impl AlphaBeta {
         let depth = search_data.remaining_depth();
         if score >= beta {
             score_type = ScoreType::LowerBound;
-            return AlphaBetaEntry::new(depth, score, score_type, best_move, search_data.age());
+            return AlphaBetaResult::new(
+                depth,
+                score,
+                score_type,
+                best_move,
+                search_data.age(),
+                true,
+            );
         }
         if score > alpha {
             score_type = ScoreType::Exact;
             search_data.update_pv_move_and_truncate(best_move);
             search_data.end_prev_pv();
         }
-        AlphaBetaEntry::new(depth, score, score_type, best_move, search_data.age())
+        AlphaBetaResult::new(depth, score, score_type, best_move, search_data.age(), true)
     }
 
     fn late_move_depth_reduction(depth: usize, move_count: usize) -> usize {

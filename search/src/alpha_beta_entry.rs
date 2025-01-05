@@ -25,6 +25,21 @@ pub struct AlphaBetaEntry {
     age: u8,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AlphaBetaResult {
+    entry: AlphaBetaEntry,
+    should_store: bool,
+}
+
+impl From<AlphaBetaEntry> for AlphaBetaResult {
+    fn from(entry: AlphaBetaEntry) -> Self {
+        Self {
+            entry,
+            should_store: true,
+        }
+    }
+}
+
 impl Neg for AlphaBetaEntry {
     type Output = Self;
 
@@ -37,6 +52,18 @@ impl Neg for AlphaBetaEntry {
             self.best_move(),
             self.age(),
         )
+    }
+}
+
+impl Neg for AlphaBetaResult {
+    type Output = Self;
+
+    // Changes the sign of the score and leaves the rest unchanged
+    fn neg(self) -> Self::Output {
+        Self {
+            entry: -self.entry,
+            ..self
+        }
     }
 }
 
@@ -71,7 +98,7 @@ impl TtEntry for AlphaBetaEntry {
 }
 
 impl AlphaBetaEntry {
-    pub const ENTRY_SIZE: usize = mem::size_of::<Option<(Zobrist, AlphaBetaEntry)>>();
+    pub const ENTRY_SIZE: usize = mem::size_of::<Option<(Zobrist, Self)>>();
 
     pub fn new(
         depth: usize,
@@ -159,5 +186,46 @@ impl AlphaBetaEntry {
             )),
             _ => None,
         }
+    }
+}
+
+impl AlphaBetaResult {
+    pub fn new(
+        depth: usize,
+        score: Score,
+        score_type: ScoreType,
+        best_move: Move,
+        age: u8,
+        should_store: bool,
+    ) -> Self {
+        debug_assert!(depth <= MAX_SEARCH_DEPTH);
+        Self {
+            entry: AlphaBetaEntry::new(depth, score, score_type, best_move, age),
+            should_store,
+        }
+    }
+
+    pub fn entry(&self) -> AlphaBetaEntry {
+        self.entry
+    }
+
+    pub fn score(&self) -> Score {
+        self.entry.score()
+    }
+
+    pub fn score_type(&self) -> ScoreType {
+        self.entry.score_type()
+    }
+
+    pub fn best_move(&self) -> Move {
+        self.entry.best_move()
+    }
+
+    pub fn should_store(&self) -> bool {
+        self.should_store
+    }
+
+    pub fn bound_soft(&self, alpha: Score, beta: Score) -> Option<Self> {
+        self.entry.bound_soft(alpha, beta).map(Self::from)
     }
 }
