@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 use std::mem;
 use std::ops::Neg;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum ScoreType {
     Exact = 0,
@@ -76,24 +76,30 @@ impl TtEntry for AlphaBetaEntry {
         self.age
     }
 
-    fn set_age(&mut self, age: u8) {
-        self.age = age;
-    }
-
     fn prio(&self, other: &Self, age: u8) -> Ordering {
-        if self.score_type() == ScoreType::Exact && other.score_type() != ScoreType::Exact {
-            return Ordering::Less;
-        }
-        if other.score_type() == ScoreType::Exact && self.score_type() != ScoreType::Exact {
-            return Ordering::Greater;
-        }
         let halfmoves_since_self = ((age as u16 + 256 - self.age() as u16) % 256) as u8;
         let halfmoves_since_other = ((age as u16 + 256 - other.age() as u16) % 256) as u8;
-        match halfmoves_since_self.cmp(&halfmoves_since_other) {
-            Ordering::Less => Ordering::Less,
-            Ordering::Equal => self.depth().cmp(&other.depth()).reverse(),
-            Ordering::Greater => Ordering::Greater,
+        // Prioritize newer entries
+        let age_cmp = halfmoves_since_self.cmp(&halfmoves_since_other);
+        if let Ordering::Less | Ordering::Greater = age_cmp {
+            return age_cmp;
         }
+        // Prioritize PV nodes (if they are from the current search)
+        if halfmoves_since_self == 0 {
+            if self.score_type() == ScoreType::Exact && other.score_type() != ScoreType::Exact {
+                return Ordering::Less;
+            }
+            if other.score_type() == ScoreType::Exact && self.score_type() != ScoreType::Exact {
+                return Ordering::Greater;
+            }
+        }
+        // Prioritize entries with higher search depth
+        let depth_cmp = self.depth().cmp(&other.depth());
+        if let Ordering::Less | Ordering::Greater = depth_cmp {
+            return depth_cmp.reverse();
+        }
+        // Prioritize: PV nodes > Cut nodes > All nodes
+        self.score_type().cmp(&other.score_type())
     }
 }
 
