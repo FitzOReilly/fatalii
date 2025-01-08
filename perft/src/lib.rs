@@ -23,8 +23,6 @@ impl TtEntry for TableEntry {
         AGE
     }
 
-    fn set_age(&mut self, _age: u8) {}
-
     fn prio(&self, other: &Self, _age: u8) -> cmp::Ordering {
         self.depth.cmp(&other.depth).reverse()
     }

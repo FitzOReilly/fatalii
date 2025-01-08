@@ -5,8 +5,6 @@ pub trait TtEntry {
 
     fn age(&self) -> u8;
 
-    fn set_age(&mut self, age: u8);
-
     fn prio(&self, other: &Self, age: u8) -> cmp::Ordering;
 }
 
@@ -102,7 +100,7 @@ where
     // Inserts a value into the table
     //
     // Replacement scheme:
-    // 1. Entry with the same hash value (will only be replaced if new depth >= old depth)
+    // 1. Entry with the same hash value (will only be replaced if new prio <= old prio)
     // 2. None entry
     // 3. Least important entry (i.e. highest prio)
     //
@@ -114,40 +112,35 @@ where
         let bucket_idx = self.key_to_index(&k);
         let mut replaced_idx = None;
         let mut replaced = None;
-        let mut insert_value = value;
         let bucket = &mut self.buckets[bucket_idx];
         for (i, entry) in bucket.iter_mut().enumerate() {
             match entry {
+                Some(ent) if ent.0 == k => {
+                    // Existing entry has the same hash value as the new one
+                    if let cmp::Ordering::Greater = value.prio(&ent.1, value.age()) {
+                        // New prio > old prio => keep existing entry
+                        return None;
+                    }
+                    replaced_idx = Some(i);
+                    replaced = Some(*ent);
+                    break;
+                }
                 Some(ent) => {
-                    if ent.0 == k {
-                        // The hash value was already in the TT
-                        replaced_idx = Some(i);
-                        replaced = Some(*ent);
-                        // Update age
-                        ent.1.set_age(value.age());
-                        if let cmp::Ordering::Greater = value.prio(&ent.1, value.age()) {
-                            // Keep existing entry
-                            insert_value = ent.1;
+                    // Different hash values
+                    match replaced {
+                        None => {
+                            replaced_idx = Some(i);
+                            replaced = Some(*ent);
                         }
-                        break;
-                    } else {
-                        // Different hash value
-                        match replaced {
-                            None => {
+                        Some(rep) => {
+                            if let cmp::Ordering::Greater = ent.1.prio(&rep.1, value.age()) {
                                 replaced_idx = Some(i);
                                 replaced = Some(*ent);
                             }
-                            Some(rep) => match ent.1.prio(&rep.1, value.age()) {
-                                cmp::Ordering::Less | cmp::Ordering::Equal => {}
-                                cmp::Ordering::Greater => {
-                                    replaced_idx = Some(i);
-                                    replaced = Some(*ent);
-                                }
-                            },
                         }
                     }
                 }
-                _ => {
+                None => {
                     // Entry is None => replace it
                     replaced_idx = Some(i);
                     replaced = None;
@@ -157,7 +150,7 @@ where
         }
         match replaced_idx {
             Some(rep_idx) => {
-                self.buckets[bucket_idx][rep_idx] = Some((k, insert_value));
+                self.buckets[bucket_idx][rep_idx] = Some((k, value));
                 self.len += replaced.is_none() as usize;
                 replaced
             }
@@ -191,8 +184,6 @@ mod tests {
         fn age(&self) -> u8 {
             (self % 256) as u8
         }
-
-        fn set_age(&mut self, _age: u8) {}
 
         fn prio(&self, other: &Self, age: u8) -> cmp::Ordering {
             let halfmoves_since_self = ((age as u16 + 256 - self.age() as u16) % 256) as u8;
