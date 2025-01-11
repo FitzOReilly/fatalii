@@ -66,7 +66,7 @@ impl MoveType {
 // Bits 0-5: origin square
 // Bits 6-11: target square
 // Bits 12-15: move type
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Move(u16);
 
 impl Move {

@@ -11,18 +11,18 @@ use std::ops::Neg;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum ScoreType {
-    Exact = 0,
-    LowerBound = 1,
-    UpperBound = 2,
+    None = 0,
+    Exact = 1,
+    LowerBound = 2,
+    UpperBound = 3,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct AlphaBetaEntry {
-    depth: u8,
-    score: Score,
-    score_type: ScoreType,
-    best_move: Move,
-    age: u8,
+    depth_age_score_type: u16, // 16 bits: 0-6: depth, 7-13: age, 14-15: score_type
+    best_move: Move,           // 16 bits
+    score: Score,              // 16 bits
+    static_eval: Score,        // 16 bits
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -45,13 +45,11 @@ impl Neg for AlphaBetaEntry {
 
     // Changes the sign of the score and leaves the rest unchanged
     fn neg(self) -> Self::Output {
-        Self::new(
-            self.depth(),
-            -self.score(),
-            self.score_type(),
-            self.best_move(),
-            self.age(),
-        )
+        Self {
+            score: -self.score,
+            static_eval: -self.static_eval,
+            ..self
+        }
     }
 }
 
@@ -68,17 +66,22 @@ impl Neg for AlphaBetaResult {
 }
 
 impl TtEntry for AlphaBetaEntry {
+    fn is_valid(&self) -> bool {
+        self.score_type() != ScoreType::None
+    }
+
     fn depth(&self) -> usize {
-        self.depth as usize
+        (self.depth_age_score_type & 0x7f) as usize
     }
 
     fn age(&self) -> u8 {
-        self.age
+        (self.depth_age_score_type >> 7) as u8 & 0x7f
     }
 
     fn prio(&self, other: &Self, age: u8) -> Ordering {
-        let halfmoves_since_self = ((age as u16 + 256 - self.age() as u16) % 256) as u8;
-        let halfmoves_since_other = ((age as u16 + 256 - other.age() as u16) % 256) as u8;
+        let divisor = (MAX_SEARCH_DEPTH + 1) as u16;
+        let halfmoves_since_self = ((age as u16 + divisor - self.age() as u16) % divisor) as u8;
+        let halfmoves_since_other = ((age as u16 + divisor - other.age() as u16) % divisor) as u8;
         // Prioritize newer entries
         let age_cmp = halfmoves_since_self.cmp(&halfmoves_since_other);
         if let Ordering::Less | Ordering::Greater = age_cmp {
@@ -108,35 +111,42 @@ impl AlphaBetaEntry {
 
     pub fn new(
         depth: usize,
-        score: Score,
+        age: u8,
         score_type: ScoreType,
         best_move: Move,
-        age: u8,
+        score: Score,
+        static_eval: Score,
     ) -> Self {
         debug_assert!(depth <= MAX_SEARCH_DEPTH);
         Self {
-            depth: depth as u8,
-            score,
-            score_type,
+            depth_age_score_type: depth as u16 | (age as u16) << 7 | (score_type as u16) << 14,
             best_move,
-            age,
+            score,
+            static_eval,
         }
     }
 
-    pub fn score(&self) -> Score {
-        self.score
+    pub fn score_type(&self) -> ScoreType {
+        unsafe { mem::transmute::<u8, ScoreType>((self.depth_age_score_type >> 14) as u8 & 0x3) }
     }
 
-    pub fn score_type(&self) -> ScoreType {
-        self.score_type
+    pub fn with_score_type(&self, score_type: ScoreType) -> Self {
+        Self {
+            depth_age_score_type: self.depth_age_score_type & 0x3f | (score_type as u16) << 14,
+            ..*self
+        }
     }
 
     pub fn best_move(&self) -> Move {
         self.best_move
     }
 
-    pub fn age(&self) -> u8 {
-        self.age
+    pub fn score(&self) -> Score {
+        self.score
+    }
+
+    pub fn static_eval(&self) -> Score {
+        self.static_eval
     }
 
     pub fn with_increased_mate_distance(&self, plies: usize) -> Self {
@@ -157,39 +167,19 @@ impl AlphaBetaEntry {
         match self.score_type() {
             ScoreType::Exact => {
                 if self.score() >= beta {
-                    Some(Self::new(
-                        self.depth(),
-                        self.score(),
-                        ScoreType::LowerBound,
-                        self.best_move(),
-                        self.age(),
-                    ))
+                    Some(self.with_score_type(ScoreType::LowerBound))
                 } else if self.score() < alpha {
-                    Some(Self::new(
-                        self.depth(),
-                        self.score(),
-                        ScoreType::UpperBound,
-                        self.best_move(),
-                        self.age(),
-                    ))
+                    Some(self.with_score_type(ScoreType::UpperBound))
                 } else {
                     Some(*self)
                 }
             }
-            ScoreType::LowerBound if self.score() >= beta => Some(Self::new(
-                self.depth(),
-                self.score(),
-                ScoreType::LowerBound,
-                self.best_move(),
-                self.age(),
-            )),
-            ScoreType::UpperBound if self.score() < alpha => Some(Self::new(
-                self.depth(),
-                self.score(),
-                ScoreType::UpperBound,
-                self.best_move(),
-                self.age(),
-            )),
+            ScoreType::LowerBound if self.score() >= beta => {
+                Some(self.with_score_type(ScoreType::LowerBound))
+            }
+            ScoreType::UpperBound if self.score() < alpha => {
+                Some(self.with_score_type(ScoreType::UpperBound))
+            }
             _ => None,
         }
     }
@@ -198,25 +188,22 @@ impl AlphaBetaEntry {
 impl AlphaBetaResult {
     pub fn new(
         depth: usize,
-        score: Score,
+        age: u8,
         score_type: ScoreType,
         best_move: Move,
-        age: u8,
+        score: Score,
+        static_eval: Score,
         should_store: bool,
     ) -> Self {
         debug_assert!(depth <= MAX_SEARCH_DEPTH);
         Self {
-            entry: AlphaBetaEntry::new(depth, score, score_type, best_move, age),
+            entry: AlphaBetaEntry::new(depth, age, score_type, best_move, score, static_eval),
             should_store,
         }
     }
 
     pub fn entry(&self) -> AlphaBetaEntry {
         self.entry
-    }
-
-    pub fn score(&self) -> Score {
-        self.entry.score()
     }
 
     pub fn score_type(&self) -> ScoreType {
@@ -227,11 +214,53 @@ impl AlphaBetaResult {
         self.entry.best_move()
     }
 
+    pub fn score(&self) -> Score {
+        self.entry.score()
+    }
+
+    pub fn static_eval(&self) -> Score {
+        self.entry.static_eval()
+    }
+
     pub fn should_store(&self) -> bool {
         self.should_store
     }
 
     pub fn bound_soft(&self, alpha: Score, beta: Score) -> Option<Self> {
         self.entry.bound_soft(alpha, beta).map(Self::from)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn depth_age_score_type() {
+        for (depth, age, score_type) in [
+            (0, 0, ScoreType::Exact),
+            (0, 0, ScoreType::LowerBound),
+            (0, 0, ScoreType::UpperBound),
+            (0, 127, ScoreType::Exact),
+            (0, 127, ScoreType::LowerBound),
+            (0, 127, ScoreType::UpperBound),
+            (127, 0, ScoreType::Exact),
+            (127, 0, ScoreType::LowerBound),
+            (127, 0, ScoreType::UpperBound),
+            (127, 127, ScoreType::Exact),
+            (127, 127, ScoreType::LowerBound),
+            (127, 127, ScoreType::UpperBound),
+        ] {
+            let entry = AlphaBetaEntry::new(depth, age, score_type, Move::NULL, 0, 0);
+            assert_eq!(depth, entry.depth());
+            assert_eq!(age, entry.age());
+            assert_eq!(score_type, entry.score_type());
+        }
+    }
+
+    #[test]
+    fn size_of_entry_is_16_bytes() {
+        assert_eq!(8, mem::size_of::<AlphaBetaEntry>());
+        assert_eq!(16, mem::size_of::<(Zobrist, AlphaBetaEntry)>());
     }
 }
