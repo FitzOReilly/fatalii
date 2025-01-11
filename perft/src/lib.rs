@@ -8,13 +8,18 @@ use movegen::zobrist::Zobrist;
 
 const AGE: u8 = 0;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 struct TableEntry {
+    is_valid: bool,
     depth: usize,
     num_nodes: usize,
 }
 
 impl TtEntry for TableEntry {
+    fn is_valid(&self) -> bool {
+        self.is_valid
+    }
+
     fn depth(&self) -> usize {
         self.depth
     }
@@ -81,8 +86,14 @@ impl PerformanceTester {
                                         self.count_nodes_recursive(move_list_stack, depth - 1);
                                     self.pos_history.undo_last_move();
                                 }
-                                self.transpos_table
-                                    .insert(hash, TableEntry { depth, num_nodes });
+                                self.transpos_table.insert(
+                                    hash,
+                                    TableEntry {
+                                        is_valid: true,
+                                        depth,
+                                        num_nodes,
+                                    },
+                                );
                             }
                         }
                         move_list_stack.push(move_list);

@@ -356,8 +356,9 @@ impl AlphaBeta {
         }
 
         let mut score_type = ScoreType::UpperBound;
-        let mut best_score = NEG_INF;
         let mut best_move = Move::NULL;
+        let mut best_score = NEG_INF;
+        let static_eval = search_data.static_eval(&mut self.evaluator);
         let mut should_store = true;
 
         let depth = search_data.remaining_depth();
@@ -439,10 +440,11 @@ impl AlphaBeta {
             if score >= beta {
                 let node = AlphaBetaResult::new(
                     depth,
-                    score,
+                    search_data.age(),
                     ScoreType::LowerBound,
                     m,
-                    search_data.age(),
+                    score,
+                    static_eval,
                     search_res.should_store(),
                 );
                 if !m.is_capture() {
@@ -491,10 +493,11 @@ impl AlphaBeta {
         }
         let node = AlphaBetaResult::new(
             depth,
-            best_score,
+            search_data.age(),
             score_type,
             best_move,
-            search_data.age(),
+            best_score,
+            static_eval,
             should_store,
         );
         debug_assert!(
@@ -552,8 +555,8 @@ impl AlphaBeta {
         if depth >= MIN_NULL_MOVE_PRUNE_DEPTH
             && search_data.prev_pv_depth() == 0
             && search_data.pos_history().last_move() != Some(&Move::NULL)
-            && !search_data.is_in_check(search_data.current_pos().side_to_move())
-            && search_data.eval_relative(&mut self.evaluator) >= beta
+            && !search_data.is_in_check()
+            && search_data.static_eval(&mut self.evaluator) >= beta
             && search_data
                 .current_pos()
                 .has_minor_or_major_piece(search_data.current_pos().side_to_move())
@@ -570,10 +573,11 @@ impl AlphaBeta {
                     if score >= beta {
                         let node = AlphaBetaResult::new(
                             depth,
-                            score,
+                            search_data.age(),
                             ScoreType::LowerBound,
                             Move::NULL,
-                            search_data.age(),
+                            score,
+                            search_data.static_eval(&mut self.evaluator),
                             search_res.should_store(),
                         );
                         return Some(Some(node));
@@ -587,10 +591,8 @@ impl AlphaBeta {
 
     fn prune_futility(&mut self, search_data: &mut SearchData<'_>, alpha: Score) -> bool {
         let depth = search_data.remaining_depth();
-        if depth <= self.search_params.futility_pruning_max_depth
-            && !search_data.is_in_check(search_data.current_pos().side_to_move())
-        {
-            let score = search_data.eval_relative(&mut self.evaluator);
+        if depth <= self.search_params.futility_pruning_max_depth && !search_data.is_in_check() {
+            let score = search_data.static_eval(&mut self.evaluator);
             if score
                 + self.search_params.futility_margin_base
                 + (depth - 1) as Score * self.search_params.futility_margin_per_depth
@@ -612,11 +614,11 @@ impl AlphaBeta {
         let is_pv_node = alpha != beta - 1;
         if !is_pv_node
             && depth <= self.search_params.reverse_futility_pruning_max_depth
-            && !search_data.is_in_check(search_data.current_pos().side_to_move())
+            && !search_data.is_in_check()
         {
             debug_assert_ne!(search_data.ply(), 0);
             debug_assert_eq!(search_data.prev_pv_depth(), 0);
-            let score = search_data.eval_relative(&mut self.evaluator);
+            let score = search_data.static_eval(&mut self.evaluator);
             if score
                 - self.search_params.reverse_futility_margin_base
                 - (depth - 1) as Score * self.search_params.reverse_futility_margin_per_depth
@@ -624,10 +626,11 @@ impl AlphaBeta {
             {
                 let node = AlphaBetaResult::new(
                     depth,
-                    score,
+                    search_data.age(),
                     ScoreType::LowerBound,
                     Move::NULL,
-                    search_data.age(),
+                    score,
+                    search_data.static_eval(&mut self.evaluator),
                     true,
                 );
                 return Some(node);
@@ -642,7 +645,7 @@ impl AlphaBeta {
             + self.search_params.late_move_pruning_factor * depth * depth;
         depth <= self.search_params.late_move_pruning_max_depth
             && move_count >= late_move_count
-            && !search_data.is_in_check(search_data.current_pos().side_to_move())
+            && !search_data.is_in_check()
     }
 
     fn search_quiescence(
@@ -665,27 +668,27 @@ impl AlphaBeta {
             }
         }
 
-        let is_in_check = search_data.is_in_check(search_data.current_pos().side_to_move());
-        if is_in_check {
+        if search_data.is_in_check() {
             return self.search_quiescence_check(search_data, alpha, beta);
         }
 
         // We might be evaluating a stalemate here. This is ok for now because checking for legal
         // moves is expensive here.
-        let stand_pat = search_data.eval_relative(&mut self.evaluator);
-        let mut score = stand_pat;
+        let static_eval = search_data.static_eval(&mut self.evaluator);
+        let mut score = static_eval;
         let mut score_type = ScoreType::UpperBound;
-        let mut best_score = stand_pat;
+        let mut best_score = static_eval;
         let mut best_move = Move::NULL;
         let mut should_store = true;
 
         if score >= beta {
             let node = AlphaBetaResult::new(
                 depth,
-                score,
+                search_data.age(),
                 ScoreType::LowerBound,
                 Move::NULL,
-                search_data.age(),
+                score,
+                static_eval,
                 true,
             );
             self.update_table(search_data, node);
@@ -695,10 +698,17 @@ impl AlphaBeta {
             alpha = score;
             score_type = ScoreType::Exact;
         }
-        if stand_pat + DELTA_PRUNING_MARGIN_ALL_MOVES < alpha {
+        if static_eval + DELTA_PRUNING_MARGIN_ALL_MOVES < alpha {
             debug_assert!(score_type == ScoreType::UpperBound);
-            let node =
-                AlphaBetaResult::new(depth, alpha, score_type, best_move, search_data.age(), true);
+            let node = AlphaBetaResult::new(
+                depth,
+                search_data.age(),
+                score_type,
+                best_move,
+                alpha,
+                static_eval,
+                true,
+            );
             self.update_table(search_data, node);
             return node;
         }
@@ -710,7 +720,7 @@ impl AlphaBeta {
             move_selector.select_next_move_quiescence_capture(search_data, &mut self.transpos_table)
         {
             let potential_improvement = see::gained_material_value(search_data.current_pos(), m);
-            if stand_pat + potential_improvement + DELTA_PRUNING_MARGIN_MOVE < alpha {
+            if static_eval + potential_improvement + DELTA_PRUNING_MARGIN_MOVE < alpha {
                 continue;
             }
 
@@ -722,10 +732,11 @@ impl AlphaBeta {
             if score >= beta {
                 let node = AlphaBetaResult::new(
                     depth,
-                    score,
+                    search_data.age(),
                     ScoreType::LowerBound,
                     m,
-                    search_data.age(),
+                    score,
+                    static_eval,
                     search_result.should_store(),
                 );
                 self.update_table(search_data, node);
@@ -744,10 +755,11 @@ impl AlphaBeta {
         debug_assert!(score_type == ScoreType::Exact || score_type == ScoreType::UpperBound);
         let node = AlphaBetaResult::new(
             depth,
-            best_score,
+            search_data.age(),
             score_type,
             best_move,
-            search_data.age(),
+            best_score,
+            static_eval,
             should_store,
         );
         self.update_table(search_data, node);
@@ -760,7 +772,7 @@ impl AlphaBeta {
         mut alpha: Score,
         beta: Score,
     ) -> AlphaBetaResult {
-        debug_assert!(search_data.is_in_check(search_data.current_pos().side_to_move()));
+        debug_assert!(search_data.is_in_check());
 
         let depth = 0;
 
@@ -798,10 +810,11 @@ impl AlphaBeta {
                 if score >= beta {
                     let node = AlphaBetaResult::new(
                         depth,
-                        score,
+                        search_data.age(),
                         ScoreType::LowerBound,
                         m,
-                        search_data.age(),
+                        score,
+                        search_data.static_eval(&mut self.evaluator),
                         search_result.should_store(),
                     );
                     self.update_table(search_data, node);
@@ -822,10 +835,11 @@ impl AlphaBeta {
         debug_assert!(score_type == ScoreType::Exact || score_type == ScoreType::UpperBound);
         let node = AlphaBetaResult::new(
             depth,
-            best_score,
+            search_data.age(),
             score_type,
             best_move,
-            search_data.age(),
+            best_score,
+            search_data.static_eval(&mut self.evaluator),
             should_store,
         );
         self.update_table(search_data, node);
@@ -842,15 +856,17 @@ impl AlphaBeta {
         }
     }
 
-    fn lookup_table_entry(&mut self, search_data: &SearchData<'_>) -> Option<AlphaBetaResult> {
+    fn lookup_table_entry(&mut self, search_data: &mut SearchData<'_>) -> Option<AlphaBetaResult> {
         let depth = search_data.remaining_depth();
-        match self.transpos_table.get(&search_data.current_pos_hash()) {
-            Some(entry) if entry.depth() >= depth => {
+        if let Some(entry) = self.transpos_table.get(&search_data.current_pos_hash()) {
+            // Static eval is independent of depth, so we can always use it
+            search_data.set_static_eval(entry.static_eval());
+            if entry.depth() >= depth {
                 // Convert mate distance from the current position to the search root
-                Some(entry.with_increased_mate_distance(search_data.ply()).into())
+                return Some(entry.with_increased_mate_distance(search_data.ply()).into());
             }
-            _ => None,
         }
+        None
     }
 
     fn usable_table_entry(
@@ -890,6 +906,7 @@ impl AlphaBeta {
     fn is_draw(search_data: &mut SearchData, is_pv_node: bool) -> Option<AlphaBetaResult> {
         let node =
             Self::is_draw_by_rep(search_data).or_else(|| Self::is_draw_by_moves(search_data))?;
+        search_data.set_static_eval(node.static_eval());
         if is_pv_node {
             search_data.update_pv_move_and_truncate(node.best_move());
             search_data.end_prev_pv();
@@ -903,10 +920,11 @@ impl AlphaBeta {
         }
         Some(AlphaBetaResult::new(
             search_data.remaining_depth(),
-            EQ_POSITION,
+            search_data.age(),
             ScoreType::Exact,
             Move::NULL,
-            search_data.age(),
+            EQ_POSITION,
+            EQ_POSITION,
             false,
         ))
     }
@@ -918,7 +936,7 @@ impl AlphaBeta {
             return None;
         }
         let mut score = EQ_POSITION;
-        if search_data.is_in_check(search_data.current_pos().side_to_move()) {
+        if search_data.is_in_check() {
             let mut move_list = MoveList::new();
             MoveGenerator::generate_moves(&mut move_list, search_data.current_pos());
             if move_list.is_empty() {
@@ -927,10 +945,11 @@ impl AlphaBeta {
         }
         Some(AlphaBetaResult::new(
             search_data.remaining_depth(),
-            score,
+            search_data.age(),
             ScoreType::Exact,
             Move::NULL,
-            search_data.age(),
+            score,
+            score,
             score != EQ_POSITION,
         ))
     }
@@ -946,23 +965,24 @@ impl AlphaBeta {
         alpha: Score,
         beta: Score,
     ) -> AlphaBetaResult {
-        let pos = search_data.current_pos();
         let mut score_type = ScoreType::UpperBound;
         let best_move = Move::NULL;
-        let score = if search_data.is_in_check(pos.side_to_move()) {
+        let score = if search_data.is_in_check() {
             BLACK_WIN + search_data.ply() as Score
         } else {
             EQ_POSITION
         };
+        search_data.set_static_eval(score);
         let depth = search_data.remaining_depth();
         if score >= beta {
             score_type = ScoreType::LowerBound;
             return AlphaBetaResult::new(
                 depth,
-                score,
+                search_data.age(),
                 score_type,
                 best_move,
-                search_data.age(),
+                score,
+                score,
                 true,
             );
         }
@@ -971,11 +991,30 @@ impl AlphaBeta {
             search_data.update_pv_move_and_truncate(best_move);
             search_data.end_prev_pv();
         }
-        AlphaBetaResult::new(depth, score, score_type, best_move, search_data.age(), true)
+        AlphaBetaResult::new(
+            depth,
+            search_data.age(),
+            score_type,
+            best_move,
+            score,
+            score,
+            true,
+        )
     }
 
     fn late_move_depth_reduction(depth: usize, move_count: usize) -> usize {
         debug_assert!(depth >= MIN_LATE_MOVE_REDUCTION_DEPTH);
         ((move_count + 1) / 6).min(depth / 3)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn size_of_bucket_is_64_bytes() {
+        // 64 bytes equals the cache line size on most modern CPUs
+        assert_eq!(64, AlphaBetaTable::bucket_size());
     }
 }
