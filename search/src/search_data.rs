@@ -319,6 +319,10 @@ impl<'a> SearchData<'a> {
         self.search_stack[self.ply].is_in_check.unwrap()
     }
 
+    pub fn gives_check(&self, m: Move) -> bool {
+        self.current_pos().gives_check(m)
+    }
+
     pub fn static_eval(&mut self, evaluator: &mut Box<dyn Eval + Send>) -> Score {
         if self.search_stack[self.ply].eval_relative.is_none() {
             self.increment_eval_calls();

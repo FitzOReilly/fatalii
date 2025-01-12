@@ -394,7 +394,7 @@ impl AlphaBeta {
                 && search_data.ply() != 0
                 && search_data.prev_pv_depth() == 0
                 && best_score > NEG_INF
-                && !search_data.pos_history_mut().gives_check(m)
+                && !search_data.gives_check(m)
             {
                 debug_assert_ne!(search_data.ply(), 0);
                 continue;

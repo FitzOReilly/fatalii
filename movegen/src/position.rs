@@ -8,6 +8,8 @@ use crate::pawn::Pawn;
 use crate::piece;
 use crate::piece::Piece;
 use crate::queen::Queen;
+use crate::r#move::Move;
+use crate::r#move::MoveType;
 use crate::rank::Rank;
 use crate::rook::Rook;
 use crate::side::Side;
@@ -257,6 +259,86 @@ impl Position {
     pub fn is_in_check(&self, side: Side) -> bool {
         self.piece_occupancy(side, piece::Type::King) & self.attacked_squares(!side)
             != Bitboard::EMPTY
+    }
+
+    pub fn gives_check(&self, m: Move) -> bool {
+        // Add and remove pieces to get the occupancy after the move
+        let origin_bb = Bitboard::from_square(m.origin());
+        let target_bb = Bitboard::from_square(m.target());
+        let mut occupied = self.occupancy() & !origin_bb | target_bb;
+        let mut own_diag_sliders = occupied
+            & (self.piece_occupancy(self.side_to_move(), piece::Type::Bishop)
+                | self.piece_occupancy(self.side_to_move(), piece::Type::Queen));
+        let mut own_line_sliders = occupied
+            & (self.piece_occupancy(self.side_to_move(), piece::Type::Rook)
+                | self.piece_occupancy(self.side_to_move(), piece::Type::Queen));
+        if m.is_en_passant() {
+            occupied &= !self.en_passant_square();
+        }
+        // Update the rook position after castling
+        if m.is_castle() {
+            let start_rank = m.origin().rank();
+            let (rook_origin, rook_target) = match m.move_type() {
+                MoveType::CASTLE_KINGSIDE => (
+                    Bitboard::from_square(Square::from_file_and_rank(
+                        self.kingside_rook_start_file(),
+                        start_rank,
+                    )),
+                    Bitboard::from_square(Square::from_file_and_rank(File::F, start_rank)),
+                ),
+                MoveType::CASTLE_QUEENSIDE => (
+                    Bitboard::from_square(Square::from_file_and_rank(
+                        self.queenside_rook_start_file(),
+                        start_rank,
+                    )),
+                    Bitboard::from_square(Square::from_file_and_rank(File::D, start_rank)),
+                ),
+                _ => unreachable!(),
+            };
+            occupied = occupied & !rook_origin | rook_target;
+            own_line_sliders = own_line_sliders & !rook_origin | rook_target;
+        }
+
+        // Get the moved piece type, considering promotions
+        let enemy_king_bb = self.piece_occupancy(!self.side_to_move(), piece::Type::King);
+        let target_piece_type = if m.is_promotion() {
+            m.promotion_piece().unwrap()
+        } else {
+            self.piece_at(m.origin()).unwrap().piece_type()
+        };
+        match target_piece_type {
+            // If the moved pawn or knight gives check, there is no need to
+            // calculate slider attacks and we can return immediately
+            piece::Type::Pawn => {
+                if enemy_king_bb & Pawn::attack_targets(target_bb, self.side_to_move())
+                    != Bitboard::EMPTY
+                {
+                    return true;
+                }
+            }
+            piece::Type::Knight => {
+                if enemy_king_bb & Knight::targets(m.target()) != Bitboard::EMPTY {
+                    return true;
+                }
+            }
+            // Add the moved slider to the respective bitboard, so that we can
+            // calculate attacks by the moved piece together with discovered
+            // attacks
+            piece::Type::Bishop => own_diag_sliders |= target_bb,
+            piece::Type::Rook => own_line_sliders |= target_bb,
+            piece::Type::Queen => {
+                own_diag_sliders |= target_bb;
+                own_line_sliders |= target_bb;
+            }
+            // Our king cannot attack the enemy king
+            piece::Type::King => {}
+        };
+
+        // Check if a slider attacks the enemy king.
+        // This includes the moved piece and discovered attacks.
+        let enemy_king = enemy_king_bb.to_square();
+        Bishop::targets(enemy_king, occupied) & own_diag_sliders != Bitboard::EMPTY
+            || Rook::targets(enemy_king, occupied) & own_line_sliders != Bitboard::EMPTY
     }
 
     pub fn attacked_squares(&self, attacking_side: Side) -> Bitboard {

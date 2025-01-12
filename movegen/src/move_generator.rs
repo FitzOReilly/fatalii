@@ -1116,7 +1116,7 @@ mod tests {
     }
 
     #[test]
-    fn generate_moves_quiescence() {
+    fn random_moves_for_quiescence_and_gives_check() {
         let pos = Position::initial();
         let mut pos_hist = PositionHistory::new(pos.clone());
         let gen_then_filter = |move_list: &mut MoveList, pos: &Position| {
@@ -1124,28 +1124,53 @@ mod tests {
             move_list.retain(|x| x.is_capture() || x.promotion_piece() == Some(piece::Type::Queen));
         };
 
+        // Use a simple and slow closure to verify the more complex and faster
+        // Position::gives_check for all legal moves in the current position
+        let verify_gives_check = |pos_hist: &mut PositionHistory, move_list: &MoveList| {
+            let simple_gives_check = |pos_hist: &mut PositionHistory, m: Move| -> bool {
+                pos_hist.do_move(m);
+                let pos = pos_hist.current_pos();
+                let res = pos.is_in_check(pos.side_to_move());
+                pos_hist.undo_last_move();
+                res
+            };
+            for m in move_list.iter() {
+                assert_eq!(
+                    simple_gives_check(pos_hist, *m),
+                    pos_hist.current_pos().gives_check(*m),
+                );
+            }
+        };
+
+        let game_count = 100;
         let max_moves = 100;
 
         let mut move_list = MoveList::new();
         let mut move_list_fn = MoveList::new();
         let mut move_list_closure = MoveList::new();
 
-        for _ in 0..max_moves {
-            let side_to_move = pos_hist.current_pos().side_to_move();
-            if !pos_hist.current_pos().is_in_check(side_to_move) {
-                MoveGenerator::generate_moves_quiescence(&mut move_list_fn, pos_hist.current_pos());
-                gen_then_filter(&mut move_list_closure, pos_hist.current_pos());
+        for _ in 0..game_count {
+            for _ in 0..max_moves {
+                let side_to_move = pos_hist.current_pos().side_to_move();
+                if !pos_hist.current_pos().is_in_check(side_to_move) {
+                    MoveGenerator::generate_moves_quiescence(
+                        &mut move_list_fn,
+                        pos_hist.current_pos(),
+                    );
+                    gen_then_filter(&mut move_list_closure, pos_hist.current_pos());
 
-                assert_eq!(move_list_fn.len(), move_list_closure.len());
-                for m in move_list_fn.iter() {
-                    assert!(move_list_closure.contains(m));
+                    assert_eq!(move_list_fn.len(), move_list_closure.len());
+                    for m in move_list_fn.iter() {
+                        assert!(move_list_closure.contains(m));
+                    }
                 }
-            }
 
-            MoveGenerator::generate_moves(&mut move_list, pos_hist.current_pos());
-            match move_list.choose(&mut rand::thread_rng()) {
-                Some(m) => pos_hist.do_move(*m),
-                None => pos_hist = PositionHistory::new(pos.clone()),
+                MoveGenerator::generate_moves(&mut move_list, pos_hist.current_pos());
+                verify_gives_check(&mut pos_hist, &move_list);
+                match move_list.choose(&mut rand::thread_rng()) {
+                    Some(m) => pos_hist.do_move(*m),
+                    None => pos_hist = PositionHistory::new(pos.clone()),
+                }
             }
         }
     }
