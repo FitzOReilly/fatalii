@@ -106,11 +106,11 @@ impl Position {
         File::from_idx((self.castling_files & 0x7) as usize)
     }
 
-    pub fn kingside_castling_file(&self) -> File {
+    pub fn kingside_rook_start_file(&self) -> File {
         File::from_idx((self.castling_files >> 3 & 0x7) as usize)
     }
 
-    pub fn queenside_castling_file(&self) -> File {
+    pub fn queenside_rook_start_file(&self) -> File {
         File::from_idx((self.castling_files >> 6 & 0x7) as usize)
     }
 
@@ -285,9 +285,9 @@ impl Position {
     pub fn remove_castling_rights(&mut self, square: Square) {
         let removed_castling_rights = match square.rank() {
             Rank::R1 => {
-                if square.file() == self.kingside_castling_file() {
+                if square.file() == self.kingside_rook_start_file() {
                     CastlingRights::WHITE_KINGSIDE
-                } else if square.file() == self.queenside_castling_file() {
+                } else if square.file() == self.queenside_rook_start_file() {
                     CastlingRights::WHITE_QUEENSIDE
                 } else if square.file() == self.king_start_file() {
                     CastlingRights::WHITE_BOTH
@@ -296,9 +296,9 @@ impl Position {
                 }
             }
             Rank::R8 => {
-                if square.file() == self.kingside_castling_file() {
+                if square.file() == self.kingside_rook_start_file() {
                     CastlingRights::BLACK_KINGSIDE
-                } else if square.file() == self.queenside_castling_file() {
+                } else if square.file() == self.queenside_rook_start_file() {
                     CastlingRights::BLACK_QUEENSIDE
                 } else if square.file() == self.king_start_file() {
                     CastlingRights::BLACK_BOTH
@@ -325,9 +325,9 @@ impl Position {
 
     fn set_castling_squares(&mut self) {
         self.castling_squares = CastlingSquares::new(
-            self.queenside_castling_file(),
+            self.queenside_rook_start_file(),
             self.king_start_file(),
-            self.kingside_castling_file(),
+            self.kingside_rook_start_file(),
         );
     }
 
@@ -385,8 +385,8 @@ mod tests {
             CastlingRights::WHITE_BOTH | CastlingRights::BLACK_BOTH,
             pos.castling_rights()
         );
-        assert_eq!(File::H, pos.kingside_castling_file());
-        assert_eq!(File::A, pos.queenside_castling_file());
+        assert_eq!(File::H, pos.kingside_rook_start_file());
+        assert_eq!(File::A, pos.queenside_rook_start_file());
         assert_eq!(0, pos.plies_since_pawn_move_or_capture());
         assert_eq!(1, pos.move_count());
 
@@ -619,23 +619,23 @@ mod tests {
     fn castling_files() {
         let mut pos = Position::empty();
         assert_eq!(File::E, pos.king_start_file());
-        assert_eq!(File::H, pos.kingside_castling_file());
-        assert_eq!(File::A, pos.queenside_castling_file());
+        assert_eq!(File::H, pos.kingside_rook_start_file());
+        assert_eq!(File::A, pos.queenside_rook_start_file());
 
         pos.set_king_start_file(File::D);
         assert_eq!(File::D, pos.king_start_file());
-        assert_eq!(File::H, pos.kingside_castling_file());
-        assert_eq!(File::A, pos.queenside_castling_file());
+        assert_eq!(File::H, pos.kingside_rook_start_file());
+        assert_eq!(File::A, pos.queenside_rook_start_file());
 
         pos.set_kingside_castling_file(File::F);
         assert_eq!(File::D, pos.king_start_file());
-        assert_eq!(File::F, pos.kingside_castling_file());
-        assert_eq!(File::A, pos.queenside_castling_file());
+        assert_eq!(File::F, pos.kingside_rook_start_file());
+        assert_eq!(File::A, pos.queenside_rook_start_file());
 
         pos.set_queenside_castling_file(File::C);
         assert_eq!(File::D, pos.king_start_file());
-        assert_eq!(File::F, pos.kingside_castling_file());
-        assert_eq!(File::C, pos.queenside_castling_file());
+        assert_eq!(File::F, pos.kingside_rook_start_file());
+        assert_eq!(File::C, pos.queenside_rook_start_file());
     }
 
     #[test]

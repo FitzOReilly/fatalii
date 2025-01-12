@@ -395,7 +395,7 @@ pub trait MoveGeneratorTemplate {
 
         if castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
             let king_square = Square::from_file_and_rank(pos.king_start_file(), Rank::R1);
-            let rook_square = Square::from_file_and_rank(pos.kingside_castling_file(), Rank::R1);
+            let rook_square = Square::from_file_and_rank(pos.kingside_rook_start_file(), Rank::R1);
             debug_assert_eq!(Some(piece::Piece::WHITE_KING), pos.piece_at(king_square));
             debug_assert_eq!(Some(piece::Piece::WHITE_ROOK), pos.piece_at(rook_square));
             let squares_passable = pos.occupancy()
@@ -414,7 +414,7 @@ pub trait MoveGeneratorTemplate {
         }
         if castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
             let king_square = Square::from_file_and_rank(pos.king_start_file(), Rank::R1);
-            let rook_square = Square::from_file_and_rank(pos.queenside_castling_file(), Rank::R1);
+            let rook_square = Square::from_file_and_rank(pos.queenside_rook_start_file(), Rank::R1);
             if rook_square == Square::B1 {
                 // Check if the rook is pinned by a rook or queen on a1
                 match pos.piece_at(Square::A1) {
@@ -446,7 +446,7 @@ pub trait MoveGeneratorTemplate {
 
         if castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
             let king_square = Square::from_file_and_rank(pos.king_start_file(), Rank::R8);
-            let rook_square = Square::from_file_and_rank(pos.kingside_castling_file(), Rank::R8);
+            let rook_square = Square::from_file_and_rank(pos.kingside_rook_start_file(), Rank::R8);
             debug_assert_eq!(Some(piece::Piece::BLACK_KING), pos.piece_at(king_square));
             debug_assert_eq!(Some(piece::Piece::BLACK_ROOK), pos.piece_at(rook_square));
             let squares_passable = pos.occupancy()
@@ -465,7 +465,7 @@ pub trait MoveGeneratorTemplate {
         }
         if castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
             let king_square = Square::from_file_and_rank(pos.king_start_file(), Rank::R8);
-            let rook_square = Square::from_file_and_rank(pos.queenside_castling_file(), Rank::R8);
+            let rook_square = Square::from_file_and_rank(pos.queenside_rook_start_file(), Rank::R8);
             if rook_square == Square::B8 {
                 // Check if the rook is pinned by a rook or queen on a1
                 match pos.piece_at(Square::A8) {

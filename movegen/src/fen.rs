@@ -138,16 +138,16 @@ impl Fen {
             fen.push('-');
         } else {
             if castling_rights.contains(CastlingRights::WHITE_KINGSIDE) {
-                fen.push((pos.kingside_castling_file().to_ascii() as char).to_ascii_uppercase());
+                fen.push((pos.kingside_rook_start_file().to_ascii() as char).to_ascii_uppercase());
             }
             if castling_rights.contains(CastlingRights::WHITE_QUEENSIDE) {
-                fen.push((pos.queenside_castling_file().to_ascii() as char).to_ascii_uppercase());
+                fen.push((pos.queenside_rook_start_file().to_ascii() as char).to_ascii_uppercase());
             }
             if castling_rights.contains(CastlingRights::BLACK_KINGSIDE) {
-                fen.push(pos.kingside_castling_file().to_ascii() as char);
+                fen.push(pos.kingside_rook_start_file().to_ascii() as char);
             }
             if castling_rights.contains(CastlingRights::BLACK_QUEENSIDE) {
-                fen.push(pos.queenside_castling_file().to_ascii() as char);
+                fen.push(pos.queenside_rook_start_file().to_ascii() as char);
             }
         }
     }
