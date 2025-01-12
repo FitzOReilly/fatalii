@@ -99,8 +99,8 @@ fn parse_fen<'a>(
                 Ok(pos) => {
                     if let Variant::Chess960(_, _) = engine.variant() {
                         engine.set_variant(Variant::Chess960(
-                            pos.kingside_castling_file(),
-                            pos.queenside_castling_file(),
+                            pos.kingside_rook_start_file(),
+                            pos.queenside_rook_start_file(),
                         ));
                     }
                     Ok((PositionHistory::new(pos), &trimmed[fen_end..]))
