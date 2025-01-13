@@ -216,7 +216,7 @@ impl PositionHistory {
         self.remove_piece(origin, origin_piece);
         self.set_piece(target, target_piece);
 
-        let en_passant_square = Bitboard::from_square(Pawn::push_origin(target, side_to_move));
+        let en_passant_square = Bitboard::from(Pawn::push_origin(target, side_to_move));
 
         self.pos_hash
             .toggle_en_passant_square(self.pos.en_passant_square());

@@ -118,7 +118,7 @@ impl PawnStructure {
         pawn: Square,
         side_to_move: Side,
     ) -> bool {
-        let pawn_bb = Bitboard::from_square(pawn);
+        let pawn_bb = Bitboard::from(pawn);
         Pawn::front_span(pawn_bb, side_to_move) & (all_pawns) == Bitboard::EMPTY
             && Pawn::front_fill(pawn_bb, side_to_move) & opp_pawn_attack_targets == Bitboard::EMPTY
     }
@@ -134,7 +134,7 @@ impl PawnStructure {
     }
 
     fn is_isolated(own_pawns: Bitboard, pawn: Square) -> bool {
-        let pawn_file = Bitboard::from_square(pawn).file_fill();
+        let pawn_file = Bitboard::from(pawn).file_fill();
         let adjacent_files = pawn_file.east_one() | pawn_file.west_one();
         adjacent_files & own_pawns == Bitboard::EMPTY
     }

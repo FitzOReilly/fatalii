@@ -451,7 +451,7 @@ impl Fen {
                     _ => return Err(FenError::InvalidEnPassantSquare),
                 }
                 let square = Square::from((file, rank));
-                pos.set_en_passant_square(Bitboard::from_square(square));
+                pos.set_en_passant_square(Bitboard::from(square));
             }
             _ => return Err(FenError::InvalidEnPassantSquare),
         }

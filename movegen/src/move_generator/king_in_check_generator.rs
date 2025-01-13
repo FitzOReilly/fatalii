@@ -35,10 +35,10 @@ impl MoveGeneratorTemplate for KingInCheckGenerator {
 
     fn is_legal_non_capture(attacks_to_king: &AttacksTo, origin: Square, target: Square) -> bool {
         let pos = attacks_to_king.pos;
-        let origin_bb = Bitboard::from_square(origin);
-        let target_bb = Bitboard::from_square(target);
+        let origin_bb = Bitboard::from(origin);
+        let target_bb = Bitboard::from(target);
         let occupancy_after_move = pos.occupancy() & !origin_bb | target_bb;
-        let own_king = Bitboard::from_square(attacks_to_king.target);
+        let own_king = Bitboard::from(attacks_to_king.target);
         let king_in_check_after_move = attacks_to_king
             .each_xray
             .iter()
@@ -49,9 +49,9 @@ impl MoveGeneratorTemplate for KingInCheckGenerator {
 
     fn is_legal_capture(attacks_to_king: &AttacksTo, origin: Square, target: Square) -> bool {
         let pos = attacks_to_king.pos;
-        let origin_bb = Bitboard::from_square(origin);
+        let origin_bb = Bitboard::from(origin);
         let occupancy_after_move = pos.occupancy() & !origin_bb;
-        let own_king = Bitboard::from_square(attacks_to_king.target);
+        let own_king = Bitboard::from(attacks_to_king.target);
         let king_in_check_after_move = attacks_to_king
             .each_xray
             .iter()
@@ -67,16 +67,16 @@ impl MoveGeneratorTemplate for KingInCheckGenerator {
         target: Square,
     ) -> bool {
         let pos = attacks_to_king.pos;
-        let origin_bb = Bitboard::from_square(origin);
-        let target_bb = Bitboard::from_square(target);
+        let origin_bb = Bitboard::from(origin);
+        let target_bb = Bitboard::from(target);
         let captured_square = Pawn::push_origin(target, pos.side_to_move());
-        let captured_bb = Bitboard::from_square(captured_square);
+        let captured_bb = Bitboard::from(captured_square);
         if captured_bb == attacks_to_king.attack_origins {
             // Our king is attacked by the pawn that just moved. In this case we must check if our
             // own pawn is pinned to the king. The opponent's pawn is not blocking a sliding attack
             // (otherwise our king would already have been attacked before the opponent's move
             // which would be an illegal position).
-            let own_king = Bitboard::from_square(attacks_to_king.target);
+            let own_king = Bitboard::from(attacks_to_king.target);
             let occupancy_after_move = pos.occupancy() & !origin_bb & !captured_bb | target_bb;
             let king_in_check_after_move = attacks_to_king
                 .each_xray
@@ -95,11 +95,11 @@ impl MoveGeneratorTemplate for KingInCheckGenerator {
     fn is_legal_king_move(attacks_to_king: &AttacksTo, origin: Square, target: Square) -> bool {
         debug_assert_ne!(Bitboard::EMPTY, attacks_to_king.attack_origins);
         let pos = attacks_to_king.pos;
-        let target_bb = Bitboard::from_square(target);
+        let target_bb = Bitboard::from(target);
         match target_bb & attacks_to_king.xrays_to_target {
             Bitboard::EMPTY => true,
             _ => {
-                let origin_bb = Bitboard::from_square(origin);
+                let origin_bb = Bitboard::from(origin);
                 let occupancy_after_move = pos.occupancy() & !origin_bb | target_bb;
                 let king_in_check_after_move = attacks_to_king.each_slider_attack.iter().any(|x| {
                     (x.targets() & origin_bb != Bitboard::EMPTY)
