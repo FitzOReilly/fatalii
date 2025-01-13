@@ -260,26 +260,22 @@ impl PositionHistory {
         self.remove_piece(origin, origin_piece);
         match (self.pos.side_to_move(), m.move_type()) {
             (Side::White, MoveType::CASTLE_KINGSIDE) => {
-                let rook_origin =
-                    Square::from_file_and_rank(self.pos.kingside_rook_start_file(), Rank::R1);
+                let rook_origin = Square::from((self.pos.kingside_rook_start_file(), Rank::R1));
                 self.remove_piece(rook_origin, piece::Piece::WHITE_ROOK);
                 self.set_piece(Square::F1, piece::Piece::WHITE_ROOK);
             }
             (Side::White, MoveType::CASTLE_QUEENSIDE) => {
-                let rook_origin =
-                    Square::from_file_and_rank(self.pos.queenside_rook_start_file(), Rank::R1);
+                let rook_origin = Square::from((self.pos.queenside_rook_start_file(), Rank::R1));
                 self.remove_piece(rook_origin, piece::Piece::WHITE_ROOK);
                 self.set_piece(Square::D1, piece::Piece::WHITE_ROOK);
             }
             (Side::Black, MoveType::CASTLE_KINGSIDE) => {
-                let rook_origin =
-                    Square::from_file_and_rank(self.pos.kingside_rook_start_file(), Rank::R8);
+                let rook_origin = Square::from((self.pos.kingside_rook_start_file(), Rank::R8));
                 self.remove_piece(rook_origin, piece::Piece::BLACK_ROOK);
                 self.set_piece(Square::F8, piece::Piece::BLACK_ROOK);
             }
             (Side::Black, MoveType::CASTLE_QUEENSIDE) => {
-                let rook_origin =
-                    Square::from_file_and_rank(self.pos.queenside_rook_start_file(), Rank::R8);
+                let rook_origin = Square::from((self.pos.queenside_rook_start_file(), Rank::R8));
                 self.remove_piece(rook_origin, piece::Piece::BLACK_ROOK);
                 self.set_piece(Square::D8, piece::Piece::BLACK_ROOK);
             }
@@ -466,26 +462,22 @@ impl PositionHistory {
         self.remove_piece(target, target_piece);
         match (self.pos.side_to_move(), m.move_type()) {
             (Side::White, MoveType::CASTLE_KINGSIDE) => {
-                let rook_origin =
-                    Square::from_file_and_rank(self.pos.kingside_rook_start_file(), Rank::R1);
+                let rook_origin = Square::from((self.pos.kingside_rook_start_file(), Rank::R1));
                 self.remove_piece(Square::F1, piece::Piece::WHITE_ROOK);
                 self.set_piece(rook_origin, piece::Piece::WHITE_ROOK);
             }
             (Side::White, MoveType::CASTLE_QUEENSIDE) => {
-                let rook_origin =
-                    Square::from_file_and_rank(self.pos.queenside_rook_start_file(), Rank::R1);
+                let rook_origin = Square::from((self.pos.queenside_rook_start_file(), Rank::R1));
                 self.remove_piece(Square::D1, piece::Piece::WHITE_ROOK);
                 self.set_piece(rook_origin, piece::Piece::WHITE_ROOK);
             }
             (Side::Black, MoveType::CASTLE_KINGSIDE) => {
-                let rook_origin =
-                    Square::from_file_and_rank(self.pos.kingside_rook_start_file(), Rank::R8);
+                let rook_origin = Square::from((self.pos.kingside_rook_start_file(), Rank::R8));
                 self.remove_piece(Square::F8, piece::Piece::BLACK_ROOK);
                 self.set_piece(rook_origin, piece::Piece::BLACK_ROOK);
             }
             (Side::Black, MoveType::CASTLE_QUEENSIDE) => {
-                let rook_origin =
-                    Square::from_file_and_rank(self.pos.queenside_rook_start_file(), Rank::R8);
+                let rook_origin = Square::from((self.pos.queenside_rook_start_file(), Rank::R8));
                 self.remove_piece(Square::D8, piece::Piece::BLACK_ROOK);
                 self.set_piece(rook_origin, piece::Piece::BLACK_ROOK);
             }

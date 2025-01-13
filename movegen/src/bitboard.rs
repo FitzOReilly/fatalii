@@ -569,7 +569,7 @@ impl fmt::Display for Bitboard {
         let mut squares_in_rank = [SPACE; 2 * File::NUM_FILES - 1];
         for rank in (0..Rank::NUM_RANKS).rev() {
             for file in 0..File::NUM_FILES {
-                let square = Square::from_file_and_rank(File::from_idx(file), Rank::from_idx(rank));
+                let square = Square::from((File::from_idx(file), Rank::from_idx(rank)));
                 let square_bit = Bitboard::from_square(square);
                 squares_in_rank[2 * file] = match self & square_bit {
                     Self::EMPTY => EMPTY_SQUARE,

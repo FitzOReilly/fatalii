@@ -82,7 +82,7 @@ impl Fen {
         for rank in (0..Rank::NUM_RANKS).rev() {
             let mut num_empty_squares = 0;
             for file in 0..File::NUM_FILES {
-                let square = Square::from_file_and_rank(File::from_idx(file), Rank::from_idx(rank));
+                let square = Square::from((File::from_idx(file), Rank::from_idx(rank)));
                 match pos.piece_at(square) {
                     Some(piece) => {
                         if num_empty_squares > 0 {
@@ -291,8 +291,7 @@ impl Fen {
                             Ok(p) => p,
                             Err(e) => return Err(FenError::InvalidPiece(e)),
                         };
-                        let square =
-                            Square::from_file_and_rank(File::from_idx(file), Rank::from_idx(rank));
+                        let square = Square::from((File::from_idx(file), Rank::from_idx(rank)));
                         pos.set_piece_at(square, Some(piece));
                         file += 1;
                     }
@@ -451,7 +450,7 @@ impl Fen {
                     (Side::White, Rank::R6) | (Side::Black, Rank::R3) => {}
                     _ => return Err(FenError::InvalidEnPassantSquare),
                 }
-                let square = Square::from_file_and_rank(file, rank);
+                let square = Square::from((file, rank));
                 pos.set_en_passant_square(Bitboard::from_square(square));
             }
             _ => return Err(FenError::InvalidEnPassantSquare),
