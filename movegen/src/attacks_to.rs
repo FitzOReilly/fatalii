@@ -115,7 +115,7 @@ impl AttacksTo<'_> {
         target: Square,
         attacking_side: Side,
     ) -> (Bitboard, Bitboard) {
-        let target_bb = Bitboard::from_square(target);
+        let target_bb = Bitboard::from(target);
         let pawns = pos.piece_occupancy(attacking_side, piece::Type::Pawn);
 
         let east_targets = Pawn::east_attack_targets(pawns, attacking_side);
@@ -136,7 +136,7 @@ impl AttacksTo<'_> {
         target: Square,
         attacking_side: Side,
     ) -> (Bitboard, Bitboard) {
-        let target_bb = Bitboard::from_square(target);
+        let target_bb = Bitboard::from(target);
         let mut pieces = pos.piece_occupancy(attacking_side, piece_type);
         let mut all_attack_targets = Bitboard::EMPTY;
         let mut attack_origins = Bitboard::EMPTY;
@@ -145,7 +145,7 @@ impl AttacksTo<'_> {
             let attack_targets = piece_targets(attack_origin);
             all_attack_targets |= attack_targets;
             if attack_targets & target_bb != Bitboard::EMPTY {
-                attack_origins |= Bitboard::from_square(attack_origin);
+                attack_origins |= Bitboard::from(attack_origin);
             }
         }
 
@@ -165,7 +165,7 @@ impl AttacksTo<'_> {
         Bitboard,
         Vec<PieceTargets>,
     ) {
-        let target_bb = Bitboard::from_square(target);
+        let target_bb = Bitboard::from(target);
         let mut pieces = pos.piece_occupancy(attacking_side, piece_type);
         let mut all_attack_targets = Bitboard::EMPTY;
         let mut attack_origins = Bitboard::EMPTY;
@@ -177,7 +177,7 @@ impl AttacksTo<'_> {
             let attack_targets = piece_targets(attack_origin, pos.occupancy());
             all_attack_targets |= attack_targets;
             if attack_targets & target_bb != Bitboard::EMPTY {
-                attack_origins |= Bitboard::from_square(attack_origin);
+                attack_origins |= Bitboard::from(attack_origin);
                 each_slider_attack.push(PieceTargets::new(
                     piece::Piece::new(attacking_side, piece_type),
                     attack_origin,

@@ -357,7 +357,7 @@ pub trait MoveGeneratorTemplate {
         while non_promo_captures != Bitboard::EMPTY {
             let target = non_promo_captures.square_scan_forward_reset();
             let origin = attack_origin(target, side_to_move);
-            if Bitboard::from_square(target) == en_passant_square {
+            if Bitboard::from(target) == en_passant_square {
                 if Self::is_legal_en_passant_capture(attacks_to_king, origin, target) {
                     let m = Move::new(origin, target, MoveType::EN_PASSANT_CAPTURE);
                     move_list.push(m);
@@ -531,8 +531,7 @@ pub trait MoveGeneratorTemplate {
         let own_pawns = pos.piece_occupancy(side_to_move, piece::Type::Pawn);
         let promo_rank = Pawn::promotion_rank(side_to_move);
 
-        let targets =
-            Pawn::east_attack_targets(own_pawns, side_to_move) & Bitboard::from_square(target);
+        let targets = Pawn::east_attack_targets(own_pawns, side_to_move) & Bitboard::from(target);
         if targets != Bitboard::EMPTY {
             let origin = Pawn::east_attack_origin(target, side_to_move);
             if Self::is_legal_capture(attacks_to_king, origin, target) {
@@ -552,8 +551,7 @@ pub trait MoveGeneratorTemplate {
                 }
             }
         }
-        let targets =
-            Pawn::west_attack_targets(own_pawns, side_to_move) & Bitboard::from_square(target);
+        let targets = Pawn::west_attack_targets(own_pawns, side_to_move) & Bitboard::from(target);
         if targets != Bitboard::EMPTY {
             let origin = Pawn::west_attack_origin(target, side_to_move);
             if Self::is_legal_capture(attacks_to_king, origin, target) {
@@ -616,9 +614,8 @@ pub trait MoveGeneratorTemplate {
 
     fn king_attacker(attacks_to_king: &AttacksTo, target: Square) -> Option<Move> {
         let origin = attacks_to_king.target;
-        let targets = King::targets(origin)
-            & !attacks_to_king.all_attack_targets
-            & Bitboard::from_square(target);
+        let targets =
+            King::targets(origin) & !attacks_to_king.all_attack_targets & Bitboard::from(target);
         if targets != Bitboard::EMPTY && Self::is_legal_king_move(attacks_to_king, origin, target) {
             return Move::new(origin, target, MoveType::CAPTURE).into();
         }

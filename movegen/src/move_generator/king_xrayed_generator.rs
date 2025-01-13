@@ -37,12 +37,12 @@ impl MoveGeneratorTemplate for KingXrayedGenerator {
     fn is_legal_non_capture(attacks_to_king: &AttacksTo, origin: Square, target: Square) -> bool {
         debug_assert!(!attacks_to_king.each_xray.is_empty());
         let pos = attacks_to_king.pos;
-        let origin_bb = Bitboard::from_square(origin);
+        let origin_bb = Bitboard::from(origin);
         match origin_bb & attacks_to_king.all_attack_targets & attacks_to_king.xrays_to_target {
             Bitboard::EMPTY => true,
             _ => {
-                let target_bb = Bitboard::from_square(target);
-                let own_king = Bitboard::from_square(attacks_to_king.target);
+                let target_bb = Bitboard::from(target);
+                let own_king = Bitboard::from(attacks_to_king.target);
                 let occupancy_after_move = pos.occupancy() & !origin_bb | target_bb;
                 let king_in_check_after_move = attacks_to_king
                     .each_xray
@@ -58,11 +58,11 @@ impl MoveGeneratorTemplate for KingXrayedGenerator {
     fn is_legal_capture(attacks_to_king: &AttacksTo, origin: Square, target: Square) -> bool {
         debug_assert!(!attacks_to_king.each_xray.is_empty());
         let pos = attacks_to_king.pos;
-        let origin_bb = Bitboard::from_square(origin);
+        let origin_bb = Bitboard::from(origin);
         match origin_bb & attacks_to_king.all_attack_targets & attacks_to_king.xrays_to_target {
             Bitboard::EMPTY => true,
             _ => {
-                let own_king = Bitboard::from_square(attacks_to_king.target);
+                let own_king = Bitboard::from(attacks_to_king.target);
                 let occupancy_after_move = pos.occupancy() & !origin_bb;
                 let king_in_check_after_move = attacks_to_king
                     .each_xray
@@ -84,17 +84,17 @@ impl MoveGeneratorTemplate for KingXrayedGenerator {
     ) -> bool {
         debug_assert!(!attacks_to_king.each_xray.is_empty());
         let pos = attacks_to_king.pos;
-        let origin_bb = Bitboard::from_square(origin);
-        let target_bb = Bitboard::from_square(target);
+        let origin_bb = Bitboard::from(origin);
+        let target_bb = Bitboard::from(target);
         let captured_square = Pawn::push_origin(target, pos.side_to_move());
-        let captured_bb = Bitboard::from_square(captured_square);
+        let captured_bb = Bitboard::from(captured_square);
         match (origin_bb | captured_bb)
             & attacks_to_king.all_attack_targets
             & attacks_to_king.xrays_to_target
         {
             Bitboard::EMPTY => true,
             _ => {
-                let own_king = Bitboard::from_square(attacks_to_king.target);
+                let own_king = Bitboard::from(attacks_to_king.target);
                 let occupancy_after_move = pos.occupancy() & !origin_bb & !captured_bb | target_bb;
                 let king_in_check_after_move = attacks_to_king
                     .each_xray

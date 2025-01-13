@@ -25,7 +25,7 @@ pub fn static_exchange_eval(pos: &Position, m: Move, threshold: Score) -> bool {
     // The occupancy after the move. If the move is castle, we don't need to
     // update the rook position because there won't be any recaptures possible
     // anyway.
-    let mut occupied = pos.occupancy() & !Bitboard::from_square(m.origin());
+    let mut occupied = pos.occupancy() & !Bitboard::from(m.origin());
     if m.is_en_passant() {
         occupied &= !pos.en_passant_square();
     }
@@ -59,7 +59,7 @@ pub fn static_exchange_eval(pos: &Position, m: Move, threshold: Score) -> bool {
             }
         }
 
-        occupied &= !Bitboard::from_square(attacker_origin);
+        occupied &= !Bitboard::from(attacker_origin);
         // Reveal diagonal sliders
         if let piece::Type::Pawn | piece::Type::Bishop | piece::Type::Queen = attacker_type {
             attackers |= Bishop::targets(see_square, occupied) & diagonal_sliders;
@@ -110,15 +110,13 @@ fn moved_material_value(pos: &Position, m: Move) -> i16 {
 
 fn initial_attackers(pos: &Position, see_square: Square, occupied: Bitboard) -> Bitboard {
     let mut attackers = Bitboard::EMPTY;
-    let white_pawn_attackers = Pawn::attack_origins(
-        Bitboard::from_square(see_square) & !Bitboard::RANK_1,
-        Side::White,
-    ) & pos.piece_occupancy(Side::White, piece::Type::Pawn);
+    let white_pawn_attackers =
+        Pawn::attack_origins(Bitboard::from(see_square) & !Bitboard::RANK_1, Side::White)
+            & pos.piece_occupancy(Side::White, piece::Type::Pawn);
     attackers |= white_pawn_attackers;
-    let black_pawn_attackers = Pawn::attack_origins(
-        Bitboard::from_square(see_square) & !Bitboard::RANK_8,
-        Side::Black,
-    ) & pos.piece_occupancy(Side::Black, piece::Type::Pawn);
+    let black_pawn_attackers =
+        Pawn::attack_origins(Bitboard::from(see_square) & !Bitboard::RANK_8, Side::Black)
+            & pos.piece_occupancy(Side::Black, piece::Type::Pawn);
     attackers |= black_pawn_attackers;
     let knight_attackers =
         Knight::targets(see_square) & pos.piece_type_occupancy(piece::Type::Knight);

@@ -175,7 +175,7 @@ impl Position {
     }
 
     pub fn piece_at(&self, square: Square) -> Option<Piece> {
-        let square_bit = Bitboard::from_square(square);
+        let square_bit = Bitboard::from(square);
         let side = if square_bit & self.piece_side_occupancies[Side::White as usize]
             != Bitboard::EMPTY
         {
@@ -224,7 +224,7 @@ impl Position {
     }
 
     pub fn set_piece_at(&mut self, square: Square, piece: Option<Piece>) {
-        let square_bit = Bitboard::from_square(square);
+        let square_bit = Bitboard::from(square);
 
         for pso in &mut self.piece_side_occupancies {
             *pso &= !square_bit;
@@ -282,8 +282,8 @@ impl Position {
 
     pub fn gives_check(&self, m: Move) -> bool {
         // Add and remove pieces to get the occupancy after the move
-        let origin_bb = Bitboard::from_square(m.origin());
-        let target_bb = Bitboard::from_square(m.target());
+        let origin_bb = Bitboard::from(m.origin());
+        let target_bb = Bitboard::from(m.target());
         let mut occupied = self.occupancy() & !origin_bb | target_bb;
         let mut own_diag_sliders = occupied
             & (self.piece_occupancy(self.side_to_move(), piece::Type::Bishop)
@@ -299,18 +299,12 @@ impl Position {
             let start_rank = m.origin().rank();
             let (rook_origin, rook_target) = match m.move_type() {
                 MoveType::CASTLE_KINGSIDE => (
-                    Bitboard::from_square(Square::from((
-                        self.kingside_rook_start_file(),
-                        start_rank,
-                    ))),
-                    Bitboard::from_square(Square::from((File::F, start_rank))),
+                    Bitboard::from(Square::from((self.kingside_rook_start_file(), start_rank))),
+                    Bitboard::from(Square::from((File::F, start_rank))),
                 ),
                 MoveType::CASTLE_QUEENSIDE => (
-                    Bitboard::from_square(Square::from((
-                        self.queenside_rook_start_file(),
-                        start_rank,
-                    ))),
-                    Bitboard::from_square(Square::from((File::D, start_rank))),
+                    Bitboard::from(Square::from((self.queenside_rook_start_file(), start_rank))),
+                    Bitboard::from(Square::from((File::D, start_rank))),
                 ),
                 _ => unreachable!(),
             };

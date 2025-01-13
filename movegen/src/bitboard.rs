@@ -99,7 +99,7 @@ impl Bitboard {
     pub const H7: Self = Self::from_square(Square::H7);
     pub const H8: Self = Self::from_square(Square::H8);
 
-    pub const fn from_square(square: Square) -> Self {
+    const fn from_square(square: Square) -> Self {
         Self(0x1 << square.idx())
     }
 
@@ -561,6 +561,12 @@ impl Shr<usize> for &Bitboard {
     }
 }
 
+impl From<Square> for Bitboard {
+    fn from(square: Square) -> Self {
+        Self::from_square(square)
+    }
+}
+
 impl fmt::Display for Bitboard {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         const EMPTY_SQUARE: u8 = b'-';
@@ -570,7 +576,7 @@ impl fmt::Display for Bitboard {
         for rank in (0..Rank::NUM_RANKS).rev() {
             for file in 0..File::NUM_FILES {
                 let square = Square::from((File::from_idx(file), Rank::from_idx(rank)));
-                let square_bit = Bitboard::from_square(square);
+                let square_bit = Bitboard::from(square);
                 squares_in_rank[2 * file] = match self & square_bit {
                     Self::EMPTY => EMPTY_SQUARE,
                     _ => OCCUPIED_SQUARE,
@@ -589,12 +595,12 @@ mod tests {
 
     #[test]
     fn from_square() {
-        assert_eq!(Bitboard::A1, Bitboard::from_square(Square::A1));
-        assert_eq!(Bitboard::H1, Bitboard::from_square(Square::H1));
-        assert_eq!(Bitboard::D4, Bitboard::from_square(Square::D4));
-        assert_eq!(Bitboard::E5, Bitboard::from_square(Square::E5));
-        assert_eq!(Bitboard::A8, Bitboard::from_square(Square::A8));
-        assert_eq!(Bitboard::H8, Bitboard::from_square(Square::H8));
+        assert_eq!(Bitboard::A1, Bitboard::from(Square::A1));
+        assert_eq!(Bitboard::H1, Bitboard::from(Square::H1));
+        assert_eq!(Bitboard::D4, Bitboard::from(Square::D4));
+        assert_eq!(Bitboard::E5, Bitboard::from(Square::E5));
+        assert_eq!(Bitboard::A8, Bitboard::from(Square::A8));
+        assert_eq!(Bitboard::H8, Bitboard::from(Square::H8));
     }
 
     #[test]
