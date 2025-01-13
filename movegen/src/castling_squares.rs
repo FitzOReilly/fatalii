@@ -32,9 +32,9 @@ impl CastlingSquares {
         let max_kingside_file = KINGSIDE_KING_TARGET_FILE.idx();
         for file in min_kingside_file..=max_kingside_file {
             cs.white_kingside.non_attacked |=
-                Bitboard::from_square(Square::from_file_and_rank(File::from_idx(file), Rank::R1));
+                Bitboard::from_square(Square::from((File::from_idx(file), Rank::R1)));
             cs.black_kingside.non_attacked |=
-                Bitboard::from_square(Square::from_file_and_rank(File::from_idx(file), Rank::R8));
+                Bitboard::from_square(Square::from((File::from_idx(file), Rank::R8)));
         }
 
         let min_kingside_file = min_kingside_file.min(KINGSIDE_ROOK_TARGET_FILE.idx());
@@ -44,10 +44,8 @@ impl CastlingSquares {
             if file == king_file || file == king_rook_file {
                 continue;
             }
-            cs.white_kingside.non_blocked |=
-                Bitboard::from_square(Square::from_file_and_rank(file, Rank::R1));
-            cs.black_kingside.non_blocked |=
-                Bitboard::from_square(Square::from_file_and_rank(file, Rank::R8));
+            cs.white_kingside.non_blocked |= Bitboard::from_square(Square::from((file, Rank::R1)));
+            cs.black_kingside.non_blocked |= Bitboard::from_square(Square::from((file, Rank::R8)));
         }
 
         // Queenside
@@ -55,9 +53,9 @@ impl CastlingSquares {
         let max_queenside_file = king_file.idx().max(QUEENSIDE_KING_TARGET_FILE.idx());
         for file in min_queenside_file..=max_queenside_file {
             cs.white_queenside.non_attacked |=
-                Bitboard::from_square(Square::from_file_and_rank(File::from_idx(file), Rank::R1));
+                Bitboard::from_square(Square::from((File::from_idx(file), Rank::R1)));
             cs.black_queenside.non_attacked |=
-                Bitboard::from_square(Square::from_file_and_rank(File::from_idx(file), Rank::R8));
+                Bitboard::from_square(Square::from((File::from_idx(file), Rank::R8)));
         }
 
         let min_queenside_file = min_queenside_file.min(queen_rook_file.idx());
@@ -67,10 +65,8 @@ impl CastlingSquares {
             if file == king_file || file == queen_rook_file {
                 continue;
             }
-            cs.white_queenside.non_blocked |=
-                Bitboard::from_square(Square::from_file_and_rank(file, Rank::R1));
-            cs.black_queenside.non_blocked |=
-                Bitboard::from_square(Square::from_file_and_rank(file, Rank::R8));
+            cs.white_queenside.non_blocked |= Bitboard::from_square(Square::from((file, Rank::R1)));
+            cs.black_queenside.non_blocked |= Bitboard::from_square(Square::from((file, Rank::R8)));
         }
 
         cs

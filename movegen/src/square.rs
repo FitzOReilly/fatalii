@@ -104,7 +104,7 @@ impl Square {
         let rank = Rank::from_ascii(s[1]);
 
         match (file, rank) {
-            (Ok(f), Ok(r)) => Ok(Self::from_file_and_rank(f, r)),
+            (Ok(f), Ok(r)) => Ok(Self::from((f, r))),
             _ => Err(format!("Invalid square `{}`", str::from_utf8(s).unwrap())),
         }
     }
@@ -181,6 +181,12 @@ impl Square {
     }
 }
 
+impl From<(File, Rank)> for Square {
+    fn from((file, rank): (File, Rank)) -> Self {
+        Self::from_file_and_rank(file, rank)
+    }
+}
+
 impl fmt::Display for Square {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", str::from_utf8(&self.to_ascii()).unwrap())
@@ -210,44 +216,41 @@ mod tests {
     #[test]
     fn file_rank_square_indexing() {
         // A1
-        assert_eq!(Square::A1, Square::from_file_and_rank(File::A, Rank::R1));
+        assert_eq!(Square::A1, Square::from((File::A, Rank::R1)));
         assert_eq!(Rank::R1, Square::A1.rank());
         assert_eq!(File::A, Square::A1.file());
         // A2
-        assert_eq!(Square::A2, Square::from_file_and_rank(File::A, Rank::R2));
+        assert_eq!(Square::A2, Square::from((File::A, Rank::R2)));
         assert_eq!(Rank::R2, Square::A2.rank());
         assert_eq!(File::A, Square::A2.file());
         // B1
-        assert_eq!(Square::B1, Square::from_file_and_rank(File::B, Rank::R1));
+        assert_eq!(Square::B1, Square::from((File::B, Rank::R1)));
         assert_eq!(Rank::R1, Square::B1.rank());
         assert_eq!(File::B, Square::B1.file());
         // B2
-        assert_eq!(Square::B2, Square::from_file_and_rank(File::B, Rank::R2));
+        assert_eq!(Square::B2, Square::from((File::B, Rank::R2)));
         assert_eq!(Rank::R2, Square::B2.rank());
         assert_eq!(File::B, Square::B2.file());
         // E6
-        assert_eq!(Square::E6, Square::from_file_and_rank(File::E, Rank::R6));
+        assert_eq!(Square::E6, Square::from((File::E, Rank::R6)));
         assert_eq!(Rank::R6, Square::E6.rank());
         assert_eq!(File::E, Square::E6.file());
         // F8
-        assert_eq!(Square::F8, Square::from_file_and_rank(File::F, Rank::R8));
+        assert_eq!(Square::F8, Square::from((File::F, Rank::R8)));
         assert_eq!(Rank::R8, Square::F8.rank());
         assert_eq!(File::F, Square::F8.file());
         // H7
-        assert_eq!(Square::H7, Square::from_file_and_rank(File::H, Rank::R7));
+        assert_eq!(Square::H7, Square::from((File::H, Rank::R7)));
         assert_eq!(Rank::R7, Square::H7.rank());
         assert_eq!(File::H, Square::H7.file());
         // H8
-        assert_eq!(Square::H8, Square::from_file_and_rank(File::H, Rank::R8));
+        assert_eq!(Square::H8, Square::from((File::H, Rank::R8)));
         assert_eq!(Rank::R8, Square::H8.rank());
         assert_eq!(File::H, Square::H8.file());
 
         for idx in 0..Square::NUM_SQUARES {
             let square = Square::from_idx(idx);
-            assert_eq!(
-                square,
-                Square::from_file_and_rank(square.file(), square.rank())
-            );
+            assert_eq!(square, Square::from((square.file(), square.rank())));
         }
     }
 
