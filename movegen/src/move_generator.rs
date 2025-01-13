@@ -1116,7 +1116,7 @@ mod tests {
     }
 
     #[test]
-    fn random_moves_for_quiescence_and_gives_check() {
+    fn random_moves_for_quiescence_and_is_in_check_and_gives_check() {
         let pos = Position::initial();
         let mut pos_hist = PositionHistory::new(pos.clone());
         let gen_then_filter = |move_list: &mut MoveList, pos: &Position| {
@@ -1124,8 +1124,16 @@ mod tests {
             move_list.retain(|x| x.is_capture() || x.promotion_piece() == Some(piece::Type::Queen));
         };
 
-        // Use a simple and slow closure to verify the more complex and faster
-        // Position::gives_check for all legal moves in the current position
+        // Use simple and slow closures to verify the more complex and faster
+        // Position::is_in_check and Position::gives_check
+        let verify_is_in_check = |pos: &Position| {
+            let simple_is_in_check = |pos: &Position| -> bool {
+                pos.piece_occupancy(pos.side_to_move(), piece::Type::King)
+                    & pos.attacked_squares(!pos.side_to_move())
+                    != Bitboard::EMPTY
+            };
+            assert_eq!(simple_is_in_check(pos), pos.is_in_check(pos.side_to_move()));
+        };
         let verify_gives_check = |pos_hist: &mut PositionHistory, move_list: &MoveList| {
             let simple_gives_check = |pos_hist: &mut PositionHistory, m: Move| -> bool {
                 pos_hist.do_move(m);
@@ -1165,6 +1173,7 @@ mod tests {
                     }
                 }
 
+                verify_is_in_check(pos_hist.current_pos());
                 MoveGenerator::generate_moves(&mut move_list, pos_hist.current_pos());
                 verify_gives_check(&mut pos_hist, &move_list);
                 match move_list.choose(&mut rand::thread_rng()) {

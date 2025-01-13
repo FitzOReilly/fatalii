@@ -257,8 +257,27 @@ impl Position {
     }
 
     pub fn is_in_check(&self, side: Side) -> bool {
-        self.piece_occupancy(side, piece::Type::King) & self.attacked_squares(!side)
-            != Bitboard::EMPTY
+        let own_king_bb = self.piece_occupancy(side, piece::Type::King);
+        let own_king = own_king_bb.to_square();
+        let enemy_pawns = self.piece_occupancy(!side, piece::Type::Pawn);
+        let enemy_knights = self.piece_occupancy(!side, piece::Type::Knight);
+        let enemy_bishops = self.piece_occupancy(!side, piece::Type::Bishop);
+        let enemy_rooks = self.piece_occupancy(!side, piece::Type::Rook);
+        let enemy_queens = self.piece_occupancy(!side, piece::Type::Queen);
+        let occupied = self.occupancy();
+        debug_assert_eq!(
+            Bitboard::EMPTY,
+            {
+                let enemy_king = self.piece_occupancy(!side, piece::Type::King);
+                King::targets(own_king) & enemy_king
+            },
+            "Kings attack each other, illegal position:\n{self}",
+        );
+        Pawn::attack_targets(enemy_pawns, !side) & own_king_bb != Bitboard::EMPTY
+            || Knight::targets(own_king) & enemy_knights != Bitboard::EMPTY
+            || Bishop::targets(own_king, occupied) & (enemy_bishops | enemy_queens)
+                != Bitboard::EMPTY
+            || Rook::targets(own_king, occupied) & (enemy_rooks | enemy_queens) != Bitboard::EMPTY
     }
 
     pub fn gives_check(&self, m: Move) -> bool {
