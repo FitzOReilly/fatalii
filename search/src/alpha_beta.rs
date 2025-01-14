@@ -385,7 +385,6 @@ impl AlphaBeta {
                 true
             });
 
-            let is_pv_node = alpha != beta - 1;
             let is_quiet = !m.is_capture() && !m.is_promotion();
 
             skip_quiets |= self.prune_late_move(search_data, move_count);
@@ -418,16 +417,10 @@ impl AlphaBeta {
             search_data.set_current_extension(extension);
 
             // Late move reductions
-            let reduction = if !is_pv_node
-                && depth >= MIN_LATE_MOVE_REDUCTION_DEPTH
-                && extension == 0
-                && is_quiet
-            {
-                Self::late_move_depth_reduction(depth, quiets_tried.len())
-            } else {
-                0
-            };
-            search_data.set_current_reduction(reduction);
+            if depth >= MIN_LATE_MOVE_REDUCTION_DEPTH && is_quiet {
+                let reduction = Self::late_move_depth_reduction(depth, move_count);
+                search_data.set_current_reduction(reduction);
+            }
 
             let search_res =
                 match self.principal_variation_search(search_data, alpha, beta, pvs_full_window) {
