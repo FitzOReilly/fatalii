@@ -400,7 +400,7 @@ fn underpromotions(search_algo: impl Search + Send + 'static) {
         ),
         (
             "4Q3/Pq4pk/5p1p/5P1K/6PP/8/8/8 w - - 0 1",
-            10,
+            14,
             Move::new(Square::A7, Square::A8, MoveType::PROMOTION_BISHOP),
         ),
     ];
@@ -408,6 +408,7 @@ fn underpromotions(search_algo: impl Search + Send + 'static) {
     for (fen, depth, exp_move) in test_positions_underpromo {
         let pos = Fen::str_to_pos(fen).unwrap();
         let pos_history = PositionHistory::new(pos.clone());
+        tester.clear_hash_table();
         let res = tester.search(pos_history, depth);
         tester.clear_hash_table();
         assert_eq!(
@@ -578,7 +579,7 @@ fn mate_in_x_various_depths(search_algo: impl Search + Send + 'static) {
         // Mate in 2
         (
             "1r6/3N1p1r/2Rp4/1k1P2pp/R7/PP4P1/7P/6K1 w - - 3 41",
-            3,
+            10,
             ScoreVariant::Mate(Side::White, 2),
         ),
         // Mate in 2
@@ -592,6 +593,7 @@ fn mate_in_x_various_depths(search_algo: impl Search + Send + 'static) {
     for (fen, depth, exp_score) in test_positions {
         let pos = Fen::str_to_pos(fen).unwrap();
         let pos_history = PositionHistory::new(pos.clone());
+        tester.clear_hash_table();
         let res = tester.search(pos_history, depth);
         assert_eq!(exp_score, ScoreVariant::from(res.score()));
     }
@@ -603,7 +605,7 @@ fn pv_truncated_after_mate(search_algo: impl Search + Send + 'static) {
         // Mate in 3
         (
             "r2N1b2/p2b1Bp1/n4p2/1p1p3R/3P2k1/P7/1PP2KPP/8 w - - 0 27",
-            11,
+            12,
             ScoreVariant::Mate(Side::White, 3),
             5,
         ),
@@ -612,6 +614,7 @@ fn pv_truncated_after_mate(search_algo: impl Search + Send + 'static) {
     for (fen, depth, exp_score, pv_len) in test_positions {
         let pos = Fen::str_to_pos(fen).unwrap();
         let pos_history = PositionHistory::new(pos.clone());
+        tester.clear_hash_table();
         let res = tester.search(pos_history, depth);
         assert_eq!(exp_score, ScoreVariant::from(res.score()));
         assert_eq!(pv_len, res.principal_variation().len());
