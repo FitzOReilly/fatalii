@@ -573,13 +573,13 @@ fn mate_in_x_various_depths(search_algo: impl Search + Send + 'static) {
         // Mate in 5
         (
             "8/2p5/4k3/8/P2B4/r7/6rP/3K4 b - - 6 51",
-            14,
+            15,
             ScoreVariant::Mate(Side::Black, -5),
         ),
         // Mate in 2
         (
             "1r6/3N1p1r/2Rp4/1k1P2pp/R7/PP4P1/7P/6K1 w - - 3 41",
-            10,
+            11,
             ScoreVariant::Mate(Side::White, 2),
         ),
         // Mate in 2
@@ -605,7 +605,7 @@ fn pv_truncated_after_mate(search_algo: impl Search + Send + 'static) {
         // Mate in 3
         (
             "r2N1b2/p2b1Bp1/n4p2/1p1p3R/3P2k1/P7/1PP2KPP/8 w - - 0 27",
-            12,
+            13,
             ScoreVariant::Mate(Side::White, 3),
             5,
         ),

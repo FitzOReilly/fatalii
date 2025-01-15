@@ -9,6 +9,7 @@ pub mod searcher;
 mod alpha_beta_entry;
 mod counter_table;
 mod history_table;
+mod lmr_table;
 mod move_candidates;
 mod move_selector;
 mod node_counter;

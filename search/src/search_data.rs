@@ -167,7 +167,13 @@ impl<'a> SearchData<'a> {
     }
 
     pub fn net_search_depth(&self) -> usize {
-        debug_assert!(self.search_depth() + self.total_extensions() > self.total_reductions());
+        debug_assert!(
+            self.search_depth() + self.total_extensions() > self.total_reductions(),
+            "search_depth: {}\ntotal_extensions: {}\ntotal_reductions: {}",
+            self.search_depth(),
+            self.total_extensions(),
+            self.total_reductions(),
+        );
         self.search_depth() + self.total_extensions() - self.total_reductions()
     }
 
