@@ -2,6 +2,7 @@ use crate::alpha_beta_entry::{AlphaBetaEntry, AlphaBetaResult, ScoreType};
 use crate::aspiration_window::{AspirationWindow, GROW_RATE, INITIAL_WIDTH};
 use crate::counter_table::CounterTable;
 use crate::history_table::HistoryTable;
+use crate::lmr_table::LmrTable;
 use crate::move_selector::{MoveSelector, Stage};
 use crate::search::{
     Search, SearchCommand, SearchInfo, SearchResult, MAX_SEARCH_DEPTH,
@@ -84,6 +85,7 @@ pub struct AlphaBeta {
     transpos_table: AlphaBetaTable,
     counter_table: CounterTable,
     history_table: HistoryTable,
+    lmr_table: LmrTable,
     search_params: SearchParams,
 }
 
@@ -279,6 +281,7 @@ impl AlphaBeta {
             transpos_table: AlphaBetaTable::new(table_size),
             counter_table: CounterTable::new(),
             history_table: HistoryTable::new(),
+            lmr_table: LmrTable::new(),
             search_params: SearchParams {
                 futility_margin_base: FUTILITY_MARGIN_BASE,
                 futility_margin_per_depth: FUTILITY_MARGIN_PER_DEPTH,
@@ -418,7 +421,7 @@ impl AlphaBeta {
 
             // Late move reductions
             if depth >= MIN_LATE_MOVE_REDUCTION_DEPTH && is_quiet {
-                let reduction = Self::late_move_depth_reduction(depth, move_count);
+                let reduction = self.lmr_table.late_move_depth_reduction(depth, move_count);
                 search_data.set_current_reduction(reduction);
             }
 
@@ -993,11 +996,6 @@ impl AlphaBeta {
             score,
             true,
         )
-    }
-
-    fn late_move_depth_reduction(depth: usize, move_count: usize) -> usize {
-        debug_assert!(depth >= MIN_LATE_MOVE_REDUCTION_DEPTH);
-        ((move_count + 1) / 6).min(depth / 3)
     }
 }
 
