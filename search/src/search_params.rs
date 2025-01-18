@@ -24,6 +24,10 @@ const LATE_MOVE_PRUNING_BASE: usize = 4;
 const LATE_MOVE_PRUNING_FACTOR: usize = 1;
 const LATE_MOVE_PRUNING_MAX_DEPTH: usize = 5;
 
+// Late move reductions
+const LATE_MOVE_REDUCTIONS_CENTI_BASE: usize = 25;
+const LATE_MOVE_REDUCTIONS_CENTI_DIVISOR: usize = 500;
+
 // Prune a move if the static evaluation plus the move's potential improvement
 // plus this value is less than alpha.
 pub const DELTA_PRUNING_MARGIN_MOVE: Score = 200;
@@ -50,6 +54,8 @@ pub struct SearchParams {
     pub late_move_pruning_base: usize,
     pub late_move_pruning_factor: usize,
     pub late_move_pruning_max_depth: usize,
+    pub late_move_reductions_centi_base: usize,
+    pub late_move_reductions_centi_divisor: usize,
     pub see_pruning_margin_quiet: Score,
     pub see_pruning_margin_tactical: Score,
     pub see_pruning_max_depth: usize,
@@ -69,6 +75,8 @@ impl Default for SearchParams {
             late_move_pruning_base: LATE_MOVE_PRUNING_BASE,
             late_move_pruning_factor: LATE_MOVE_PRUNING_FACTOR,
             late_move_pruning_max_depth: LATE_MOVE_PRUNING_MAX_DEPTH,
+            late_move_reductions_centi_base: LATE_MOVE_REDUCTIONS_CENTI_BASE,
+            late_move_reductions_centi_divisor: LATE_MOVE_REDUCTIONS_CENTI_DIVISOR,
             see_pruning_margin_quiet: SEE_PRUNING_MARGIN_QUIET,
             see_pruning_margin_tactical: SEE_PRUNING_MARGIN_TACTICAL,
             see_pruning_max_depth: SEE_PRUNING_MAX_DEPTH,
@@ -89,6 +97,8 @@ pub struct SearchParamsOptions {
     pub late_move_pruning_base: Option<usize>,
     pub late_move_pruning_factor: Option<usize>,
     pub late_move_pruning_max_depth: Option<usize>,
+    pub late_move_reductions_centi_base: Option<usize>,
+    pub late_move_reductions_centi_divisor: Option<usize>,
     pub see_pruning_margin_quiet: Option<Score>,
     pub see_pruning_margin_tactical: Option<Score>,
     pub see_pruning_max_depth: Option<usize>,

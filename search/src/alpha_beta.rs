@@ -82,6 +82,20 @@ impl Search for AlphaBeta {
         if let Some(val) = params.late_move_pruning_max_depth {
             self.search_params.late_move_pruning_max_depth = val;
         }
+        if let Some(val) = params.late_move_reductions_centi_base {
+            self.search_params.late_move_reductions_centi_base = val;
+            self.lmr_table = LmrTable::new(
+                self.search_params.late_move_reductions_centi_base,
+                self.search_params.late_move_reductions_centi_divisor,
+            );
+        }
+        if let Some(val) = params.late_move_reductions_centi_divisor {
+            self.search_params.late_move_reductions_centi_divisor = val;
+            self.lmr_table = LmrTable::new(
+                self.search_params.late_move_reductions_centi_base,
+                self.search_params.late_move_reductions_centi_divisor,
+            );
+        }
         if let Some(val) = params.see_pruning_margin_quiet {
             self.search_params.see_pruning_margin_quiet = val;
         }
@@ -225,13 +239,18 @@ impl Search for AlphaBeta {
 
 impl AlphaBeta {
     pub fn new(evaluator: Box<dyn Eval + Send>, table_size: usize) -> Self {
+        let search_params = SearchParams::default();
+        let lmr_table = LmrTable::new(
+            search_params.late_move_reductions_centi_base,
+            search_params.late_move_reductions_centi_divisor,
+        );
         Self {
             evaluator,
             transpos_table: AlphaBetaTable::new(table_size),
             counter_table: CounterTable::new(),
             history_table: HistoryTable::new(),
-            lmr_table: LmrTable::new(),
-            search_params: SearchParams::default(),
+            lmr_table,
+            search_params,
         }
     }
 

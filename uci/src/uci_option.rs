@@ -159,6 +159,24 @@ fn set_late_move_pruning_max_depth(engine: &mut Engine, depth: i64) -> String {
 }
 
 #[allow(dead_code)]
+fn set_late_move_reductions_centi_base(engine: &mut Engine, centi_base: i64) -> String {
+    engine.set_search_params(SearchParamsOptions {
+        late_move_reductions_centi_base: Some(centi_base as usize),
+        ..Default::default()
+    });
+    format!("late-move-reductions-centi-base set to {centi_base}")
+}
+
+#[allow(dead_code)]
+fn set_late_move_reductions_centi_divisor(engine: &mut Engine, centi_divisor: i64) -> String {
+    engine.set_search_params(SearchParamsOptions {
+        late_move_reductions_centi_divisor: Some(centi_divisor as usize),
+        ..Default::default()
+    });
+    format!("late-move-reductions-centi-divisor set to {centi_divisor}")
+}
+
+#[allow(dead_code)]
 fn set_see_pruning_margin_quiet(engine: &mut Engine, margin_quiet: i64) -> String {
     engine.set_search_params(SearchParamsOptions {
         see_pruning_margin_quiet: Some(margin_quiet as Score),
