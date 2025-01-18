@@ -1,5 +1,5 @@
 use crate::alpha_beta_entry::{AlphaBetaEntry, AlphaBetaResult, ScoreType};
-use crate::aspiration_window::{AspirationWindow, GROW_RATE, INITIAL_WIDTH};
+use crate::aspiration_window::AspirationWindow;
 use crate::counter_table::CounterTable;
 use crate::history_table::HistoryTable;
 use crate::lmr_table::LmrTable;
@@ -9,7 +9,10 @@ use crate::search::{
     PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW, REPETITIONS_TO_DRAW,
 };
 use crate::search_data::SearchData;
-use crate::search_params::SearchParamsEachAlgo;
+use crate::search_params::{
+    SearchParams, SearchParamsOptions, DELTA_PRUNING_MARGIN_ALL_MOVES, DELTA_PRUNING_MARGIN_MOVE,
+    MIN_LATE_MOVE_REDUCTION_DEPTH, MIN_NULL_MOVE_PRUNE_DEPTH, MIN_PVS_DEPTH,
+};
 use crate::time_manager::TimeManager;
 use crate::{static_exchange_eval as see, SearchOptions};
 use crossbeam_channel::{Receiver, Sender};
@@ -25,59 +28,6 @@ use std::cmp;
 use std::time::Instant;
 
 pub type AlphaBetaTable = TranspositionTable<Zobrist, AlphaBetaEntry>;
-
-// Minimum depth for principal variation search. Disable null-window searches below this depth.
-const MIN_PVS_DEPTH: usize = 3;
-
-// Minimum depth for null move pruning.
-const MIN_NULL_MOVE_PRUNE_DEPTH: usize = 3;
-
-// Minimum depth for late move reductions.
-const MIN_LATE_MOVE_REDUCTION_DEPTH: usize = 3;
-
-// Enable futility pruning if the evaluation plus this value is less than alpha.
-pub const FUTILITY_MARGIN_BASE: Score = 12;
-pub const FUTILITY_MARGIN_PER_DEPTH: Score = 235;
-pub const FUTILITY_PRUNING_MAX_DEPTH: usize = 5;
-
-// Enable reverse futility pruning if the evaluation plus this value is greater than or equal to beta.
-pub const REVERSE_FUTILITY_MARGIN_BASE: Score = 115;
-pub const REVERSE_FUTILITY_MARGIN_PER_DEPTH: Score = 51;
-pub const REVERSE_FUTILITY_PRUNING_MAX_DEPTH: usize = 6;
-
-// Late move pruning
-pub const LATE_MOVE_PRUNING_BASE: usize = 4;
-pub const LATE_MOVE_PRUNING_FACTOR: usize = 1;
-pub const LATE_MOVE_PRUNING_MAX_DEPTH: usize = 5;
-
-// Prune a move if the static evaluation plus the move's potential improvement
-// plus this value is less than alpha.
-const DELTA_PRUNING_MARGIN_MOVE: Score = 200;
-
-// Prune all moves if the static evaluation plus this value is less than alpha.
-const DELTA_PRUNING_MARGIN_ALL_MOVES: Score = 1800;
-
-// Static exchange evaluation pruning
-pub const SEE_PRUNING_MARGIN_QUIET: Score = -100;
-pub const SEE_PRUNING_MARGIN_TACTICAL: Score = -50;
-pub const SEE_PRUNING_MAX_DEPTH: usize = 4;
-
-struct SearchParams {
-    futility_margin_base: Score,
-    futility_margin_per_depth: Score,
-    futility_pruning_max_depth: usize,
-    reverse_futility_margin_base: Score,
-    reverse_futility_margin_per_depth: Score,
-    reverse_futility_pruning_max_depth: usize,
-    late_move_pruning_base: usize,
-    late_move_pruning_factor: usize,
-    late_move_pruning_max_depth: usize,
-    see_pruning_margin_quiet: Score,
-    see_pruning_margin_tactical: Score,
-    see_pruning_max_depth: usize,
-    aspiration_window_initial_width: i32,
-    aspiration_window_grow_rate: i32,
-}
 
 // Alpha-beta search with fail-hard cutoffs
 pub struct AlphaBeta {
@@ -104,49 +54,48 @@ impl Search for AlphaBeta {
         self.counter_table.clear();
     }
 
-    fn set_params(&mut self, params: SearchParamsEachAlgo) {
-        let SearchParamsEachAlgo::AlphaBeta(abp) = params;
-        if let Some(fmb) = abp.futility_margin_base {
-            self.search_params.futility_margin_base = fmb;
+    fn set_params(&mut self, params: SearchParamsOptions) {
+        if let Some(val) = params.futility_margin_base {
+            self.search_params.futility_margin_base = val;
         }
-        if let Some(fmpd) = abp.futility_margin_per_depth {
-            self.search_params.futility_margin_per_depth = fmpd;
+        if let Some(val) = params.futility_margin_per_depth {
+            self.search_params.futility_margin_per_depth = val;
         }
-        if let Some(fpmd) = abp.futility_pruning_max_depth {
-            self.search_params.futility_pruning_max_depth = fpmd;
+        if let Some(val) = params.futility_pruning_max_depth {
+            self.search_params.futility_pruning_max_depth = val;
         }
-        if let Some(rfmb) = abp.reverse_futility_margin_base {
-            self.search_params.reverse_futility_margin_base = rfmb;
+        if let Some(val) = params.reverse_futility_margin_base {
+            self.search_params.reverse_futility_margin_base = val;
         }
-        if let Some(rfmpd) = abp.reverse_futility_margin_per_depth {
-            self.search_params.reverse_futility_margin_per_depth = rfmpd;
+        if let Some(val) = params.reverse_futility_margin_per_depth {
+            self.search_params.reverse_futility_margin_per_depth = val;
         }
-        if let Some(rfpmd) = abp.reverse_futility_pruning_max_depth {
-            self.search_params.reverse_futility_pruning_max_depth = rfpmd;
+        if let Some(val) = params.reverse_futility_pruning_max_depth {
+            self.search_params.reverse_futility_pruning_max_depth = val;
         }
-        if let Some(lmpb) = abp.late_move_pruning_base {
-            self.search_params.late_move_pruning_base = lmpb;
+        if let Some(val) = params.late_move_pruning_base {
+            self.search_params.late_move_pruning_base = val;
         }
-        if let Some(lmpf) = abp.late_move_pruning_factor {
-            self.search_params.late_move_pruning_factor = lmpf;
+        if let Some(val) = params.late_move_pruning_factor {
+            self.search_params.late_move_pruning_factor = val;
         }
-        if let Some(lmpmd) = abp.late_move_pruning_max_depth {
-            self.search_params.late_move_pruning_max_depth = lmpmd;
+        if let Some(val) = params.late_move_pruning_max_depth {
+            self.search_params.late_move_pruning_max_depth = val;
         }
-        if let Some(spmq) = abp.see_pruning_margin_quiet {
-            self.search_params.see_pruning_margin_quiet = spmq;
+        if let Some(val) = params.see_pruning_margin_quiet {
+            self.search_params.see_pruning_margin_quiet = val;
         }
-        if let Some(spmt) = abp.see_pruning_margin_tactical {
-            self.search_params.see_pruning_margin_tactical = spmt;
+        if let Some(val) = params.see_pruning_margin_tactical {
+            self.search_params.see_pruning_margin_tactical = val;
         }
-        if let Some(spmd) = abp.see_pruning_max_depth {
-            self.search_params.see_pruning_max_depth = spmd;
+        if let Some(val) = params.see_pruning_max_depth {
+            self.search_params.see_pruning_max_depth = val;
         }
-        if let Some(awiw) = abp.aspiration_window_initial_width {
-            self.search_params.aspiration_window_initial_width = awiw;
+        if let Some(val) = params.aspiration_window_initial_width {
+            self.search_params.aspiration_window_initial_width = val;
         }
-        if let Some(awgr) = abp.aspiration_window_grow_rate {
-            self.search_params.aspiration_window_grow_rate = awgr;
+        if let Some(val) = params.aspiration_window_grow_rate {
+            self.search_params.aspiration_window_grow_rate = val;
         }
     }
 
@@ -282,22 +231,7 @@ impl AlphaBeta {
             counter_table: CounterTable::new(),
             history_table: HistoryTable::new(),
             lmr_table: LmrTable::new(),
-            search_params: SearchParams {
-                futility_margin_base: FUTILITY_MARGIN_BASE,
-                futility_margin_per_depth: FUTILITY_MARGIN_PER_DEPTH,
-                futility_pruning_max_depth: FUTILITY_PRUNING_MAX_DEPTH,
-                reverse_futility_margin_base: REVERSE_FUTILITY_MARGIN_BASE,
-                reverse_futility_margin_per_depth: REVERSE_FUTILITY_MARGIN_PER_DEPTH,
-                reverse_futility_pruning_max_depth: REVERSE_FUTILITY_PRUNING_MAX_DEPTH,
-                late_move_pruning_base: LATE_MOVE_PRUNING_BASE,
-                late_move_pruning_factor: LATE_MOVE_PRUNING_FACTOR,
-                late_move_pruning_max_depth: LATE_MOVE_PRUNING_MAX_DEPTH,
-                see_pruning_margin_quiet: SEE_PRUNING_MARGIN_QUIET,
-                see_pruning_margin_tactical: SEE_PRUNING_MARGIN_TACTICAL,
-                see_pruning_max_depth: SEE_PRUNING_MAX_DEPTH,
-                aspiration_window_initial_width: INITIAL_WIDTH,
-                aspiration_window_grow_rate: GROW_RATE,
-            },
+            search_params: SearchParams::default(),
         }
     }
 

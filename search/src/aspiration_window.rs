@@ -1,7 +1,5 @@
+use crate::search_params::SearchParams;
 use eval::{Score, NEG_INF, POS_INF};
-
-pub const INITIAL_WIDTH: i32 = 101;
-pub const GROW_RATE: i32 = 15;
 
 #[derive(Debug)]
 pub struct AspirationWindow {
@@ -19,7 +17,7 @@ impl AspirationWindow {
             score: 0,
             width_up: POS_INF as i32,
             width_down: POS_INF as i32,
-            grow_rate: GROW_RATE,
+            grow_rate: SearchParams::default().aspiration_window_grow_rate,
             alpha: NEG_INF,
             beta: POS_INF,
         }
@@ -77,17 +75,48 @@ mod tests {
     #[test]
     fn widen() {
         let score = 200;
-        let mut aw = AspirationWindow::new(score, INITIAL_WIDTH, GROW_RATE);
-        assert_eq!(score - INITIAL_WIDTH as Score, aw.alpha());
-        assert_eq!(score + INITIAL_WIDTH as Score, aw.beta());
+        let mut aw = AspirationWindow::new(
+            score,
+            SearchParams::default().aspiration_window_initial_width,
+            SearchParams::default().aspiration_window_grow_rate,
+        );
+        assert_eq!(
+            score - SearchParams::default().aspiration_window_initial_width as Score,
+            aw.alpha()
+        );
+        assert_eq!(
+            score + SearchParams::default().aspiration_window_initial_width as Score,
+            aw.beta()
+        );
 
         aw.widen_down();
-        assert_eq!(score - (INITIAL_WIDTH * GROW_RATE) as Score, aw.alpha());
-        assert_eq!(score + INITIAL_WIDTH as Score, aw.beta());
+        assert_eq!(
+            score
+                - (SearchParams::default().aspiration_window_initial_width
+                    * SearchParams::default().aspiration_window_grow_rate)
+                    as Score,
+            aw.alpha()
+        );
+        assert_eq!(
+            score + SearchParams::default().aspiration_window_initial_width as Score,
+            aw.beta()
+        );
 
         aw.widen_up();
-        assert_eq!(score - (INITIAL_WIDTH * GROW_RATE) as Score, aw.alpha());
-        assert_eq!(score + (INITIAL_WIDTH * GROW_RATE) as Score, aw.beta());
+        assert_eq!(
+            score
+                - (SearchParams::default().aspiration_window_initial_width
+                    * SearchParams::default().aspiration_window_grow_rate)
+                    as Score,
+            aw.alpha()
+        );
+        assert_eq!(
+            score
+                + (SearchParams::default().aspiration_window_initial_width
+                    * SearchParams::default().aspiration_window_grow_rate)
+                    as Score,
+            aw.beta()
+        );
 
         let mut prev_alpha = aw.alpha() + 1;
         while aw.alpha() != prev_alpha {
@@ -103,7 +132,11 @@ mod tests {
         assert_eq!(POS_INF, aw.beta());
 
         let neg_score = -1000;
-        let mut neg_aw = AspirationWindow::new(neg_score, INITIAL_WIDTH, GROW_RATE);
+        let mut neg_aw = AspirationWindow::new(
+            neg_score,
+            SearchParams::default().aspiration_window_initial_width,
+            SearchParams::default().aspiration_window_grow_rate,
+        );
         let mut prev_alpha = neg_aw.alpha() + 1;
         while neg_aw.alpha() != prev_alpha {
             prev_alpha = neg_aw.alpha();

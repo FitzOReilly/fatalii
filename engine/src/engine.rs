@@ -6,7 +6,7 @@ use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 use movegen::side::Side;
 use search::search::{Search, SearchInfo};
-use search::search_params::SearchParamsEachAlgo;
+use search::search_params::SearchParamsOptions;
 use search::searcher::Searcher;
 use search::SearchOptions;
 use std::sync::{Arc, Mutex};
@@ -87,7 +87,7 @@ impl Engine {
         };
     }
 
-    pub fn set_search_params(&mut self, search_params: SearchParamsEachAlgo) {
+    pub fn set_search_params(&mut self, search_params: SearchParamsOptions) {
         self.searcher.set_search_params(search_params);
     }
 
