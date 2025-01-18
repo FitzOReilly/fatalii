@@ -63,8 +63,8 @@ pub struct SearchParams {
     pub aspiration_window_grow_rate: i32,
 }
 
-impl Default for SearchParams {
-    fn default() -> Self {
+impl SearchParams {
+    pub const fn const_default() -> Self {
         Self {
             futility_margin_base: FUTILITY_MARGIN_BASE,
             futility_margin_per_depth: FUTILITY_MARGIN_PER_DEPTH,
@@ -83,6 +83,12 @@ impl Default for SearchParams {
             aspiration_window_initial_width: ASPIRATION_WINDOW_INITIAL_WIDTH,
             aspiration_window_grow_rate: ASPIRATION_WINDOW_GROW_RATE,
         }
+    }
+}
+
+impl Default for SearchParams {
+    fn default() -> Self {
+        Self::const_default()
     }
 }
 

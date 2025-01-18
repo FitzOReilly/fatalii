@@ -1,7 +1,7 @@
 use engine::{Engine, Variant, DEFAULT_HASH_MB, DEFAULT_MOVE_OVERHEAD_MILLIS};
 use eval::Score;
 use movegen::file::File;
-use search::search_params::SearchParamsOptions;
+use search::search_params::{SearchParams, SearchParamsOptions};
 use std::time::Duration;
 
 #[allow(dead_code)]
@@ -30,7 +30,7 @@ pub struct UciOption {
     pub r#type: OptionType,
 }
 
-pub const OPTIONS: [UciOption; 3] = [
+pub const OPTIONS: [UciOption; 19] = [
     UciOption {
         name: "Hash",
         r#type: OptionType::Spin(SpinProps {
@@ -54,6 +54,150 @@ pub const OPTIONS: [UciOption; 3] = [
         r#type: OptionType::Check(CheckProps {
             default: false,
             fun: set_chess_960,
+        }),
+    },
+    UciOption {
+        name: "futility-margin-base",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().futility_margin_base as i64,
+            min: 0,
+            max: 300,
+            fun: set_futility_margin_base,
+        }),
+    },
+    UciOption {
+        name: "futility-margin-per-depth",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().futility_margin_per_depth as i64,
+            min: 0,
+            max: 300,
+            fun: set_futility_margin_per_depth,
+        }),
+    },
+    UciOption {
+        name: "futility-pruning-max-depth",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().futility_pruning_max_depth as i64,
+            min: 0,
+            max: 8,
+            fun: set_futility_pruning_max_depth,
+        }),
+    },
+    UciOption {
+        name: "reverse-futility-margin-base",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().reverse_futility_margin_base as i64,
+            min: 0,
+            max: 300,
+            fun: set_reverse_futility_margin_base,
+        }),
+    },
+    UciOption {
+        name: "reverse-futility-margin-per-depth",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().reverse_futility_margin_per_depth as i64,
+            min: 0,
+            max: 300,
+            fun: set_reverse_futility_margin_per_depth,
+        }),
+    },
+    UciOption {
+        name: "reverse-futility-pruning-max-depth",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().reverse_futility_pruning_max_depth as i64,
+            min: 0,
+            max: 8,
+            fun: set_reverse_futility_pruning_max_depth,
+        }),
+    },
+    UciOption {
+        name: "late-move-pruning-base",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().late_move_pruning_base as i64,
+            min: 0,
+            max: 16,
+            fun: set_late_move_pruning_base,
+        }),
+    },
+    UciOption {
+        name: "late-move-pruning-factor",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().late_move_pruning_factor as i64,
+            min: 0,
+            max: 8,
+            fun: set_late_move_pruning_factor,
+        }),
+    },
+    UciOption {
+        name: "late-move-pruning-max-depth",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().late_move_pruning_max_depth as i64,
+            min: 1,
+            max: 8,
+            fun: set_late_move_pruning_max_depth,
+        }),
+    },
+    UciOption {
+        name: "late-move-reductions-centi-base",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().late_move_reductions_centi_base as i64,
+            min: 0,
+            max: 100,
+            fun: set_late_move_reductions_centi_base,
+        }),
+    },
+    UciOption {
+        name: "late-move-reductions-centi-divisor",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().late_move_reductions_centi_divisor as i64,
+            min: 1,
+            max: 1000,
+            fun: set_late_move_reductions_centi_divisor,
+        }),
+    },
+    UciOption {
+        name: "see-pruning-margin-quiet",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().see_pruning_margin_quiet as i64,
+            min: -300,
+            max: 0,
+            fun: set_see_pruning_margin_quiet,
+        }),
+    },
+    UciOption {
+        name: "see-pruning-margin-tactical",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().see_pruning_margin_tactical as i64,
+            min: -300,
+            max: 0,
+            fun: set_see_pruning_margin_tactical,
+        }),
+    },
+    UciOption {
+        name: "see-pruning-max-depth",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().see_pruning_max_depth as i64,
+            min: 0,
+            max: 8,
+            fun: set_see_pruning_max_depth,
+        }),
+    },
+    UciOption {
+        name: "aspiration-window-initial-width",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().aspiration_window_initial_width as i64,
+            min: 1,
+            max: 200,
+            fun: set_aspiration_window_initial_width,
+        }),
+    },
+    UciOption {
+        name: "aspiration-window-grow-rate",
+        r#type: OptionType::Spin(SpinProps {
+            default: SearchParams::const_default().aspiration_window_grow_rate as i64,
+            min: 2,
+            max: 40,
+            fun: set_aspiration_window_grow_rate,
         }),
     },
 ];
