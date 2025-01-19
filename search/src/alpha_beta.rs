@@ -500,9 +500,10 @@ impl AlphaBeta {
         alpha: Score,
         beta: Score,
     ) -> Option<Option<AlphaBetaResult>> {
+        let is_pv_node = alpha != beta - 1;
         let depth = search_data.remaining_depth();
-        if depth >= MIN_NULL_MOVE_PRUNE_DEPTH
-            && search_data.prev_pv_depth() == 0
+        if !is_pv_node
+            && depth >= MIN_NULL_MOVE_PRUNE_DEPTH
             && search_data.pos_history().last_move() != Some(&Move::NULL)
             && !search_data.is_in_check()
             && search_data.static_eval(&mut self.evaluator) >= beta
