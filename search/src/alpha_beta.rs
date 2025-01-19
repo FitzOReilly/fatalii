@@ -325,8 +325,10 @@ impl AlphaBeta {
         let mut prev_node_count = search_data.node_counter().sum_nodes();
         search_data.reset_killers_next_ply();
         let see_margins = [
-            self.search_params.see_pruning_margin_tactical * (depth * depth) as Score,
-            self.search_params.see_pruning_margin_quiet * depth as Score,
+            (self.search_params.see_pruning_margin_tactical as i32 * (depth * depth) as i32)
+                .max(Score::MIN as i32) as Score,
+            (self.search_params.see_pruning_margin_quiet as i32 * depth as i32)
+                .max(Score::MIN as i32) as Score,
         ];
 
         while let Some(m) = move_selector.select_next_move(
@@ -906,7 +908,7 @@ impl AlphaBeta {
 
     fn null_move_depth_reduction(depth: usize) -> usize {
         debug_assert!(depth >= MIN_NULL_MOVE_PRUNE_DEPTH);
-        (depth / 2).min(4)
+        (4 + depth / 4).min(depth - 2)
     }
 
     fn checkmate_or_stalemate(
