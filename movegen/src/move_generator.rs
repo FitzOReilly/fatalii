@@ -131,7 +131,7 @@ mod tests {
     use crate::r#move::{Move, MoveType};
     use crate::side::Side;
     use crate::square::Square;
-    use rand::seq::SliceRandom;
+    use rand::seq::IndexedMutRandom;
 
     #[test]
     fn initial_position() {
@@ -1176,7 +1176,7 @@ mod tests {
                 verify_is_in_check(pos_hist.current_pos());
                 MoveGenerator::generate_moves(&mut move_list, pos_hist.current_pos());
                 verify_gives_check(&mut pos_hist, &move_list);
-                match move_list.choose(&mut rand::thread_rng()) {
+                match move_list.choose_mut(&mut rand::rng()) {
                     Some(m) => pos_hist.do_move(*m),
                     None => pos_hist = PositionHistory::new(pos.clone()),
                 }

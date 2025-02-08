@@ -1,6 +1,6 @@
 use std::{fs::File, io::Write};
 
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{rng, seq::SliceRandom};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -82,7 +82,7 @@ pub fn adam(
     let epsilon = params.epsilon;
 
     for epoch in params.epoch + 1..=params.epoch + num_epochs {
-        training_features.shuffle(&mut thread_rng());
+        training_features.shuffle(&mut rng());
         let mut iter_batch = training_features.chunks(batch_size);
         let batch_count = iter_batch.len();
         let training_batch_count = ((1.0 - validation_ratio) * batch_count as f64) as usize;
