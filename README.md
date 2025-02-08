@@ -81,6 +81,7 @@ Fatalii supports both standard chess and Chess960 (a.k.a. Fischer Random Chess).
     - Reverse futility pruning
     - Late move reductions
     - Late move pruning
+    - SEE pruning
     - Delta pruning in quiescence search
   - Check extensions
 - Transposition table
