@@ -1,10 +1,10 @@
 use std::cmp;
 
-use movegen::move_generator::MoveGenerator;
-use movegen::position_history::PositionHistory;
-use movegen::r#move::MoveList;
-use movegen::transposition_table::{TranspositionTable, TtEntry};
-use movegen::zobrist::Zobrist;
+use crate::move_generator::MoveGenerator;
+use crate::position_history::PositionHistory;
+use crate::r#move::MoveList;
+use crate::transposition_table::{TranspositionTable, TtEntry};
+use crate::zobrist::Zobrist;
 
 const AGE: u8 = 0;
 
