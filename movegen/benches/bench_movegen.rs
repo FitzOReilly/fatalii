@@ -1,8 +1,8 @@
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput};
 use movegen::fen::Fen;
+use movegen::performance_tester::PerformanceTester;
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
-use perft::PerformanceTester;
 
 fn perft(c: &mut Criterion, group_name: &str, pos: Position, min_depth: usize, max_depth: usize) {
     let bytes = 32 * 64 * 1024;

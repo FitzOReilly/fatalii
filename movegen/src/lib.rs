@@ -7,6 +7,7 @@ pub mod knight;
 pub mod r#move;
 pub mod move_generator;
 pub mod pawn;
+pub mod performance_tester;
 pub mod piece;
 pub mod position;
 pub mod position_history;

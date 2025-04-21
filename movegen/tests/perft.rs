@@ -1,7 +1,7 @@
 use movegen::fen::Fen;
+use movegen::performance_tester::PerformanceTester;
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
-use perft::PerformanceTester;
 
 const BYTES: usize = 32 * 64 * 1024;
 
