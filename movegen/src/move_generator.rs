@@ -124,995 +124,429 @@ impl MoveGenerator {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
     use crate::fen::Fen;
-    use crate::position::{CastlingRights, Position};
+    use crate::position::Position;
     use crate::position_history::PositionHistory;
     use crate::r#move::{Move, MoveType};
-    use crate::side::Side;
     use crate::square::Square;
     use rand::seq::IndexedMutRandom;
 
+    fn verify_generated_moves(pos: &Position, expected_moves: &[&str]) {
+        let mut move_list = MoveList::new();
+        MoveGenerator::generate_moves(&mut move_list, pos);
+        let expected: HashSet<_> = expected_moves.iter().map(|m| m.to_string()).collect();
+        let actual: HashSet<_> = move_list.iter().map(|m| m.to_string()).collect();
+        assert_eq!(
+            expected,
+            actual,
+            "expected - actual: {:?}, actual - expected: {:?}",
+            expected.difference(&actual),
+            actual.difference(&expected),
+        );
+    }
+
+    fn verify_generated_moves_contain(
+        pos: &Position,
+        expected_contained: &[&str],
+        expected_not_contained: &[&str],
+    ) {
+        let mut move_list = MoveList::new();
+        MoveGenerator::generate_moves(&mut move_list, pos);
+        let actual: HashSet<_> = move_list.iter().map(|m| m.to_string()).collect();
+        for ec in expected_contained {
+            assert!(
+                actual.contains(*ec),
+                "move list does not contain expected move\nmove list: {:?}\nmove: {}",
+                actual,
+                ec,
+            );
+        }
+        for enc in expected_not_contained {
+            assert!(
+                !actual.contains(*enc),
+                "move list contains unexpected move\nmove list: {:?}\nmove: {}",
+                actual,
+                enc,
+            );
+        }
+    }
+
     #[test]
     fn initial_position() {
-        let mut move_list = MoveList::new();
-
         let pos = Position::initial();
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-
         let expected_moves = [
-            // Pawn
-            Move::new(Square::A2, Square::A3, MoveType::QUIET),
-            Move::new(Square::B2, Square::B3, MoveType::QUIET),
-            Move::new(Square::C2, Square::C3, MoveType::QUIET),
-            Move::new(Square::D2, Square::D3, MoveType::QUIET),
-            Move::new(Square::E2, Square::E3, MoveType::QUIET),
-            Move::new(Square::F2, Square::F3, MoveType::QUIET),
-            Move::new(Square::G2, Square::G3, MoveType::QUIET),
-            Move::new(Square::H2, Square::H3, MoveType::QUIET),
-            Move::new(Square::A2, Square::A4, MoveType::DOUBLE_PAWN_PUSH),
-            Move::new(Square::B2, Square::B4, MoveType::DOUBLE_PAWN_PUSH),
-            Move::new(Square::C2, Square::C4, MoveType::DOUBLE_PAWN_PUSH),
-            Move::new(Square::D2, Square::D4, MoveType::DOUBLE_PAWN_PUSH),
-            Move::new(Square::E2, Square::E4, MoveType::DOUBLE_PAWN_PUSH),
-            Move::new(Square::F2, Square::F4, MoveType::DOUBLE_PAWN_PUSH),
-            Move::new(Square::G2, Square::G4, MoveType::DOUBLE_PAWN_PUSH),
-            Move::new(Square::H2, Square::H4, MoveType::DOUBLE_PAWN_PUSH),
-            // Knight
-            Move::new(Square::B1, Square::A3, MoveType::QUIET),
-            Move::new(Square::B1, Square::C3, MoveType::QUIET),
-            Move::new(Square::G1, Square::F3, MoveType::QUIET),
-            Move::new(Square::G1, Square::H3, MoveType::QUIET),
+            "a2a3", "b2b3", "c2c3", "d2d3", "e2e3", "f2f3", "g2g3", "h2h3", "a2a4", "b2b4", "c2c4",
+            "d2d4", "e2e4", "f2f4", "g2g4", "h2h4", "b1a3", "b1c3", "g1f3", "g1h3",
         ];
-
-        assert_eq!(expected_moves.len(), move_list.len());
-        for exp_move in &expected_moves {
-            assert!(move_list.contains(exp_move));
-        }
+        verify_generated_moves(&pos, &expected_moves);
     }
 
     #[test]
     fn position_after_1_e4() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::initial();
-        pos.set_piece_at(Square::E2, None);
-        pos.set_piece_at(Square::E4, Some(piece::Piece::WHITE_PAWN));
-        pos.set_en_passant_square(Bitboard::E3);
-        pos.set_side_to_move(Side::Black);
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-
+        let pos = Position::initial();
+        let mut pos_hist = PositionHistory::new(pos);
+        pos_hist.do_move(Move::new(
+            Square::E2,
+            Square::E4,
+            MoveType::DOUBLE_PAWN_PUSH,
+        ));
         let expected_moves = [
-            // Pawn
-            Move::new(Square::A7, Square::A6, MoveType::QUIET),
-            Move::new(Square::B7, Square::B6, MoveType::QUIET),
-            Move::new(Square::C7, Square::C6, MoveType::QUIET),
-            Move::new(Square::D7, Square::D6, MoveType::QUIET),
-            Move::new(Square::E7, Square::E6, MoveType::QUIET),
-            Move::new(Square::F7, Square::F6, MoveType::QUIET),
-            Move::new(Square::G7, Square::G6, MoveType::QUIET),
-            Move::new(Square::H7, Square::H6, MoveType::QUIET),
-            Move::new(Square::A7, Square::A5, MoveType::DOUBLE_PAWN_PUSH),
-            Move::new(Square::B7, Square::B5, MoveType::DOUBLE_PAWN_PUSH),
-            Move::new(Square::C7, Square::C5, MoveType::DOUBLE_PAWN_PUSH),
-            Move::new(Square::D7, Square::D5, MoveType::DOUBLE_PAWN_PUSH),
-            Move::new(Square::E7, Square::E5, MoveType::DOUBLE_PAWN_PUSH),
-            Move::new(Square::F7, Square::F5, MoveType::DOUBLE_PAWN_PUSH),
-            Move::new(Square::G7, Square::G5, MoveType::DOUBLE_PAWN_PUSH),
-            Move::new(Square::H7, Square::H5, MoveType::DOUBLE_PAWN_PUSH),
-            // Knight
-            Move::new(Square::B8, Square::A6, MoveType::QUIET),
-            Move::new(Square::B8, Square::C6, MoveType::QUIET),
-            Move::new(Square::G8, Square::F6, MoveType::QUIET),
-            Move::new(Square::G8, Square::H6, MoveType::QUIET),
+            "a7a6", "b7b6", "c7c6", "d7d6", "e7e6", "f7f6", "g7g6", "h7h6", "a7a5", "b7b5", "c7c5",
+            "d7d5", "e7e5", "f7f5", "g7g5", "h7h5", "b8a6", "b8c6", "g8f6", "g8h6",
         ];
-
-        assert_eq!(expected_moves.len(), move_list.len());
-        for exp_move in &expected_moves {
-            assert!(move_list.contains(exp_move));
-        }
+        verify_generated_moves(pos_hist.current_pos(), &expected_moves);
     }
 
     #[test]
     fn white_pawn_captures() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::A2, Some(piece::Piece::WHITE_PAWN));
-        pos.set_piece_at(Square::H2, Some(piece::Piece::WHITE_PAWN));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::A3, Some(piece::Piece::BLACK_PAWN));
-        pos.set_piece_at(Square::B3, Some(piece::Piece::BLACK_PAWN));
-        pos.set_piece_at(Square::G3, Some(piece::Piece::BLACK_PAWN));
-        pos.set_piece_at(Square::H3, Some(piece::Piece::BLACK_PAWN));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-
-        let expected_moves = [
-            // King
-            Move::new(Square::E1, Square::D1, MoveType::QUIET),
-            Move::new(Square::E1, Square::D2, MoveType::QUIET),
-            Move::new(Square::E1, Square::E2, MoveType::QUIET),
-            Move::new(Square::E1, Square::F1, MoveType::QUIET),
-            // Pawn
-            Move::new(Square::A2, Square::B3, MoveType::CAPTURE),
-            Move::new(Square::H2, Square::G3, MoveType::CAPTURE),
-        ];
-
-        assert_eq!(expected_moves.len(), move_list.len());
-        for exp_move in &expected_moves {
-            assert!(move_list.contains(exp_move));
-        }
+        let fen = "4k3/8/8/8/8/pp4pp/P6P/4K3 w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_moves = ["e1d1", "e1d2", "e1e2", "e1f1", "a2xb3", "h2xg3"];
+        verify_generated_moves(&pos, &expected_moves);
     }
 
     #[test]
     fn black_pawn_captures() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::A7, Some(piece::Piece::BLACK_PAWN));
-        pos.set_piece_at(Square::H7, Some(piece::Piece::BLACK_PAWN));
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::A6, Some(piece::Piece::WHITE_PAWN));
-        pos.set_piece_at(Square::B6, Some(piece::Piece::WHITE_PAWN));
-        pos.set_piece_at(Square::G6, Some(piece::Piece::WHITE_PAWN));
-        pos.set_piece_at(Square::H6, Some(piece::Piece::WHITE_PAWN));
-        pos.set_side_to_move(Side::Black);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-
-        let expected_moves = [
-            // King
-            Move::new(Square::E8, Square::D8, MoveType::QUIET),
-            Move::new(Square::E8, Square::D7, MoveType::QUIET),
-            Move::new(Square::E8, Square::E7, MoveType::QUIET),
-            Move::new(Square::E8, Square::F8, MoveType::QUIET),
-            // Pawn
-            Move::new(Square::A7, Square::B6, MoveType::CAPTURE),
-            Move::new(Square::H7, Square::G6, MoveType::CAPTURE),
-        ];
-
-        assert_eq!(expected_moves.len(), move_list.len());
-        for exp_move in &expected_moves {
-            assert!(move_list.contains(exp_move));
-        }
+        let fen = "4k3/p6p/PP4PP/8/8/8/8/4K3 b - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_moves = ["e8d8", "e8d7", "e8e7", "e8f8", "a7xb6", "h7xg6"];
+        verify_generated_moves(&pos, &expected_moves);
     }
 
     #[test]
     fn king_moves() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::F2, Some(piece::Piece::BLACK_PAWN));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-
-        let expected_moves = [
-            Move::new(Square::E1, Square::D1, MoveType::QUIET),
-            Move::new(Square::E1, Square::D2, MoveType::QUIET),
-            Move::new(Square::E1, Square::E2, MoveType::QUIET),
-            Move::new(Square::E1, Square::F1, MoveType::QUIET),
-            Move::new(Square::E1, Square::F2, MoveType::CAPTURE),
-        ];
-
-        assert_eq!(expected_moves.len(), move_list.len());
-        for exp_move in &expected_moves {
-            assert!(move_list.contains(exp_move));
-        }
+        let fen = "4k3/8/8/8/8/8/5p2/4K3 w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_moves = ["e1d1", "e1d2", "e1e2", "e1f1", "e1xf2"];
+        verify_generated_moves(&pos, &expected_moves);
     }
 
     #[test]
     fn knight_moves() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::B1, Some(piece::Piece::WHITE_KNIGHT));
-        pos.set_piece_at(Square::C3, Some(piece::Piece::WHITE_PAWN));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::A3, Some(piece::Piece::BLACK_PAWN));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-
+        let fen = "4k3/8/8/8/8/p1P5/8/1N2K3 w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
         let expected_moves = [
-            // King
-            Move::new(Square::E1, Square::D1, MoveType::QUIET),
-            Move::new(Square::E1, Square::D2, MoveType::QUIET),
-            Move::new(Square::E1, Square::E2, MoveType::QUIET),
-            Move::new(Square::E1, Square::F1, MoveType::QUIET),
-            Move::new(Square::E1, Square::F2, MoveType::QUIET),
-            // Pawn
-            Move::new(Square::C3, Square::C4, MoveType::QUIET),
-            // Knight
-            Move::new(Square::B1, Square::D2, MoveType::QUIET),
-            Move::new(Square::B1, Square::A3, MoveType::CAPTURE),
+            "e1d1", "e1d2", "e1e2", "e1f1", "e1f2", "c3c4", "b1d2", "b1xa3",
         ];
-
-        assert_eq!(expected_moves.len(), move_list.len());
-        for exp_move in &expected_moves {
-            assert!(move_list.contains(exp_move));
-        }
+        verify_generated_moves(&pos, &expected_moves);
     }
 
     #[test]
     fn bishop_moves() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::C3, Some(piece::Piece::WHITE_BISHOP));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::G7, Some(piece::Piece::BLACK_PAWN));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-
+        let fen = "4k3/6p1/8/8/8/2B5/8/4K3 w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
         let expected_moves = [
-            // King
-            Move::new(Square::E1, Square::D1, MoveType::QUIET),
-            Move::new(Square::E1, Square::D2, MoveType::QUIET),
-            Move::new(Square::E1, Square::E2, MoveType::QUIET),
-            Move::new(Square::E1, Square::F1, MoveType::QUIET),
-            Move::new(Square::E1, Square::F2, MoveType::QUIET),
-            // Bishop
-            Move::new(Square::C3, Square::B2, MoveType::QUIET),
-            Move::new(Square::C3, Square::A1, MoveType::QUIET),
-            Move::new(Square::C3, Square::D2, MoveType::QUIET),
-            Move::new(Square::C3, Square::B4, MoveType::QUIET),
-            Move::new(Square::C3, Square::A5, MoveType::QUIET),
-            Move::new(Square::C3, Square::D4, MoveType::QUIET),
-            Move::new(Square::C3, Square::E5, MoveType::QUIET),
-            Move::new(Square::C3, Square::F6, MoveType::QUIET),
-            Move::new(Square::C3, Square::G7, MoveType::CAPTURE),
+            "e1d1", "e1d2", "e1e2", "e1f1", "e1f2", "c3b2", "c3a1", "c3d2", "c3b4", "c3a5", "c3d4",
+            "c3e5", "c3f6", "c3xg7",
         ];
-
-        assert_eq!(expected_moves.len(), move_list.len());
-        for exp_move in &expected_moves {
-            assert!(move_list.contains(exp_move));
-        }
+        verify_generated_moves(&pos, &expected_moves);
     }
 
     #[test]
     fn rook_moves() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::E3, Some(piece::Piece::WHITE_ROOK));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::E7, Some(piece::Piece::BLACK_PAWN));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-
+        let fen = "4k3/4p3/8/8/8/4R3/8/4K3 w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
         let expected_moves = [
-            // King
-            Move::new(Square::E1, Square::D1, MoveType::QUIET),
-            Move::new(Square::E1, Square::D2, MoveType::QUIET),
-            Move::new(Square::E1, Square::E2, MoveType::QUIET),
-            Move::new(Square::E1, Square::F1, MoveType::QUIET),
-            Move::new(Square::E1, Square::F2, MoveType::QUIET),
-            // Rook
-            Move::new(Square::E3, Square::E2, MoveType::QUIET),
-            Move::new(Square::E3, Square::D3, MoveType::QUIET),
-            Move::new(Square::E3, Square::C3, MoveType::QUIET),
-            Move::new(Square::E3, Square::B3, MoveType::QUIET),
-            Move::new(Square::E3, Square::A3, MoveType::QUIET),
-            Move::new(Square::E3, Square::F3, MoveType::QUIET),
-            Move::new(Square::E3, Square::G3, MoveType::QUIET),
-            Move::new(Square::E3, Square::H3, MoveType::QUIET),
-            Move::new(Square::E3, Square::E4, MoveType::QUIET),
-            Move::new(Square::E3, Square::E5, MoveType::QUIET),
-            Move::new(Square::E3, Square::E6, MoveType::QUIET),
-            Move::new(Square::E3, Square::E7, MoveType::CAPTURE),
+            "e1d1", "e1d2", "e1e2", "e1f1", "e1f2", "e3e2", "e3d3", "e3c3", "e3b3", "e3a3", "e3f3",
+            "e3g3", "e3h3", "e3e4", "e3e5", "e3e6", "e3xe7",
         ];
-
-        assert_eq!(
-            expected_moves.len(),
-            move_list.len(),
-            "\nExpected moves: {}\nActual moves: {}",
-            expected_moves
-                .iter()
-                .map(|m| m.to_string())
-                .collect::<Vec<_>>()
-                .join(" "),
-            move_list
-                .iter()
-                .map(|m| m.to_string())
-                .collect::<Vec<_>>()
-                .join(" "),
-        );
-        for exp_move in &expected_moves {
-            assert!(move_list.contains(exp_move));
-        }
+        verify_generated_moves(&pos, &expected_moves);
     }
 
     #[test]
     fn queen_moves() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::E3, Some(piece::Piece::WHITE_PAWN));
-        pos.set_piece_at(Square::C3, Some(piece::Piece::WHITE_QUEEN));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::C7, Some(piece::Piece::BLACK_PAWN));
-        pos.set_piece_at(Square::G7, Some(piece::Piece::BLACK_PAWN));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-
+        let fen = "4k3/2p3p1/8/8/8/2Q1P3/8/4K3 w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
         let expected_moves = [
-            // King
-            Move::new(Square::E1, Square::D1, MoveType::QUIET),
-            Move::new(Square::E1, Square::D2, MoveType::QUIET),
-            Move::new(Square::E1, Square::E2, MoveType::QUIET),
-            Move::new(Square::E1, Square::F1, MoveType::QUIET),
-            Move::new(Square::E1, Square::F2, MoveType::QUIET),
-            // Pawn
-            Move::new(Square::E3, Square::E4, MoveType::QUIET),
-            // Queen ranks and files
-            Move::new(Square::C3, Square::C2, MoveType::QUIET),
-            Move::new(Square::C3, Square::C1, MoveType::QUIET),
-            Move::new(Square::C3, Square::B3, MoveType::QUIET),
-            Move::new(Square::C3, Square::A3, MoveType::QUIET),
-            Move::new(Square::C3, Square::D3, MoveType::QUIET),
-            Move::new(Square::C3, Square::C4, MoveType::QUIET),
-            Move::new(Square::C3, Square::C5, MoveType::QUIET),
-            Move::new(Square::C3, Square::C6, MoveType::QUIET),
-            Move::new(Square::C3, Square::C7, MoveType::CAPTURE),
-            // Queen diagonals
-            Move::new(Square::C3, Square::B2, MoveType::QUIET),
-            Move::new(Square::C3, Square::A1, MoveType::QUIET),
-            Move::new(Square::C3, Square::D2, MoveType::QUIET),
-            Move::new(Square::C3, Square::B4, MoveType::QUIET),
-            Move::new(Square::C3, Square::A5, MoveType::QUIET),
-            Move::new(Square::C3, Square::D4, MoveType::QUIET),
-            Move::new(Square::C3, Square::E5, MoveType::QUIET),
-            Move::new(Square::C3, Square::F6, MoveType::QUIET),
-            Move::new(Square::C3, Square::G7, MoveType::CAPTURE),
+            "e1d1", "e1d2", "e1e2", "e1f1", "e1f2", "e3e4", "c3c2", "c3c1", "c3b3", "c3a3", "c3d3",
+            "c3c4", "c3c5", "c3c6", "c3xc7", "c3b2", "c3a1", "c3d2", "c3b4", "c3a5", "c3d4",
+            "c3e5", "c3f6", "c3xg7",
         ];
-
-        assert_eq!(expected_moves.len(), move_list.len());
-        for exp_move in &expected_moves {
-            assert!(move_list.contains(exp_move));
-        }
+        verify_generated_moves(&pos, &expected_moves);
     }
 
     #[test]
     fn white_promotions() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::B7, Some(piece::Piece::WHITE_PAWN));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::A8, Some(piece::Piece::BLACK_ROOK));
-        pos.set_piece_at(Square::C8, Some(piece::Piece::BLACK_BISHOP));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-
+        let fen = "r1b1k3/1P6/8/8/8/8/8/4K3 w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
         let expected_moves = [
-            // King
-            Move::new(Square::E1, Square::D1, MoveType::QUIET),
-            Move::new(Square::E1, Square::D2, MoveType::QUIET),
-            Move::new(Square::E1, Square::E2, MoveType::QUIET),
-            Move::new(Square::E1, Square::F1, MoveType::QUIET),
-            Move::new(Square::E1, Square::F2, MoveType::QUIET),
-            // Pawns
-            Move::new(
-                Square::B7,
-                Square::A8,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Knight),
-            ),
-            Move::new(
-                Square::B7,
-                Square::A8,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Bishop),
-            ),
-            Move::new(
-                Square::B7,
-                Square::A8,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Rook),
-            ),
-            Move::new(
-                Square::B7,
-                Square::A8,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Queen),
-            ),
-            Move::new(
-                Square::B7,
-                Square::B8,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION, piece::Type::Knight),
-            ),
-            Move::new(
-                Square::B7,
-                Square::B8,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION, piece::Type::Bishop),
-            ),
-            Move::new(
-                Square::B7,
-                Square::B8,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION, piece::Type::Rook),
-            ),
-            Move::new(
-                Square::B7,
-                Square::B8,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION, piece::Type::Queen),
-            ),
-            Move::new(
-                Square::B7,
-                Square::C8,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Knight),
-            ),
-            Move::new(
-                Square::B7,
-                Square::C8,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Bishop),
-            ),
-            Move::new(
-                Square::B7,
-                Square::C8,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Rook),
-            ),
-            Move::new(
-                Square::B7,
-                Square::C8,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Queen),
-            ),
+            "e1d1", "e1d2", "e1e2", "e1f1", "e1f2", "b7xa8=N", "b7xa8=B", "b7xa8=R", "b7xa8=Q",
+            "b7b8=N", "b7b8=B", "b7b8=R", "b7b8=Q", "b7xc8=N", "b7xc8=B", "b7xc8=R", "b7xc8=Q",
         ];
-
-        assert_eq!(expected_moves.len(), move_list.len());
-        for exp_move in &expected_moves {
-            assert!(move_list.contains(exp_move));
-        }
+        verify_generated_moves(&pos, &expected_moves);
     }
 
     #[test]
     fn black_promotions() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::B2, Some(piece::Piece::BLACK_PAWN));
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::A1, Some(piece::Piece::WHITE_ROOK));
-        pos.set_piece_at(Square::C1, Some(piece::Piece::WHITE_BISHOP));
-        pos.set_side_to_move(Side::Black);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-
+        let fen = "4k3/8/8/8/8/8/1p6/R1B1K3 b - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
         let expected_moves = [
-            // King
-            Move::new(Square::E8, Square::D7, MoveType::QUIET),
-            Move::new(Square::E8, Square::D8, MoveType::QUIET),
-            Move::new(Square::E8, Square::E7, MoveType::QUIET),
-            Move::new(Square::E8, Square::F7, MoveType::QUIET),
-            Move::new(Square::E8, Square::F8, MoveType::QUIET),
-            // Pawns
-            Move::new(
-                Square::B2,
-                Square::A1,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Knight),
-            ),
-            Move::new(
-                Square::B2,
-                Square::A1,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Bishop),
-            ),
-            Move::new(
-                Square::B2,
-                Square::A1,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Rook),
-            ),
-            Move::new(
-                Square::B2,
-                Square::A1,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Queen),
-            ),
-            Move::new(
-                Square::B2,
-                Square::B1,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION, piece::Type::Knight),
-            ),
-            Move::new(
-                Square::B2,
-                Square::B1,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION, piece::Type::Bishop),
-            ),
-            Move::new(
-                Square::B2,
-                Square::B1,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION, piece::Type::Rook),
-            ),
-            Move::new(
-                Square::B2,
-                Square::B1,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION, piece::Type::Queen),
-            ),
-            Move::new(
-                Square::B2,
-                Square::C1,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Knight),
-            ),
-            Move::new(
-                Square::B2,
-                Square::C1,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Bishop),
-            ),
-            Move::new(
-                Square::B2,
-                Square::C1,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Rook),
-            ),
-            Move::new(
-                Square::B2,
-                Square::C1,
-                MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Queen),
-            ),
+            "e8d7", "e8d8", "e8e7", "e8f7", "e8f8", "b2xa1=N", "b2xa1=B", "b2xa1=R", "b2xa1=Q",
+            "b2b1=N", "b2b1=B", "b2b1=R", "b2b1=Q", "b2xc1=N", "b2xc1=B", "b2xc1=R", "b2xc1=Q",
         ];
-
-        assert_eq!(expected_moves.len(), move_list.len());
-        for exp_move in &expected_moves {
-            assert!(move_list.contains(exp_move));
-        }
+        verify_generated_moves(&pos, &expected_moves);
     }
 
     #[test]
     fn white_en_passant_captures() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::D5, Some(piece::Piece::WHITE_PAWN));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::C5, Some(piece::Piece::BLACK_PAWN));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        pos.set_en_passant_square(Bitboard::C6);
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-
-        let expected_moves = [
-            // King
-            Move::new(Square::E1, Square::D1, MoveType::QUIET),
-            Move::new(Square::E1, Square::D2, MoveType::QUIET),
-            Move::new(Square::E1, Square::E2, MoveType::QUIET),
-            Move::new(Square::E1, Square::F2, MoveType::QUIET),
-            Move::new(Square::E1, Square::F1, MoveType::QUIET),
-            // Pawn
-            Move::new(Square::D5, Square::D6, MoveType::QUIET),
-            Move::new(Square::D5, Square::C6, MoveType::EN_PASSANT_CAPTURE),
-        ];
-
-        assert_eq!(expected_moves.len(), move_list.len());
-        for exp_move in &expected_moves {
-            assert!(move_list.contains(exp_move));
-        }
+        let fen = "4k3/8/8/2pP4/8/8/8/4K3 w - c6 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_moves = ["e1d1", "e1d2", "e1e2", "e1f2", "e1f1", "d5d6", "d5xc6"];
+        verify_generated_moves(&pos, &expected_moves);
     }
 
     #[test]
     fn black_en_passant_captures() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::D4, Some(piece::Piece::BLACK_PAWN));
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::C4, Some(piece::Piece::WHITE_PAWN));
-        pos.set_side_to_move(Side::Black);
-        pos.set_castling_rights(CastlingRights::empty());
-        pos.set_en_passant_square(Bitboard::C3);
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-
-        let expected_moves = [
-            // King
-            Move::new(Square::E8, Square::D8, MoveType::QUIET),
-            Move::new(Square::E8, Square::D7, MoveType::QUIET),
-            Move::new(Square::E8, Square::E7, MoveType::QUIET),
-            Move::new(Square::E8, Square::F7, MoveType::QUIET),
-            Move::new(Square::E8, Square::F8, MoveType::QUIET),
-            // Pawn
-            Move::new(Square::D4, Square::D3, MoveType::QUIET),
-            Move::new(Square::D4, Square::C3, MoveType::EN_PASSANT_CAPTURE),
-        ];
-
-        assert_eq!(expected_moves.len(), move_list.len());
-        for exp_move in &expected_moves {
-            assert!(move_list.contains(exp_move));
-        }
+        let fen = "4k3/8/8/8/2Pp4/8/8/4K3 b - c3 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_moves = ["e8d8", "e8d7", "e8e7", "e8f7", "e8f8", "d4d3", "d4xc3"];
+        verify_generated_moves(&pos, &expected_moves);
     }
 
     #[test]
     fn white_castles() {
-        let kingside_castle = Move::new(Square::E1, Square::G1, MoveType::CASTLE_KINGSIDE);
-        let queenside_castle = Move::new(Square::E1, Square::C1, MoveType::CASTLE_QUEENSIDE);
+        let fen = "4k3/8/8/8/8/8/8/R3K2R w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["0-0", "0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
-        let mut move_list = MoveList::new();
+        let fen = "4k3/8/8/8/8/8/8/R3K2R w K - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = ["0-0"];
+        let expected_not_contained = ["0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::A1, Some(piece::Piece::WHITE_ROOK));
-        pos.set_piece_at(Square::H1, Some(piece::Piece::WHITE_ROOK));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
+        let fen = "4k3/8/8/8/8/8/8/R3K2R w Q - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = ["0-0-0"];
+        let expected_not_contained = ["0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
-        assert!(!move_list.contains(&kingside_castle));
-        assert!(!move_list.contains(&queenside_castle));
-
-        pos.set_castling_rights(CastlingRights::WHITE_KINGSIDE);
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(move_list.contains(&kingside_castle));
-        assert!(!move_list.contains(&queenside_castle));
-
-        pos.set_castling_rights(CastlingRights::WHITE_QUEENSIDE);
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&kingside_castle));
-        assert!(move_list.contains(&queenside_castle));
-
-        pos.set_castling_rights(CastlingRights::WHITE_BOTH);
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(move_list.contains(&kingside_castle));
-        assert!(move_list.contains(&queenside_castle));
+        let fen = "4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = ["0-0", "0-0-0"];
+        let expected_not_contained = [];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Square between king and rook blocked
-        let mut pos_blocked = pos.clone();
-        pos_blocked.set_piece_at(Square::G1, Some(piece::Piece::WHITE_KNIGHT));
-        pos_blocked.set_piece_at(Square::B1, Some(piece::Piece::BLACK_KNIGHT));
-        MoveGenerator::generate_moves(&mut move_list, &pos_blocked);
-        assert!(!move_list.contains(&kingside_castle));
-        assert!(!move_list.contains(&queenside_castle));
+        let fen = "4k3/8/8/8/8/8/8/Rn2K1NR w KQ - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["0-0", "0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // King attacked
-        let mut pos_in_check = pos.clone();
-        pos_in_check.set_piece_at(Square::E2, Some(piece::Piece::BLACK_ROOK));
-        MoveGenerator::generate_moves(&mut move_list, &pos_in_check);
-        assert!(!move_list.contains(&kingside_castle));
-        assert!(!move_list.contains(&queenside_castle));
+        let fen = "4k3/8/8/8/8/8/4r3/R3K2R w KQ - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["0-0", "0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Square traversed by king attacked
-        let mut pos_traverse_attacked = pos.clone();
-        pos_traverse_attacked.set_piece_at(Square::E2, Some(piece::Piece::BLACK_BISHOP));
-        MoveGenerator::generate_moves(&mut move_list, &pos_traverse_attacked);
-        assert!(!move_list.contains(&kingside_castle));
-        assert!(!move_list.contains(&queenside_castle));
+        let fen = "4k3/8/8/8/8/8/4b3/R3K2R w KQ - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["0-0", "0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Target square attacked
-        let mut pos_target_attacked = pos.clone();
-        pos_target_attacked.set_piece_at(Square::E3, Some(piece::Piece::BLACK_BISHOP));
-        MoveGenerator::generate_moves(&mut move_list, &pos_target_attacked);
-        assert!(!move_list.contains(&kingside_castle));
-        assert!(!move_list.contains(&queenside_castle));
+        let fen = "4k3/8/8/8/8/4b3/8/R3K2R w KQ - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["0-0", "0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Rook attacked (castling is legal)
-        let mut pos_rook_attacked = pos;
-        pos_rook_attacked.set_piece_at(Square::E4, Some(piece::Piece::BLACK_BISHOP));
-        pos_rook_attacked.set_piece_at(Square::E5, Some(piece::Piece::BLACK_BISHOP));
-        MoveGenerator::generate_moves(&mut move_list, &pos_rook_attacked);
-        assert!(move_list.contains(&kingside_castle));
-        assert!(move_list.contains(&queenside_castle));
+        let fen = "4k3/8/8/4b3/4b3/8/8/R3K2R w KQ - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = ["0-0", "0-0-0"];
+        let expected_not_contained = [];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
     fn black_castles() {
-        let kingside_castle = Move::new(Square::E8, Square::G8, MoveType::CASTLE_KINGSIDE);
-        let queenside_castle = Move::new(Square::E8, Square::C8, MoveType::CASTLE_QUEENSIDE);
+        let fen = "r3k2r/8/8/8/8/8/8/4K3 b - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["0-0", "0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
-        let mut move_list = MoveList::new();
+        let fen = "r3k2r/8/8/8/8/8/8/4K3 b k - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = ["0-0"];
+        let expected_not_contained = ["0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::A8, Some(piece::Piece::BLACK_ROOK));
-        pos.set_piece_at(Square::H8, Some(piece::Piece::BLACK_ROOK));
-        pos.set_side_to_move(Side::Black);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&kingside_castle));
-        assert!(!move_list.contains(&queenside_castle));
+        let fen = "r3k2r/8/8/8/8/8/8/4K3 b q - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = ["0-0-0"];
+        let expected_not_contained = ["0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
-        pos.set_castling_rights(CastlingRights::BLACK_KINGSIDE);
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(move_list.contains(&kingside_castle));
-        assert!(!move_list.contains(&queenside_castle));
-
-        pos.set_castling_rights(CastlingRights::BLACK_QUEENSIDE);
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&kingside_castle));
-        assert!(move_list.contains(&queenside_castle));
-
-        pos.set_castling_rights(CastlingRights::BLACK_BOTH);
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(move_list.contains(&kingside_castle));
-        assert!(move_list.contains(&queenside_castle));
+        let fen = "r3k2r/8/8/8/8/8/8/4K3 b kq - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = ["0-0", "0-0-0"];
+        let expected_not_contained = [];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Square between king and rook blocked
-        let mut pos_blocked = pos.clone();
-        pos_blocked.set_piece_at(Square::G8, Some(piece::Piece::BLACK_KNIGHT));
-        pos_blocked.set_piece_at(Square::B8, Some(piece::Piece::WHITE_KNIGHT));
-        MoveGenerator::generate_moves(&mut move_list, &pos_blocked);
-        assert!(!move_list.contains(&kingside_castle));
-        assert!(!move_list.contains(&queenside_castle));
+        let fen = "rN2k1nr/8/8/8/8/8/8/4K3 b kq - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["0-0", "0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // King attacked
-        let mut pos_in_check = pos.clone();
-        pos_in_check.set_piece_at(Square::E7, Some(piece::Piece::WHITE_ROOK));
-        MoveGenerator::generate_moves(&mut move_list, &pos_in_check);
-        assert!(!move_list.contains(&kingside_castle));
-        assert!(!move_list.contains(&queenside_castle));
+        let fen = "r3k2r/4R3/8/8/8/8/8/4K3 b kq - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["0-0", "0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Square traversed by king attacked
-        let mut pos_traverse_attacked = pos.clone();
-        pos_traverse_attacked.set_piece_at(Square::E7, Some(piece::Piece::WHITE_BISHOP));
-        MoveGenerator::generate_moves(&mut move_list, &pos_traverse_attacked);
-        assert!(!move_list.contains(&kingside_castle));
-        assert!(!move_list.contains(&queenside_castle));
+        let fen = "r3k2r/4B3/8/8/8/8/8/4K3 b kq - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["0-0", "0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Target square attacked
-        let mut pos_target_attacked = pos.clone();
-        pos_target_attacked.set_piece_at(Square::E6, Some(piece::Piece::WHITE_BISHOP));
-        MoveGenerator::generate_moves(&mut move_list, &pos_target_attacked);
-        assert!(!move_list.contains(&kingside_castle));
-        assert!(!move_list.contains(&queenside_castle));
+        let fen = "r3k2r/8/4B3/8/8/8/8/4K3 b kq - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["0-0", "0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Rook attacked (castling is legal)
-        let mut pos_rook_attacked = pos;
-        pos_rook_attacked.set_piece_at(Square::E4, Some(piece::Piece::WHITE_BISHOP));
-        pos_rook_attacked.set_piece_at(Square::E5, Some(piece::Piece::WHITE_BISHOP));
-        MoveGenerator::generate_moves(&mut move_list, &pos_rook_attacked);
-        assert!(move_list.contains(&kingside_castle));
-        assert!(move_list.contains(&queenside_castle));
+        let fen = "r3k2r/8/8/4B3/4B3/8/8/4K3 b kq - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = ["0-0", "0-0-0"];
+        let expected_not_contained = [];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
     fn king_not_left_in_check_after_pawn_moves() {
-        let mut move_list = MoveList::new();
+        let fen = "4k3/8/8/8/8/5r2/3KP2r/8 w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["e2e3", "e2e4", "e2xf3"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
-        let mut pos_pawn = Position::empty();
-        pos_pawn.set_piece_at(Square::D2, Some(piece::Piece::WHITE_KING));
-        pos_pawn.set_piece_at(Square::E2, Some(piece::Piece::WHITE_PAWN));
-        pos_pawn.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos_pawn.set_piece_at(Square::H2, Some(piece::Piece::BLACK_ROOK));
-        pos_pawn.set_piece_at(Square::F3, Some(piece::Piece::BLACK_ROOK));
-        pos_pawn.set_side_to_move(Side::White);
-        pos_pawn.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos_pawn);
-        assert!(!move_list.contains(&Move::new(Square::E2, Square::E3, MoveType::QUIET)));
-        assert!(!move_list.contains(&Move::new(
-            Square::E2,
-            Square::E4,
-            MoveType::DOUBLE_PAWN_PUSH
-        )));
-        assert!(!move_list.contains(&Move::new(Square::E2, Square::F3, MoveType::CAPTURE)));
+        let fen = "2r1k3/KP5r/8/8/8/8/8/8 w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["b7b8=Q", "b7xc8=Q"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
-        let mut pos_pawn_promo = Position::empty();
-        pos_pawn_promo.set_piece_at(Square::A7, Some(piece::Piece::WHITE_KING));
-        pos_pawn_promo.set_piece_at(Square::B7, Some(piece::Piece::WHITE_PAWN));
-        pos_pawn_promo.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos_pawn_promo.set_piece_at(Square::H7, Some(piece::Piece::BLACK_ROOK));
-        pos_pawn_promo.set_piece_at(Square::C8, Some(piece::Piece::BLACK_ROOK));
-        pos_pawn_promo.set_side_to_move(Side::White);
-        pos_pawn_promo.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos_pawn_promo);
-        assert!(!move_list.contains(&Move::new(
-            Square::B7,
-            Square::B8,
-            MoveType::new_with_promo_piece(MoveType::PROMOTION, piece::Type::Queen)
-        )));
-        assert!(!move_list.contains(&Move::new(
-            Square::B7,
-            Square::C8,
-            MoveType::new_with_promo_piece(MoveType::PROMOTION_CAPTURE, piece::Type::Queen)
-        )));
-
-        let mut pos_pawn_en_passant = Position::empty();
-        pos_pawn_en_passant.set_piece_at(Square::E2, Some(piece::Piece::WHITE_KING));
-        pos_pawn_en_passant.set_piece_at(Square::C5, Some(piece::Piece::WHITE_PAWN));
-        pos_pawn_en_passant.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos_pawn_en_passant.set_piece_at(Square::A6, Some(piece::Piece::BLACK_BISHOP));
-        pos_pawn_en_passant.set_piece_at(Square::B5, Some(piece::Piece::BLACK_PAWN));
-        pos_pawn_en_passant.set_side_to_move(Side::White);
-        pos_pawn_en_passant.set_castling_rights(CastlingRights::empty());
-        pos_pawn_en_passant.set_en_passant_square(Bitboard::B6);
-        MoveGenerator::generate_moves(&mut move_list, &pos_pawn_en_passant);
-        assert!(!move_list.contains(&Move::new(
-            Square::C5,
-            Square::B6,
-            MoveType::EN_PASSANT_CAPTURE
-        )));
+        let fen = "4k3/8/b7/1pP5/8/8/4K3/8 w - b6 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["c5xb6"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
     fn king_not_left_in_check_after_knight_moves() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::G1, Some(piece::Piece::WHITE_KNIGHT));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::H1, Some(piece::Piece::BLACK_ROOK));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&Move::new(Square::G1, Square::E2, MoveType::QUIET)));
-        assert!(!move_list.contains(&Move::new(Square::G1, Square::F3, MoveType::QUIET)));
-        assert!(!move_list.contains(&Move::new(Square::G1, Square::H3, MoveType::QUIET)));
+        let fen = "4k3/8/8/8/8/8/8/4K1Nr w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["g1e2", "g1f3", "g1h3"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
     fn king_not_left_in_check_after_bishop_moves() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::G1, Some(piece::Piece::WHITE_BISHOP));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::H1, Some(piece::Piece::BLACK_ROOK));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&Move::new(Square::G1, Square::F2, MoveType::QUIET)));
-        assert!(!move_list.contains(&Move::new(Square::G1, Square::H2, MoveType::QUIET)));
+        let fen = "4k3/8/8/8/8/8/8/4K1Br w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["g1f2", "g1h2"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
     fn king_not_left_in_check_after_rook_moves() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::G1, Some(piece::Piece::WHITE_ROOK));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::H1, Some(piece::Piece::BLACK_ROOK));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&Move::new(Square::G1, Square::G2, MoveType::QUIET)));
-        assert!(move_list.contains(&Move::new(Square::G1, Square::F1, MoveType::QUIET)));
-        assert!(move_list.contains(&Move::new(Square::G1, Square::H1, MoveType::CAPTURE)));
+        let fen = "4k3/8/8/8/8/8/8/4K1Rr w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = ["g1f1", "g1xh1"];
+        let expected_not_contained = ["g1g2"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
     fn king_not_left_in_check_after_queen_moves() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::G1, Some(piece::Piece::WHITE_QUEEN));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::H1, Some(piece::Piece::BLACK_ROOK));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&Move::new(Square::G1, Square::F2, MoveType::QUIET)));
-        assert!(!move_list.contains(&Move::new(Square::G1, Square::G2, MoveType::QUIET)));
-        assert!(move_list.contains(&Move::new(Square::G1, Square::F1, MoveType::QUIET)));
-        assert!(move_list.contains(&Move::new(Square::G1, Square::H1, MoveType::CAPTURE)));
+        let fen = "4k3/8/8/8/8/8/8/4K1Qr w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = ["g1f1", "g1xh1"];
+        let expected_not_contained = ["g1f2", "g1g2", "g1h2"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
     fn king_does_not_move_into_check() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::E1, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::G1, Some(piece::Piece::WHITE_ROOK));
-        pos.set_piece_at(Square::E8, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::H2, Some(piece::Piece::BLACK_ROOK));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&Move::new(Square::E1, Square::E2, MoveType::QUIET)));
+        let fen = "4k3/8/8/8/8/8/7r/4K1R1 w - - 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["e1e2"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
     fn capture_pawn_in_check() {
-        let mut move_list = MoveList::new();
-        let pos = Fen::str_to_pos("rnbq1k1r/pp1Pb1pp/2p5/8/2B2p2/6K1/PPP1N1PP/RNBQ3R w - - 0 10")
-            .unwrap();
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(
-            move_list.contains(&Move::new(Square::C1, Square::F4, MoveType::CAPTURE)),
-            "Position\n{}\nMovelist: {}",
-            pos,
-            move_list
-        );
+        let fen = "rnbq1k1r/pp1Pb1pp/2p5/8/2B2p2/6K1/PPP1N1PP/RNBQ3R w - - 0 10";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = ["c1xf4", "e2xf4", "g3xf4"];
+        let expected_not_contained = [];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
     fn en_passant_capture_illegal() {
-        let mut move_list = MoveList::new();
+        // Pawns pinned by rook
+        let fen = "8/8/8/KPp4r/7k/8/8/8 w - c6 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["b5xc6"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::A5, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::B5, Some(piece::Piece::WHITE_PAWN));
-        pos.set_piece_at(Square::H4, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::H5, Some(piece::Piece::BLACK_ROOK));
-        pos.set_piece_at(Square::C5, Some(piece::Piece::BLACK_PAWN));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        pos.set_en_passant_square(Bitboard::C6);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&Move::new(
-            Square::B5,
-            Square::C6,
-            MoveType::EN_PASSANT_CAPTURE
-        )));
+        // Opponent pawn pinned by bishop
+        let fen = "5b2/8/8/1Pp5/7k/K7/8/8 w - c6 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["b5xc6"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
     fn en_passant_capture_in_check() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::A4, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::C5, Some(piece::Piece::WHITE_PAWN));
-        pos.set_piece_at(Square::H4, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::B5, Some(piece::Piece::BLACK_PAWN));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        pos.set_en_passant_square(Bitboard::B6);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(move_list.contains(&Move::new(
-            Square::C5,
-            Square::B6,
-            MoveType::EN_PASSANT_CAPTURE
-        )));
+        let fen = "8/8/8/1pP5/K6k/8/8/8 w - b6 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = ["c5xb6"];
+        let expected_not_contained = [];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
     fn en_passant_capture_in_check_illegal_king_attacked_by_bishop() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::A5, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::B5, Some(piece::Piece::WHITE_PAWN));
-        pos.set_piece_at(Square::H4, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::D8, Some(piece::Piece::BLACK_BISHOP));
-        pos.set_piece_at(Square::C5, Some(piece::Piece::BLACK_PAWN));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        pos.set_en_passant_square(Bitboard::C6);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&Move::new(
-            Square::B5,
-            Square::C6,
-            MoveType::EN_PASSANT_CAPTURE
-        )));
+        let fen = "3b4/8/8/KPp5/7k/8/8/8 w - c6 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["b5xc6"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
     fn en_passant_capture_in_check_illegal_own_pawn_pinned() {
-        let mut move_list = MoveList::new();
-
-        let mut pos = Position::empty();
-        pos.set_piece_at(Square::A4, Some(piece::Piece::WHITE_KING));
-        pos.set_piece_at(Square::A5, Some(piece::Piece::WHITE_PAWN));
-        pos.set_piece_at(Square::H4, Some(piece::Piece::BLACK_KING));
-        pos.set_piece_at(Square::A8, Some(piece::Piece::BLACK_ROOK));
-        pos.set_piece_at(Square::B5, Some(piece::Piece::BLACK_PAWN));
-        pos.set_side_to_move(Side::White);
-        pos.set_castling_rights(CastlingRights::empty());
-        pos.set_en_passant_square(Bitboard::B6);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&Move::new(
-            Square::A5,
-            Square::B6,
-            MoveType::EN_PASSANT_CAPTURE
-        )));
+        let fen = "r7/8/8/Pp6/K6k/8/8/8 w - b6 0 1";
+        let pos = Fen::str_to_pos(fen).unwrap();
+        let expected_contained = [];
+        let expected_not_contained = ["a5xb6"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
@@ -1189,77 +623,60 @@ mod tests {
         // White queenside
         let fen = "7k/8/8/8/8/8/8/1RK3R1 w B - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-
-        let white_kingside_castle = Move::new(Square::C1, Square::G1, MoveType::CASTLE_KINGSIDE);
-        let white_queenside_castle = Move::new(Square::C1, Square::C1, MoveType::CASTLE_QUEENSIDE);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&white_kingside_castle));
-        assert!(move_list.contains(&white_queenside_castle));
+        let expected_contained = ["0-0-0"];
+        let expected_not_contained = ["0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // White kingside
         let fen = "7k/8/8/8/8/8/8/1RK3R1 w G - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(move_list.contains(&white_kingside_castle));
-        assert!(!move_list.contains(&white_queenside_castle));
+        let expected_contained = ["0-0"];
+        let expected_not_contained = ["0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Black queenside
         let fen = "1rk3r1/8/8/8/8/8/8/7K b b - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-
-        let black_kingside_castle = Move::new(Square::C8, Square::G8, MoveType::CASTLE_KINGSIDE);
-        let black_queenside_castle = Move::new(Square::C8, Square::C8, MoveType::CASTLE_QUEENSIDE);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&black_kingside_castle));
-        assert!(move_list.contains(&black_queenside_castle));
+        let expected_contained = ["0-0-0"];
+        let expected_not_contained = ["0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Black kingside
         let fen = "1rk3r1/8/8/8/8/8/8/7K b g - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
+        let expected_contained = ["0-0"];
+        let expected_not_contained = ["0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(move_list.contains(&black_kingside_castle));
-        assert!(!move_list.contains(&black_queenside_castle));
-
-        // Edge case for queenside castling:
+        // Edge cases for queenside castling:
         // Opponents queen/rook on a1/a8 is blocked by our rook on b1/b8.
         // The king would be attacked after castling queenside, so it's illegal.
-        // White
-        let white_queenside_castle = Move::new(Square::C1, Square::C1, MoveType::CASTLE_QUEENSIDE);
 
+        // White
         let fen = "4k3/8/8/8/8/8/8/rRK5 w B - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&white_queenside_castle));
+        let expected_contained = [];
+        let expected_not_contained = ["0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         let fen = "4k3/8/8/8/8/8/8/qRK5 w B - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&white_queenside_castle));
+        let expected_contained = [];
+        let expected_not_contained = ["0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Black
-        let black_queenside_castle = Move::new(Square::C8, Square::C8, MoveType::CASTLE_QUEENSIDE);
-
         let fen = "Rrk5/8/8/8/8/8/8/4K3 b b - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&black_queenside_castle));
+        let expected_contained = [];
+        let expected_not_contained = ["0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         let fen = "Qrk5/8/8/8/8/8/8/4K3 b b - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&black_queenside_castle));
+        let expected_contained = [];
+        let expected_not_contained = ["0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
@@ -1267,22 +684,16 @@ mod tests {
         // White
         let fen = "7k/8/8/8/8/8/8/RK6 w A - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-
-        let white_queenside_castle = Move::new(Square::B1, Square::C1, MoveType::CASTLE_QUEENSIDE);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(move_list.contains(&white_queenside_castle));
+        let expected_contained = ["0-0-0"];
+        let expected_not_contained = [];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Black
         let fen = "rk6/8/8/8/8/8/8/7K b a - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-
-        let black_queenside_castle = Move::new(Square::B8, Square::C8, MoveType::CASTLE_QUEENSIDE);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(move_list.contains(&black_queenside_castle));
+        let expected_contained = ["0-0-0"];
+        let expected_not_contained = [];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
@@ -1290,42 +701,30 @@ mod tests {
         // White kingside
         let fen = "2rk4/8/8/8/8/8/8/RK5R w H - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-
-        let white_kingside_castle = Move::new(Square::B1, Square::G1, MoveType::CASTLE_KINGSIDE);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&white_kingside_castle));
+        let expected_contained = [];
+        let expected_not_contained = ["0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // White queenside
         let fen = "5rk1/8/8/8/8/8/8/R5KR w A - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-
-        let white_queenside_castle = Move::new(Square::G1, Square::C1, MoveType::CASTLE_QUEENSIDE);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&white_queenside_castle));
+        let expected_contained = [];
+        let expected_not_contained = ["0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Black kingside
         let fen = "rk5r/8/8/8/8/8/8/2RK4 b h - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-
-        let black_kingside_castle = Move::new(Square::B8, Square::G8, MoveType::CASTLE_KINGSIDE);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&black_kingside_castle));
+        let expected_contained = [];
+        let expected_not_contained = ["0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Black queenside
         let fen = "r5kr/8/8/8/8/8/8/5RK1 b a - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-
-        let black_queenside_castle = Move::new(Square::G8, Square::C8, MoveType::CASTLE_QUEENSIDE);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&black_queenside_castle));
+        let expected_contained = [];
+        let expected_not_contained = ["0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
@@ -1333,42 +732,30 @@ mod tests {
         // White kingside
         let fen = "4k3/8/8/8/8/8/8/RKN4R w H - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-
-        let white_kingside_castle = Move::new(Square::B1, Square::G1, MoveType::CASTLE_KINGSIDE);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&white_kingside_castle));
+        let expected_contained = [];
+        let expected_not_contained = ["0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // White queenside
         let fen = "4k3/8/8/8/8/8/8/RN4KR w A - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-
-        let white_queenside_castle = Move::new(Square::G1, Square::C1, MoveType::CASTLE_QUEENSIDE);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&white_queenside_castle));
+        let expected_contained = [];
+        let expected_not_contained = ["0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Black kingside
         let fen = "rkn4r/8/8/8/8/8/8/4K3 b h - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-
-        let black_kingside_castle = Move::new(Square::B8, Square::G8, MoveType::CASTLE_KINGSIDE);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&black_kingside_castle));
+        let expected_contained = [];
+        let expected_not_contained = ["0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
 
         // Black queenside
         let fen = "rn4kr/8/8/8/8/8/8/4K3 b a - 0 1";
         let pos = Fen::str_to_pos_chess_960(fen).unwrap();
-        let mut move_list = MoveList::new();
-
-        let black_queenside_castle = Move::new(Square::G8, Square::C8, MoveType::CASTLE_QUEENSIDE);
-
-        MoveGenerator::generate_moves(&mut move_list, &pos);
-        assert!(!move_list.contains(&black_queenside_castle));
+        let expected_contained = [];
+        let expected_not_contained = ["0-0-0"];
+        verify_generated_moves_contain(&pos, &expected_contained, &expected_not_contained);
     }
 
     #[test]
