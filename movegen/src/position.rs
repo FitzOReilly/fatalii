@@ -274,10 +274,10 @@ impl Position {
             "Kings attack each other, illegal position:\n{self}",
         );
         Pawn::attack_targets(enemy_pawns, !side) & own_king_bb != Bitboard::EMPTY
-            || Knight::targets(own_king) & enemy_knights != Bitboard::EMPTY
-            || Bishop::targets(own_king, occupied) & (enemy_bishops | enemy_queens)
+            || enemy_knights & Knight::targets(own_king) != Bitboard::EMPTY
+            || (enemy_bishops | enemy_queens) & Bishop::targets(own_king, occupied)
                 != Bitboard::EMPTY
-            || Rook::targets(own_king, occupied) & (enemy_rooks | enemy_queens) != Bitboard::EMPTY
+            || (enemy_rooks | enemy_queens) & Rook::targets(own_king, occupied) != Bitboard::EMPTY
     }
 
     pub fn gives_check(&self, m: Move) -> bool {
@@ -292,7 +292,7 @@ impl Position {
             & (self.piece_occupancy(self.side_to_move(), piece::Type::Rook)
                 | self.piece_occupancy(self.side_to_move(), piece::Type::Queen));
         if m.is_en_passant() {
-            occupied &= !self.en_passant_square();
+            occupied &= !Bitboard::from(Square::from((m.target().file(), m.origin().rank())));
         }
         // Update the rook position after castling
         if m.is_castle() {
@@ -350,8 +350,8 @@ impl Position {
         // Check if a slider attacks the enemy king.
         // This includes the moved piece and discovered attacks.
         let enemy_king = enemy_king_bb.to_square();
-        Bishop::targets(enemy_king, occupied) & own_diag_sliders != Bitboard::EMPTY
-            || Rook::targets(enemy_king, occupied) & own_line_sliders != Bitboard::EMPTY
+        own_diag_sliders & Bishop::targets(enemy_king, occupied) != Bitboard::EMPTY
+            || own_line_sliders & Rook::targets(enemy_king, occupied) != Bitboard::EMPTY
     }
 
     pub fn attacked_squares(&self, attacking_side: Side) -> Bitboard {
