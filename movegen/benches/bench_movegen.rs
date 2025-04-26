@@ -5,7 +5,7 @@ use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 
 fn perft(c: &mut Criterion, group_name: &str, pos: Position, min_depth: usize, max_depth: usize) {
-    let bytes = 32 * 64 * 1024;
+    let bytes = 16 * 1024 * 1024;
 
     let mut group = c.benchmark_group(group_name);
     for depth in min_depth..=max_depth {
@@ -30,8 +30,8 @@ fn perft_initial_position(c: &mut Criterion) {
     perft(c, group_name, pos, min_depth, max_depth);
 }
 
-fn perft_middlegame_position(c: &mut Criterion) {
-    let group_name = "Perft middlegame position";
+fn perft_kiwipete_position(c: &mut Criterion) {
+    let group_name = "Perft Kiwipete position";
     // Position from https://www.chessprogramming.org/Perft_Results
     let fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
     let pos = Fen::str_to_pos(fen).unwrap();
@@ -41,5 +41,5 @@ fn perft_middlegame_position(c: &mut Criterion) {
     perft(c, group_name, pos, min_depth, max_depth);
 }
 
-criterion_group!(benches, perft_initial_position, perft_middlegame_position);
+criterion_group!(benches, perft_initial_position, perft_kiwipete_position);
 criterion_main!(benches);

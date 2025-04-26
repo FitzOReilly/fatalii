@@ -3,71 +3,129 @@ use movegen::performance_tester::PerformanceTester;
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 
-const BYTES: usize = 32 * 64 * 1024;
+const TABLE_SIZE: usize = 16 * 1024 * 1024;
 
-#[test]
-fn perft_initial_position_low_depth() {
-    let pos_history = PositionHistory::new(Position::initial());
-    let mut perft = PerformanceTester::new(pos_history, BYTES);
-    assert_eq!(1, perft.count_nodes(0));
-    assert_eq!(20, perft.count_nodes(1));
-    assert_eq!(400, perft.count_nodes(2));
-    assert_eq!(8_902, perft.count_nodes(3));
-}
-
-#[test]
-#[ignore]
-fn perft_initial_position_high_depth() {
-    let pos_history = PositionHistory::new(Position::initial());
-    let mut perft = PerformanceTester::new(pos_history, BYTES);
-    assert_eq!(197_281, perft.count_nodes(4));
-    assert_eq!(4_865_609, perft.count_nodes(5));
-    assert_eq!(119_060_324, perft.count_nodes(6));
-}
-
-#[test]
-fn perft_middlegame_position_low_depth() {
+fn kiwipete_position() -> Position {
     // Position from https://www.chessprogramming.org/Perft_Results
     let fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-    let pos_history = PositionHistory::new(Fen::str_to_pos(fen).unwrap());
-    let mut perft = PerformanceTester::new(pos_history, BYTES);
-    assert_eq!(1, perft.count_nodes(0));
-    assert_eq!(48, perft.count_nodes(1));
-    assert_eq!(2_039, perft.count_nodes(2));
-    assert_eq!(97_862, perft.count_nodes(3));
+    Fen::str_to_pos(fen).unwrap()
+}
+
+fn tricky_position() -> Position {
+    // Position from https://www.chessprogramming.org/Perft_Results
+    let fen = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
+    Fen::str_to_pos(fen).unwrap()
+}
+
+fn verify_node_count(pos: Position, depth: usize, expected_node_count: usize) {
+    let pos_history = PositionHistory::new(pos);
+    let mut perft = PerformanceTester::new(pos_history, TABLE_SIZE);
+    assert_eq!(expected_node_count, perft.count_nodes(depth));
+}
+
+#[test]
+fn perft_initial_position_depth_0() {
+    verify_node_count(Position::initial(), 0, 1);
+}
+
+#[test]
+fn perft_initial_position_depth_1() {
+    verify_node_count(Position::initial(), 1, 20);
+}
+
+#[test]
+fn perft_initial_position_depth_2() {
+    verify_node_count(Position::initial(), 2, 400);
+}
+
+#[test]
+fn perft_initial_position_depth_3() {
+    verify_node_count(Position::initial(), 3, 8_902);
+}
+
+#[test]
+fn perft_initial_position_depth_4() {
+    verify_node_count(Position::initial(), 4, 197_281);
 }
 
 #[test]
 #[ignore]
-fn perft_middlegame_position_high_depth() {
-    // Position from https://www.chessprogramming.org/Perft_Results
-    let fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-    let pos_history = PositionHistory::new(Fen::str_to_pos(fen).unwrap());
-    let mut perft = PerformanceTester::new(pos_history, BYTES);
-    assert_eq!(4_085_603, perft.count_nodes(4));
-    assert_eq!(193_690_690, perft.count_nodes(5));
-    // assert_eq!(8_031_647_685, perft.count_nodes(6));
-}
-
-#[test]
-fn perft_tricky_position_low_depth() {
-    // Position from https://www.chessprogramming.org/Perft_Results
-    let fen = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
-    let pos_history = PositionHistory::new(Fen::str_to_pos(fen).unwrap());
-    let mut perft = PerformanceTester::new(pos_history, BYTES);
-    assert_eq!(1, perft.count_nodes(0));
-    assert_eq!(44, perft.count_nodes(1));
-    assert_eq!(1_486, perft.count_nodes(2));
-    assert_eq!(62_379, perft.count_nodes(3));
+fn perft_initial_position_depth_5() {
+    verify_node_count(Position::initial(), 5, 4_865_609);
 }
 
 #[test]
 #[ignore]
-fn perft_tricky_position_high_depth() {
-    // Position from https://www.chessprogramming.org/Perft_Results
-    let fen = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
-    let pos_history = PositionHistory::new(Fen::str_to_pos(fen).unwrap());
-    let mut perft = PerformanceTester::new(pos_history, BYTES);
-    assert_eq!(2_103_487, perft.count_nodes(4));
-    assert_eq!(89_941_194, perft.count_nodes(5));
+fn perft_initial_position_depth_6() {
+    verify_node_count(Position::initial(), 6, 119_060_324);
+}
+
+#[test]
+fn perft_kiwipete_position_depth_0() {
+    verify_node_count(kiwipete_position(), 0, 1);
+}
+
+#[test]
+fn perft_kiwipete_position_depth_1() {
+    verify_node_count(kiwipete_position(), 1, 48);
+}
+
+#[test]
+fn perft_kiwipete_position_depth_2() {
+    verify_node_count(kiwipete_position(), 2, 2_039);
+}
+
+#[test]
+fn perft_kiwipete_position_depth_3() {
+    verify_node_count(kiwipete_position(), 3, 97_862);
+}
+
+#[test]
+#[ignore]
+fn perft_kiwipete_position_depth_4() {
+    verify_node_count(kiwipete_position(), 4, 4_085_603);
+}
+
+#[test]
+#[ignore]
+fn perft_kiwipete_position_depth_5() {
+    verify_node_count(kiwipete_position(), 5, 193_690_690);
+}
+
+#[test]
+#[ignore]
+fn perft_kiwipete_position_depth_6() {
+    verify_node_count(kiwipete_position(), 6, 8_031_647_685);
+}
+
+#[test]
+fn perft_tricky_position_depth_0() {
+    verify_node_count(tricky_position(), 0, 1);
+}
+
+#[test]
+fn perft_tricky_position_depth_1() {
+    verify_node_count(tricky_position(), 1, 44);
+}
+
+#[test]
+fn perft_tricky_position_depth_2() {
+    verify_node_count(tricky_position(), 2, 1_486);
+}
+
+#[test]
+fn perft_tricky_position_depth_3() {
+    verify_node_count(tricky_position(), 3, 62_379);
+}
+
+#[test]
+#[ignore]
+fn perft_tricky_position_depth_4() {
+    verify_node_count(tricky_position(), 4, 2_103_487);
+}
+
+#[test]
+#[ignore]
+fn perft_tricky_position_depth_5() {
+    verify_node_count(tricky_position(), 5, 89_941_194);
 }

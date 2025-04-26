@@ -98,8 +98,8 @@ fn alpha_beta_initial_position(c: &mut Criterion) {
     alpha_beta(c, group_name, pos, min_depth, max_depth);
 }
 
-fn alpha_beta_middlegame_position(c: &mut Criterion) {
-    let group_name = "Alpha-Beta middlegame position";
+fn alpha_beta_kiwipete_position(c: &mut Criterion) {
+    let group_name = "Alpha-Beta Kiwipete position";
     // Position from https://www.chessprogramming.org/Perft_Results
     let fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
     let pos = Fen::str_to_pos(fen).unwrap();
@@ -112,6 +112,6 @@ fn alpha_beta_middlegame_position(c: &mut Criterion) {
 criterion_group!(
     benches,
     alpha_beta_initial_position,
-    alpha_beta_middlegame_position,
+    alpha_beta_kiwipete_position,
 );
 criterion_main!(benches);
