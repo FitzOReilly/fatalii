@@ -47,15 +47,10 @@ impl PerformanceTester {
     }
 
     pub fn count_nodes(&mut self, depth: usize) -> usize {
-        let mut move_list_stack = vec![MoveList::new(); depth];
-        self.count_nodes_recursive(&mut move_list_stack, depth)
+        self.count_nodes_recursive(depth)
     }
 
-    fn count_nodes_recursive(
-        &mut self,
-        move_list_stack: &mut Vec<MoveList>,
-        depth: usize,
-    ) -> usize {
+    fn count_nodes_recursive(&mut self, depth: usize) -> usize {
         let hash = self.pos_history.current_pos_hash();
         match self.transpos_table.get(&hash) {
             Some(entry) if entry.depth == depth => entry.num_nodes,
@@ -64,26 +59,22 @@ impl PerformanceTester {
 
                 match depth {
                     0 => {
-                        debug_assert!(move_list_stack.is_empty());
                         num_nodes = 1;
                     }
                     _ => {
-                        debug_assert!(!move_list_stack.is_empty());
-                        let mut move_list = move_list_stack.pop().unwrap();
+                        let mut move_list = MoveList::new();
                         MoveGenerator::generate_moves(
                             &mut move_list,
                             self.pos_history.current_pos(),
                         );
                         match depth {
                             1 => {
-                                debug_assert!(move_list_stack.is_empty());
                                 num_nodes = move_list.len();
                             }
                             _ => {
                                 for m in move_list.iter() {
                                     self.pos_history.do_move(*m);
-                                    num_nodes +=
-                                        self.count_nodes_recursive(move_list_stack, depth - 1);
+                                    num_nodes += self.count_nodes_recursive(depth - 1);
                                     self.pos_history.undo_last_move();
                                 }
                                 self.transpos_table.insert(
@@ -96,7 +87,6 @@ impl PerformanceTester {
                                 );
                             }
                         }
-                        move_list_stack.push(move_list);
                     }
                 };
                 num_nodes
