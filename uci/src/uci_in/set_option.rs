@@ -17,7 +17,7 @@ pub fn run_command(
             while let Some((word, tail)) = split_first_word(remaining) {
                 let word_lower = word.to_lowercase();
                 if word_lower == "value" {
-                    value = Some(tail.to_string());
+                    value = Some(tail.trim().to_string());
                     break;
                 }
                 name_parts.push(word_lower);

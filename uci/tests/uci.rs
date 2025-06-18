@@ -135,6 +135,12 @@ fn run_command_setoption() {
     let valid_commands = [
         "setoption name Hash value 16\n",
         "setoption name hash value 16\n",
+        " setoption name Hash value 16\n",
+        "setoption  name Hash value 16\n",
+        "setoption name  Hash value 16\n",
+        "setoption name Hash  value 16\n",
+        "setoption name Hash value  16\n",
+        "setoption name Hash value 16 \n",
     ];
     for val_cmd in valid_commands {
         print!("{}", val_cmd);
