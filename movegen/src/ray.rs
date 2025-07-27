@@ -314,7 +314,7 @@ mod tests {
             assert_eq!(FILE_RAYS[idx], NORTH_RAYS[idx] | SOUTH_RAYS[idx]);
             idx += 1;
         }
-        println!("{:#018x?}", FILE_RAYS);
+        println!("{FILE_RAYS:#018x?}");
     }
 
     #[test]
@@ -324,7 +324,7 @@ mod tests {
             assert_eq!(RANK_RAYS[idx], EAST_RAYS[idx] | WEST_RAYS[idx]);
             idx += 1;
         }
-        println!("{:#018x?}", RANK_RAYS);
+        println!("{RANK_RAYS:#018x?}");
     }
 
     #[test]
@@ -337,7 +337,7 @@ mod tests {
             );
             idx += 1;
         }
-        println!("{:#018x?}", DIAGONAL_RAYS);
+        println!("{DIAGONAL_RAYS:#018x?}");
     }
 
     #[test]
@@ -350,7 +350,7 @@ mod tests {
             );
             idx += 1;
         }
-        println!("{:#018x?}", ANTI_DIAGONAL_RAYS);
+        println!("{ANTI_DIAGONAL_RAYS:#018x?}");
     }
 
     #[test]
@@ -365,7 +365,7 @@ mod tests {
                 *targets = targets.east_fill();
             }
         }
-        println!("{:#018x?}", file_a_targets);
+        println!("{file_a_targets:#018x?}");
     }
 
     #[test]

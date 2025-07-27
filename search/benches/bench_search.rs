@@ -44,7 +44,7 @@ impl SearchBencher {
         loop {
             let search_result = match self.result_receiver.recv_timeout(TIMEOUT_PER_BENCH) {
                 Ok(SearchInfo::DepthFinished(res)) => res,
-                unexp => panic!("Expected SearchInfo::DepthFinished(_), got {:?}", unexp),
+                unexp => panic!("Expected SearchInfo::DepthFinished(_), got {unexp:?}"),
             };
             assert!(
                 search_result.depth() <= depth,

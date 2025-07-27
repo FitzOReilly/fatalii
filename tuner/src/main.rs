@@ -91,7 +91,7 @@ fn optimize(
     start_epoch: u32,
     num_epochs: u32,
 ) -> std::io::Result<()> {
-    let filename = format!("{weight_file_prefix}{:04}.json", start_epoch);
+    let filename = format!("{weight_file_prefix}{start_epoch:04}.json");
     let contents = fs::read_to_string(filename)?;
     let initial_checkpoint: Checkpoint = serde_json::from_str(&contents)?;
     let mut weights = initial_checkpoint.weights;
