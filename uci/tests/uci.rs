@@ -128,7 +128,7 @@ fn run_command_setoption() {
         "setoption name Hash value 16 invalid\n",
     ];
     for inv_cmd in invalid_commands {
-        print!("{}", inv_cmd);
+        print!("{inv_cmd}");
         assert!(p.run_command(inv_cmd, &mut engine).is_err());
     }
 
@@ -143,7 +143,7 @@ fn run_command_setoption() {
         "setoption name Hash value 16 \n",
     ];
     for val_cmd in valid_commands {
-        print!("{}", val_cmd);
+        print!("{val_cmd}");
         assert!(p.run_command(val_cmd, &mut engine).is_ok());
     }
 }
@@ -172,8 +172,8 @@ fn run_command_position() {
         "position startpos invalid\n",
         "position startpos moves e2e5\n",
         "position fen invalid_fen\n",
-        &format!("position fen {} not_moves\n", FEN_STR),
-        &format!("position fen {} moves invalid_move\n", FEN_STR),
+        &format!("position fen {FEN_STR} not_moves\n"),
+        &format!("position fen {FEN_STR} moves invalid_move\n"),
     ];
     for inv_cmd in invalid_commands {
         assert!(p.run_command(inv_cmd, &mut engine).is_err());
@@ -184,7 +184,7 @@ fn run_command_position() {
     assert_eq!(Some(&Position::initial()), engine.position());
 
     assert!(p
-        .run_command(format!("position fen {}\n", FEN_STR).as_str(), &mut engine)
+        .run_command(format!("position fen {FEN_STR}\n").as_str(), &mut engine)
         .is_ok());
     assert_eq!(Fen::str_to_pos(FEN_STR).ok().as_ref(), engine.position());
 
@@ -219,8 +219,8 @@ fn run_command_position_chess_960() {
     assert_eq!(None, engine.position());
 
     let invalid_commands = [
-        &format!("position fen {}\n", FEN_STR),
-        &format!("position fen {} moves e1g1\n", FEN_STR),
+        &format!("position fen {FEN_STR}\n"),
+        &format!("position fen {FEN_STR} moves e1g1\n"),
     ];
     for inv_cmd in invalid_commands {
         assert!(p.run_command(inv_cmd, &mut engine).is_err());
@@ -232,7 +232,7 @@ fn run_command_position_chess_960() {
 
     assert!(p
         .run_command(
-            format!("position fen {}\n", FEN_STR_CHESS_960).as_str(),
+            format!("position fen {FEN_STR_CHESS_960}\n").as_str(),
             &mut engine
         )
         .is_ok());
@@ -240,7 +240,7 @@ fn run_command_position_chess_960() {
 
     assert!(p
         .run_command(
-            &format!("position fen {} moves e1h1\n", FEN_STR_CHESS_960),
+            &format!("position fen {FEN_STR_CHESS_960} moves e1h1\n"),
             &mut engine
         )
         .is_ok());
@@ -714,7 +714,7 @@ fn mate_in_one_white_to_move() {
     std::thread::sleep(Duration::from_millis(200));
 
     let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
-    println!("{}", out_str);
+    println!("{out_str}");
     assert!(out_str.contains("bestmove g2g7"));
 }
 
@@ -746,7 +746,7 @@ fn mate_in_one_black_to_move() {
     std::thread::sleep(Duration::from_millis(200));
 
     let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
-    println!("{}", out_str);
+    println!("{out_str}");
     assert!(out_str.contains("bestmove g7g2"));
 }
 
@@ -843,7 +843,7 @@ fn search_stopped_after_depth_1_if_move_is_forced() {
             .is_ok());
         std::thread::sleep(Duration::from_millis(20));
         assert!(p
-            .run_command(&format!("go {}\n", go_option), &mut engine)
+            .run_command(&format!("go {go_option}\n"), &mut engine)
             .is_ok());
         std::thread::sleep(Duration::from_millis(200));
 
@@ -851,7 +851,7 @@ fn search_stopped_after_depth_1_if_move_is_forced() {
         std::thread::sleep(Duration::from_millis(20));
 
         let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
-        println!("{}", out_str);
+        println!("{out_str}");
         assert_eq!(contains_depth_2, out_str.contains("depth 2"));
     }
 }
@@ -888,14 +888,14 @@ fn stress() {
         for hash_size in [1, 8, 64] {
             assert!(p
                 .run_command(
-                    format!("setoption name Hash value {}\n", hash_size).as_str(),
+                    format!("setoption name Hash value {hash_size}\n").as_str(),
                     &mut engine
                 )
                 .is_ok());
             assert!(p.run_command("isready\n", &mut engine).is_ok());
 
             for i in 0..10_000 {
-                println!("Hash size: {}, iteration: {}", hash_size, i);
+                println!("Hash size: {hash_size}, iteration: {i}");
                 assert!(p.run_command("ucinewgame\n", &mut engine).is_ok());
                 assert!(p.run_command("isready\n", &mut engine).is_ok());
                 assert!(p.run_command("position startpos\n", &mut engine).is_ok());

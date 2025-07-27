@@ -23,7 +23,7 @@ pub struct AttacksTo<'a> {
 }
 
 impl AttacksTo<'_> {
-    pub fn new(pos: &Position, target: Square, attacking_side: Side) -> AttacksTo {
+    pub fn new(pos: &Position, target: Square, attacking_side: Side) -> AttacksTo<'_> {
         let (all_pawn_targets, pawn_origins) =
             Self::pawn_attacks_towards_target(pos, target, attacking_side);
         let (all_knight_targets, knight_origins) = Self::attacks_towards_target(

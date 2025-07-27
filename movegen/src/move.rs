@@ -580,6 +580,6 @@ mod tests {
             MoveType::DOUBLE_PAWN_PUSH,
         ));
 
-        assert_eq!("d2d4 d7d5 c2c4", format!("{}", move_list));
+        assert_eq!("d2d4 d7d5 c2c4", format!("{move_list}"));
     }
 }

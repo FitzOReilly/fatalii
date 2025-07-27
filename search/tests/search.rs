@@ -55,11 +55,11 @@ impl SearchTester {
         self.searcher.search(pos_hist, search_options);
         loop {
             let received = self.result_receiver.recv_timeout(TIMEOUT_PER_TEST);
-            println!("{:?}", received);
+            println!("{received:?}");
             match received {
                 Ok(SearchInfo::DepthFinished(res)) => search_result = Some(res),
                 Ok(SearchInfo::Stopped(_)) => return search_result.unwrap(),
-                unexp => panic!("Expected Ok(SearchInfo::DepthFinished(_)), got {:?}", unexp),
+                unexp => panic!("Expected Ok(SearchInfo::DepthFinished(_)), got {unexp:?}"),
             };
             assert!(
                 search_result.clone().unwrap().depth() <= depth,
