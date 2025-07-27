@@ -133,11 +133,11 @@ fn stress() -> Result<(), Error> {
     p.send_line("debug on")?;
 
     for hash_size in [1, 8, 64] {
-        p.send_line(format!("setoption name Hash value {}", hash_size).as_str())?;
+        p.send_line(format!("setoption name Hash value {hash_size}").as_str())?;
         p.send_line("isready")?;
 
         for i in 0..10_000 {
-            println!("Hash size: {}, iteration: {}", hash_size, i);
+            println!("Hash size: {hash_size}, iteration: {i}");
             p.send_line("ucinewgame")?;
             p.send_line("isready")?;
             p.send_line("position startpos")?;

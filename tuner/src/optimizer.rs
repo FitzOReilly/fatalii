@@ -147,7 +147,7 @@ pub fn adam(
             };
 
             let serialized = serde_json::to_string(&checkpoint)?;
-            let filename = format!("{weight_file_prefix}{:04}.json", epoch);
+            let filename = format!("{weight_file_prefix}{epoch:04}.json");
             let mut file = File::create(filename)?;
             file.write_all(serialized.as_bytes())?;
         }

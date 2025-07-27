@@ -159,17 +159,13 @@ mod tests {
         for ec in expected_contained {
             assert!(
                 actual.contains(*ec),
-                "move list does not contain expected move\nmove list: {:?}\nmove: {}",
-                actual,
-                ec,
+                "move list does not contain expected move\nmove list: {actual:?}\nmove: {ec}",
             );
         }
         for enc in expected_not_contained {
             assert!(
                 !actual.contains(*enc),
-                "move list contains unexpected move\nmove list: {:?}\nmove: {}",
-                actual,
-                enc,
+                "move list contains unexpected move\nmove list: {actual:?}\nmove: {enc}",
             );
         }
     }
