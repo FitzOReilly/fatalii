@@ -99,28 +99,12 @@ impl PawnStructure {
         opp_pawns: Bitboard,
         side_to_move: Side,
     ) -> i8 {
-        let all_pawns = own_pawns | opp_pawns;
-        let opp_pawn_attack_targets = Pawn::attack_targets(opp_pawns, !side_to_move);
-
-        let mut passed_count = 0;
-        let mut own_pawns_mut = own_pawns;
-        while own_pawns_mut != Bitboard::EMPTY {
-            let pawn = own_pawns_mut.square_scan_forward_reset();
-            passed_count +=
-                Self::is_passed(all_pawns, opp_pawn_attack_targets, pawn, side_to_move) as i8;
-        }
-        passed_count
-    }
-
-    fn is_passed(
-        all_pawns: Bitboard,
-        opp_pawn_attack_targets: Bitboard,
-        pawn: Square,
-        side_to_move: Side,
-    ) -> bool {
-        let pawn_bb = Bitboard::from(pawn);
-        Pawn::front_span(pawn_bb, side_to_move) & (all_pawns) == Bitboard::EMPTY
-            && Pawn::front_fill(pawn_bb, side_to_move) & opp_pawn_attack_targets == Bitboard::EMPTY
+        let obstructed = Pawn::rear_span(
+            own_pawns | opp_pawns | opp_pawns.east_one() | opp_pawns.west_one(),
+            side_to_move,
+        );
+        let passed = own_pawns & !obstructed;
+        passed.pop_count() as i8
     }
 
     fn isolated_pawn_count_one_side(own_pawns: Bitboard) -> i8 {
