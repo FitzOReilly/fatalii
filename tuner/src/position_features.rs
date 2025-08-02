@@ -17,7 +17,7 @@ const NUM_SIDES: usize = 2;
 const NUM_PIECE_TYPES: usize = 6;
 const NUM_PST_FEATURES: usize = 2 * NUM_PIECE_TYPES * PST_SIZE;
 const NUM_TEMPO_FEATURES: usize = 2;
-const NUM_PASSED_PAWN_FEATURES: usize = 2;
+const NUM_PASSED_PAWN_FEATURES: usize = 2 * PST_SIZE;
 const NUM_ISOLATED_PAWN_FEATURES: usize = 2;
 const NUM_BACKWARD_PAWN_FEATURES: usize = 2;
 const NUM_DOUBLED_PAWN_FEATURES: usize = 2;
@@ -137,9 +137,27 @@ fn extract_tempo(features: &mut CooMatrix<FeatureType>, pos: &Position) {
 fn extract_pawn_structure(features: &mut CooMatrix<FeatureType>, pos: &Position) {
     let white_pawns = pos.piece_occupancy(Side::White, piece::Type::Pawn);
     let black_pawns = pos.piece_occupancy(Side::Black, piece::Type::Pawn);
-    let passed_pawn_count = PawnStructure::passed_pawn_count(white_pawns, black_pawns).into();
-    features.push(0, START_IDX_PASSED_PAWN, passed_pawn_count);
-    features.push(0, START_IDX_PASSED_PAWN + 1, passed_pawn_count);
+    let mut white_passed =
+        PawnStructure::passed_pawns_one_side(white_pawns, black_pawns, Side::White);
+    while white_passed != Bitboard::EMPTY {
+        let square = white_passed.square_scan_forward_reset().fold_to_queenside();
+        // Middlegame
+        features.push(0, START_IDX_PASSED_PAWN + 2 * square.idx(), 1.0);
+        // Endgame
+        features.push(0, START_IDX_PASSED_PAWN + 2 * square.idx() + 1, 1.0);
+    }
+    let mut black_passed =
+        PawnStructure::passed_pawns_one_side(black_pawns, white_pawns, Side::Black);
+    while black_passed != Bitboard::EMPTY {
+        let square = black_passed
+            .square_scan_forward_reset()
+            .flip_vertical()
+            .fold_to_queenside();
+        // Middlegame
+        features.push(0, START_IDX_PASSED_PAWN + 2 * square.idx(), -1.0);
+        // Endgame
+        features.push(0, START_IDX_PASSED_PAWN + 2 * square.idx() + 1, -1.0);
+    }
     let isolated_pawn_count = PawnStructure::isolated_pawn_count(white_pawns, black_pawns).into();
     features.push(0, START_IDX_ISOLATED_PAWN, isolated_pawn_count);
     features.push(0, START_IDX_ISOLATED_PAWN + 1, isolated_pawn_count);

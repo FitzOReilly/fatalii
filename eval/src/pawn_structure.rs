@@ -45,8 +45,7 @@ impl PawnStructure {
         if old_white_pawns != new_white_pawns || old_black_pawns != new_black_pawns {
             let white_pawns = pos.piece_occupancy(Side::White, piece::Type::Pawn);
             let black_pawns = pos.piece_occupancy(Side::Black, piece::Type::Pawn);
-            let passed_pawn_score =
-                Self::passed_pawn_count(white_pawns, black_pawns) as i16 * params::PASSED_PAWN;
+            let passed_pawn_score = Self::passed_pawn_scores(white_pawns, black_pawns);
             let isolated_pawn_score =
                 Self::isolated_pawn_count(white_pawns, black_pawns) as i16 * params::ISOLATED_PAWN;
             let backward_pawn_score =
@@ -57,11 +56,6 @@ impl PawnStructure {
                 passed_pawn_score + isolated_pawn_score + backward_pawn_score + doubled_pawn_score;
             self.current_pos = pos.clone();
         }
-    }
-
-    pub fn passed_pawn_count(white_pawns: Bitboard, black_pawns: Bitboard) -> i8 {
-        Self::passed_pawn_count_one_side(white_pawns, black_pawns, Side::White)
-            - Self::passed_pawn_count_one_side(black_pawns, white_pawns, Side::Black)
     }
 
     pub fn isolated_pawn_count(white_pawns: Bitboard, black_pawns: Bitboard) -> i8 {
@@ -94,17 +88,36 @@ impl PawnStructure {
         doubled_pawn_count
     }
 
-    fn passed_pawn_count_one_side(
+    pub fn passed_pawn_scores(white_pawns: Bitboard, black_pawns: Bitboard) -> ScorePair {
+        let mut scores = ScorePair(0, 0);
+        // Ignore the rank just before promotion (7th for white, 2nd for black).
+        // Pawns on these ranks are always passed, so they are already
+        // considered by the pawn PSTs.
+        let mut white_passed =
+            Self::passed_pawns_one_side(white_pawns, black_pawns, Side::White) & !Bitboard::RANK_7;
+        while white_passed != Bitboard::EMPTY {
+            let square = white_passed.square_scan_forward_reset();
+            scores += params::PASSED_PAWN[square.idx()];
+        }
+        let mut black_passed =
+            Self::passed_pawns_one_side(black_pawns, white_pawns, Side::Black) & !Bitboard::RANK_2;
+        while black_passed != Bitboard::EMPTY {
+            let square = black_passed.square_scan_forward_reset();
+            scores -= params::PASSED_PAWN[square.flip_vertical().idx()];
+        }
+        scores
+    }
+
+    pub fn passed_pawns_one_side(
         own_pawns: Bitboard,
         opp_pawns: Bitboard,
         side_to_move: Side,
-    ) -> i8 {
+    ) -> Bitboard {
         let obstructed = Pawn::rear_span(
             own_pawns | opp_pawns | opp_pawns.east_one() | opp_pawns.west_one(),
             side_to_move,
         );
-        let passed = own_pawns & !obstructed;
-        passed.pop_count() as i8
+        own_pawns & !obstructed
     }
 
     fn isolated_pawn_count_one_side(own_pawns: Bitboard) -> i8 {

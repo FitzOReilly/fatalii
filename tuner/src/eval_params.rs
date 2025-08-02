@@ -24,7 +24,7 @@ pub struct EvalParams {
     pst_queen: [ScorePair; 32],
     pst_king: [ScorePair; 32],
     tempo: ScorePair,
-    passed_pawn: ScorePair,
+    passed_pawn: [ScorePair; 32],
     isolated_pawn: ScorePair,
     backward_pawn: ScorePair,
     doubled_pawn: ScorePair,
@@ -54,7 +54,7 @@ impl Default for EvalParams {
             pst_queen: [ScorePair(0, 0); 32],
             pst_king: [ScorePair(0, 0); 32],
             tempo: ScorePair(0, 0),
-            passed_pawn: ScorePair(0, 0),
+            passed_pawn: [ScorePair(0, 0); 32],
             isolated_pawn: ScorePair(0, 0),
             backward_pawn: ScorePair(0, 0),
             doubled_pawn: ScorePair(0, 0),
@@ -99,8 +99,12 @@ impl From<&WeightVector> for EvalParams {
         eval_params.tempo.0 = weights[START_IDX_TEMPO].round() as Score;
         eval_params.tempo.1 = weights[START_IDX_TEMPO + 1].round() as Score;
 
-        eval_params.passed_pawn.0 = weights[START_IDX_PASSED_PAWN].round() as Score;
-        eval_params.passed_pawn.1 = weights[START_IDX_PASSED_PAWN + 1].round() as Score;
+        for square_idx in 0..PST_SIZE {
+            eval_params.passed_pawn[square_idx].0 =
+                weights[START_IDX_PASSED_PAWN + 2 * square_idx].round() as Score;
+            eval_params.passed_pawn[square_idx].1 =
+                weights[START_IDX_PASSED_PAWN + 2 * square_idx + 1].round() as Score;
+        }
         eval_params.isolated_pawn.0 = weights[START_IDX_ISOLATED_PAWN].round() as Score;
         eval_params.isolated_pawn.1 = weights[START_IDX_ISOLATED_PAWN + 1].round() as Score;
         eval_params.backward_pawn.0 = weights[START_IDX_BACKWARD_PAWN].round() as Score;
@@ -152,10 +156,41 @@ impl Display for EvalParams {
             "pub const TEMPO: ScorePair = ScorePair({}, {});",
             self.tempo.0, self.tempo.1
         )?;
-        writeln!(
+        write!(
             f,
-            "pub const PASSED_PAWN: ScorePair = ScorePair({}, {});",
-            self.passed_pawn.0, self.passed_pawn.1
+            "\
+#[rustfmt::skip]
+const PASSED_PAWN_MG_EG: ([Score; 32], [Score; 32]) = (
+    [
+"
+        )?;
+        for rank in (0..8).rev() {
+            write!(f, "       ")?;
+            for file in 0..4 {
+                let idx = file * 8 + rank;
+                write!(f, " {:4},", self.passed_pawn[idx].0)?;
+            }
+            writeln!(f)?;
+        }
+        write!(
+            f,
+            "    ],
+    [
+"
+        )?;
+        for rank in (0..8).rev() {
+            write!(f, "       ")?;
+            for file in 0..4 {
+                let idx = file * 8 + rank;
+                write!(f, " {:4},", self.passed_pawn[idx].1)?;
+            }
+            writeln!(f)?;
+        }
+        write!(
+            f,
+            "    ],
+);
+"
         )?;
         writeln!(
             f,
