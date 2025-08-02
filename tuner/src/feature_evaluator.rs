@@ -67,8 +67,11 @@ pub fn initialize_weights() -> WeightVector {
     weights[START_IDX_TEMPO] = params::TEMPO.0.into();
     weights[START_IDX_TEMPO + 1] = params::TEMPO.1.into();
 
-    weights[START_IDX_PASSED_PAWN] = params::PASSED_PAWN.0.into();
-    weights[START_IDX_PASSED_PAWN + 1] = params::PASSED_PAWN.1.into();
+    for square_idx in 0..PST_SIZE {
+        weights[START_IDX_PASSED_PAWN + 2 * square_idx] = params::PASSED_PAWN[square_idx].0.into();
+        weights[START_IDX_PASSED_PAWN + 2 * square_idx + 1] =
+            params::PASSED_PAWN[square_idx].1.into();
+    }
     weights[START_IDX_ISOLATED_PAWN] = params::ISOLATED_PAWN.0.into();
     weights[START_IDX_ISOLATED_PAWN + 1] = params::ISOLATED_PAWN.1.into();
     weights[START_IDX_BACKWARD_PAWN] = params::BACKWARD_PAWN.0.into();
