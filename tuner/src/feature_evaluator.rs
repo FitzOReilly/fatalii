@@ -30,7 +30,7 @@ impl From<&WeightVector> for FeatureEvaluator {
 impl FeatureEvaluator {
     pub fn new() -> Self {
         Self {
-            weights: initialize_weights(),
+            weights: engine_weights(),
         }
     }
 
@@ -45,7 +45,34 @@ impl FeatureEvaluator {
     }
 }
 
-pub fn initialize_weights() -> WeightVector {
+pub fn default_weights() -> WeightVector {
+    let mut weights = WeightVector::from_element(0.0);
+    let mut pst_idx = START_IDX_PST;
+    for material_value in [
+        100, // pawn
+        300, // knight
+        300, // bishop
+        500, // rook
+        900, // queen
+        0,   // king
+    ] {
+        for square_idx in 0..PST_SIZE {
+            weights[pst_idx + 2 * square_idx] = material_value.into();
+            weights[pst_idx + 2 * square_idx + 1] = material_value.into();
+        }
+        pst_idx += 2 * PST_SIZE;
+    }
+    // Write zeros to first and eighth ranks for pawns
+    for square_idx in (0..PST_SIZE).step_by(8) {
+        weights[START_IDX_PST + 2 * square_idx] = 0.0;
+        weights[START_IDX_PST + 2 * square_idx + 1] = 0.0;
+        weights[START_IDX_PST + 2 * (square_idx + 7)] = 0.0;
+        weights[START_IDX_PST + 2 * (square_idx + 7) + 1] = 0.0;
+    }
+    weights
+}
+
+pub fn engine_weights() -> WeightVector {
     let mut weights = WeightVector::from_element(0.0);
 
     let mut pst_idx = START_IDX_PST;
