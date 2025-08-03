@@ -249,11 +249,9 @@ impl Complex {
                 &params::DISTANCE_FRIENDLY_QUEEN,
                 &params::DISTANCE_ENEMY_QUEEN,
             ),
-            (
-                piece::Type::King,
-                &params::DISTANCE_FRIENDLY_KING,
-                &params::DISTANCE_ENEMY_KING,
-            ),
+            // No need to calculate this for kings: The distance to itself is
+            // always 0 and the scores for the distance between each other
+            // cancel each other out.
         ] {
             let mut white_pieces = pos.piece_occupancy(Side::White, piece_type);
             while white_pieces != Bitboard::EMPTY {
