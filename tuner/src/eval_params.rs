@@ -156,42 +156,7 @@ impl Display for EvalParams {
             "pub const TEMPO: ScorePair = ScorePair({}, {});",
             self.tempo.0, self.tempo.1
         )?;
-        write!(
-            f,
-            "\
-#[rustfmt::skip]
-const PASSED_PAWN_MG_EG: ([Score; 32], [Score; 32]) = (
-    [
-"
-        )?;
-        for rank in (0..8).rev() {
-            write!(f, "       ")?;
-            for file in 0..4 {
-                let idx = file * 8 + rank;
-                write!(f, " {:4},", self.passed_pawn[idx].0)?;
-            }
-            writeln!(f)?;
-        }
-        write!(
-            f,
-            "    ],
-    [
-"
-        )?;
-        for rank in (0..8).rev() {
-            write!(f, "       ")?;
-            for file in 0..4 {
-                let idx = file * 8 + rank;
-                write!(f, " {:4},", self.passed_pawn[idx].1)?;
-            }
-            writeln!(f)?;
-        }
-        write!(
-            f,
-            "    ],
-);
-"
-        )?;
+        self.fmt_single_pst(f, "PASSED_PAWN_MG_EG", self.passed_pawn)?;
         writeln!(
             f,
             "pub const ISOLATED_PAWN: ScorePair = ScorePair({}, {});",
@@ -257,51 +222,7 @@ const PASSED_PAWN_MG_EG: ([Score; 32], [Score; 32]) = (
             )?;
         }
 
-        for (pst, piece) in [
-            (self.pst_pawn, "PAWN"),
-            (self.pst_knight, "KNIGHT"),
-            (self.pst_bishop, "BISHOP"),
-            (self.pst_rook, "ROOK"),
-            (self.pst_queen, "QUEEN"),
-            (self.pst_king, "KING"),
-        ] {
-            write!(
-                f,
-                "\
-#[rustfmt::skip]
-const PST_{piece}_MG_EG: ([Score; 32], [Score; 32]) = (
-    [
-"
-            )?;
-            for rank in (0..8).rev() {
-                write!(f, "       ")?;
-                for file in 0..4 {
-                    let idx = file * 8 + rank;
-                    write!(f, " {:4},", pst[idx].0)?;
-                }
-                writeln!(f)?;
-            }
-            write!(
-                f,
-                "    ],
-    [
-"
-            )?;
-            for rank in (0..8).rev() {
-                write!(f, "       ")?;
-                for file in 0..4 {
-                    let idx = file * 8 + rank;
-                    write!(f, " {:4},", pst[idx].1)?;
-                }
-                writeln!(f)?;
-            }
-            write!(
-                f,
-                "    ],
-);
-"
-            )?;
-        }
+        self.fmt_pst(f)?;
 
         Ok(())
     }
@@ -310,18 +231,40 @@ const PST_{piece}_MG_EG: ([Score; 32], [Score; 32]) = (
 impl EvalParams {
     fn fmt_mob(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut offset = 0;
+        for (const_name, len_name, len) in [
+            ("MOBILITY_KNIGHT_MG_EG", "KNIGHT_MOB_LEN", KNIGHT_MOB_LEN),
+            ("MOBILITY_BISHOP_MG_EG", "BISHOP_MOB_LEN", BISHOP_MOB_LEN),
+            ("MOBILITY_ROOK_MG_EG", "ROOK_MOB_LEN", ROOK_MOB_LEN),
+            ("MOBILITY_QUEEN_MG_EG", "QUEEN_MOB_LEN", QUEEN_MOB_LEN),
+        ] {
+            self.fmt_single_mob(
+                f,
+                const_name,
+                len_name,
+                &self.mobility[offset..offset + len],
+            )?;
+            offset += len;
+        }
+        Ok(())
+    }
 
-        // Knights
+    fn fmt_single_mob(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        const_name: &str,
+        len_name: &str,
+        mob: &[ScorePair],
+    ) -> std::fmt::Result {
         write!(
             f,
             "\
-const MOBILITY_KNIGHT_MG_EG: ([Score; KNIGHT_MOB_LEN], [Score; KNIGHT_MOB_LEN]) = (
+const {const_name}: ([Score; {len_name}], [Score; {len_name}]) = (
     [
 "
         )?;
         write!(f, "       ")?;
-        for idx in 0..KNIGHT_MOB_LEN {
-            write!(f, " {},", self.mobility[offset + idx].0)?;
+        for m in mob {
+            write!(f, " {},", m.0)?;
         }
         writeln!(f)?;
         write!(
@@ -331,8 +274,8 @@ const MOBILITY_KNIGHT_MG_EG: ([Score; KNIGHT_MOB_LEN], [Score; KNIGHT_MOB_LEN]) 
 "
         )?;
         write!(f, "       ")?;
-        for idx in 0..KNIGHT_MOB_LEN {
-            write!(f, " {},", self.mobility[offset + idx].1)?;
+        for m in mob {
+            write!(f, " {},", m.1)?;
         }
         writeln!(f)?;
         write!(
@@ -341,103 +284,65 @@ const MOBILITY_KNIGHT_MG_EG: ([Score; KNIGHT_MOB_LEN], [Score; KNIGHT_MOB_LEN]) 
 );
 "
         )?;
-        offset += KNIGHT_MOB_LEN;
+        Ok(())
+    }
 
-        // Bishops
+    fn fmt_pst(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (const_name, pst) in [
+            ("PST_PAWN_MG_EG", self.pst_pawn),
+            ("PST_KNIGHT_MG_EG", self.pst_knight),
+            ("PST_BISHOP_MG_EG", self.pst_bishop),
+            ("PST_ROOK_MG_EG", self.pst_rook),
+            ("PST_QUEEN_MG_EG", self.pst_queen),
+            ("PST_KING_MG_EG", self.pst_king),
+        ] {
+            self.fmt_single_pst(f, const_name, pst)?;
+        }
+        Ok(())
+    }
+
+    fn fmt_single_pst(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        const_name: &str,
+        pst: [ScorePair; 32],
+    ) -> std::fmt::Result {
         write!(
             f,
             "\
-const MOBILITY_BISHOP_MG_EG: ([Score; BISHOP_MOB_LEN], [Score; BISHOP_MOB_LEN]) = (
+#[rustfmt::skip]
+const {const_name}: ([Score; 32], [Score; 32]) = (
     [
 "
         )?;
-        write!(f, "       ")?;
-        for idx in 0..BISHOP_MOB_LEN {
-            write!(f, " {},", self.mobility[offset + idx].0)?;
+        for rank in (0..8).rev() {
+            write!(f, "       ")?;
+            for file in 0..4 {
+                let idx = file * 8 + rank;
+                write!(f, " {:4},", pst[idx].0)?;
+            }
+            writeln!(f)?;
         }
-        writeln!(f)?;
         write!(
             f,
             "    ],
     [
 "
         )?;
-        write!(f, "       ")?;
-        for idx in 0..BISHOP_MOB_LEN {
-            write!(f, " {},", self.mobility[offset + idx].1)?;
+        for rank in (0..8).rev() {
+            write!(f, "       ")?;
+            for file in 0..4 {
+                let idx = file * 8 + rank;
+                write!(f, " {:4},", pst[idx].1)?;
+            }
+            writeln!(f)?;
         }
-        writeln!(f)?;
         write!(
             f,
             "    ],
 );
 "
         )?;
-        offset += BISHOP_MOB_LEN;
-
-        // Rooks
-        write!(
-            f,
-            "\
-const MOBILITY_ROOK_MG_EG: ([Score; ROOK_MOB_LEN], [Score; ROOK_MOB_LEN]) = (
-    [
-"
-        )?;
-        write!(f, "       ")?;
-        for idx in 0..ROOK_MOB_LEN {
-            write!(f, " {},", self.mobility[offset + idx].0)?;
-        }
-        writeln!(f)?;
-        write!(
-            f,
-            "    ],
-    [
-"
-        )?;
-        write!(f, "       ")?;
-        for idx in 0..ROOK_MOB_LEN {
-            write!(f, " {},", self.mobility[offset + idx].1)?;
-        }
-        writeln!(f)?;
-        write!(
-            f,
-            "    ],
-);
-"
-        )?;
-        offset += ROOK_MOB_LEN;
-
-        // Queens
-        write!(
-            f,
-            "\
-const MOBILITY_QUEEN_MG_EG: ([Score; QUEEN_MOB_LEN], [Score; QUEEN_MOB_LEN]) = (
-    [
-"
-        )?;
-        write!(f, "       ")?;
-        for idx in 0..QUEEN_MOB_LEN {
-            write!(f, " {},", self.mobility[offset + idx].0)?;
-        }
-        writeln!(f)?;
-        write!(
-            f,
-            "    ],
-    [
-"
-        )?;
-        write!(f, "       ")?;
-        for idx in 0..QUEEN_MOB_LEN {
-            write!(f, " {},", self.mobility[offset + idx].1)?;
-        }
-        writeln!(f)?;
-        write!(
-            f,
-            "    ],
-);
-"
-        )?;
-
         Ok(())
     }
 }
