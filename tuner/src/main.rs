@@ -8,7 +8,7 @@ use eval::complex::Complex;
 use tuner::{
     error_function::ErrorFunction,
     eval_params::EvalParams,
-    feature_evaluator::{initialize_weights, FeatureEvaluator},
+    feature_evaluator::{default_weights, engine_weights, FeatureEvaluator, WeightVector},
     file_reader,
     optimizer::{self, AdamParams, Checkpoint},
 };
@@ -23,8 +23,10 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    /// Extract evaluation parameters from the engine
-    Extract(ExtractArgs),
+    /// Initialize default evaluation parameters (material values only)
+    InitDefaultWeights(InitWeightsArgs),
+    /// Initialize evaluation parameters from the engine
+    InitEngineWeights(InitWeightsArgs),
     /// Optimize parameter weights
     Optimize(OptimizeArgs),
     /// Print evaluation parameters
@@ -32,7 +34,7 @@ enum Commands {
 }
 
 #[derive(Debug, Args)]
-struct ExtractArgs {
+struct InitWeightsArgs {
     #[arg(short, long)]
     weight_file_prefix: String,
 }
@@ -59,7 +61,12 @@ fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Extract(args) => extract_weights(&args.weight_file_prefix)?,
+        Commands::InitDefaultWeights(args) => {
+            init_weights(&args.weight_file_prefix, default_weights())?
+        }
+        Commands::InitEngineWeights(args) => {
+            init_weights(&args.weight_file_prefix, engine_weights())?
+        }
         Commands::Optimize(args) => optimize(
             &args.training_data_file,
             &args.weight_file_prefix,
@@ -72,8 +79,7 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn extract_weights(weight_file_prefix: &str) -> std::io::Result<()> {
-    let weights = initialize_weights();
+fn init_weights(weight_file_prefix: &str, weights: WeightVector) -> std::io::Result<()> {
     let checkpoint = Checkpoint {
         weights,
         ..Default::default()
