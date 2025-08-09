@@ -57,9 +57,7 @@ impl PositionHistory {
         };
         let en_passant_square = pos_hist.current_pos().en_passant_square();
         pos_hist.clear_en_passant_square_if_irrelevant(en_passant_square);
-        pos_hist
-            .rep_tracker
-            .push(pos_hist.current_pos_hash(), false);
+        pos_hist.push_hash(pos_hist.current_pos_hash(), false);
         pos_hist
     }
 
@@ -125,6 +123,14 @@ impl PositionHistory {
         self.rep_tracker.current_pos_repetitions()
     }
 
+    fn push_hash(&mut self, hash: Zobrist, is_reversible: bool) {
+        self.rep_tracker.push(hash, is_reversible);
+    }
+
+    fn pop_hash(&mut self) {
+        self.rep_tracker.pop();
+    }
+
     fn do_null_move(&mut self) {
         self.moves.push(Move::NULL);
         self.irreversible_props.push(IrreversibleProperties::new(
@@ -146,7 +152,7 @@ impl PositionHistory {
         self.pos.set_side_to_move(!side_to_move);
         self.pos.set_plies_since_pawn_move_or_capture(plies + 1);
         self.pos.set_move_count(move_count + side_to_move as usize);
-        self.rep_tracker.push(self.pos_hash, is_reversible);
+        self.push_hash(self.pos_hash, is_reversible);
     }
 
     fn do_quiet_move(&mut self, m: Move) {
@@ -194,7 +200,7 @@ impl PositionHistory {
         self.pos.set_move_count(move_count + side_to_move as usize);
         self.pos.set_side_to_move(!side_to_move);
         self.pos_hash.toggle_side_to_move(Side::Black);
-        self.rep_tracker.push(self.pos_hash, is_reversible);
+        self.push_hash(self.pos_hash, is_reversible);
     }
 
     fn do_double_pawn_push(&mut self, m: Move) {
@@ -231,7 +237,7 @@ impl PositionHistory {
         self.pos_hash.toggle_side_to_move(Side::Black);
         self.clear_en_passant_square_if_irrelevant(en_passant_square);
 
-        self.rep_tracker.push(self.pos_hash, IS_REVERSIBLE);
+        self.push_hash(self.pos_hash, IS_REVERSIBLE);
     }
 
     fn clear_en_passant_square_if_irrelevant(&mut self, en_passant_square: Bitboard) {
@@ -299,7 +305,7 @@ impl PositionHistory {
         self.pos.set_move_count(move_count + side_to_move as usize);
         self.pos.set_side_to_move(!side_to_move);
         self.pos_hash.toggle_side_to_move(Side::Black);
-        self.rep_tracker.push(self.pos_hash, IS_REVERSIBLE);
+        self.push_hash(self.pos_hash, IS_REVERSIBLE);
     }
 
     fn do_capture(&mut self, m: Move) {
@@ -346,7 +352,7 @@ impl PositionHistory {
         self.pos.set_move_count(move_count + side_to_move as usize);
         self.pos.set_side_to_move(!side_to_move);
         self.pos_hash.toggle_side_to_move(Side::Black);
-        self.rep_tracker.push(self.pos_hash, IS_REVERSIBLE);
+        self.push_hash(self.pos_hash, IS_REVERSIBLE);
     }
 
     fn do_promotion(&mut self, m: Move) {
@@ -379,7 +385,7 @@ impl PositionHistory {
         self.pos.set_move_count(move_count + side_to_move as usize);
         self.pos.set_side_to_move(!side_to_move);
         self.pos_hash.toggle_side_to_move(Side::Black);
-        self.rep_tracker.push(self.pos_hash, IS_REVERSIBLE);
+        self.push_hash(self.pos_hash, IS_REVERSIBLE);
     }
 
     fn do_promotion_capture(&mut self, m: Move) {
@@ -422,7 +428,7 @@ impl PositionHistory {
         self.pos.set_move_count(move_count + side_to_move as usize);
         self.pos.set_side_to_move(!side_to_move);
         self.pos_hash.toggle_side_to_move(Side::Black);
-        self.rep_tracker.push(self.pos_hash, IS_REVERSIBLE);
+        self.push_hash(self.pos_hash, IS_REVERSIBLE);
     }
 
     fn undo_move(&mut self, m: Move, irr: &IrreversibleProperties) {
@@ -435,7 +441,7 @@ impl PositionHistory {
     }
 
     fn undo_null_move(&mut self, irr: &IrreversibleProperties) {
-        self.rep_tracker.pop();
+        self.pop_hash();
         self.pos.set_en_passant_square(irr.en_passant_square);
         self.pos_hash
             .toggle_en_passant_square(irr.en_passant_square);
@@ -448,7 +454,7 @@ impl PositionHistory {
     }
 
     fn undo_castle(&mut self, m: Move, irr: &IrreversibleProperties) {
-        self.rep_tracker.pop();
+        self.pop_hash();
         let origin = m.origin();
         let target = m.target();
         let target_piece = self.pos.piece_at(target).unwrap();
@@ -496,7 +502,7 @@ impl PositionHistory {
     }
 
     fn undo_other_move(&mut self, m: Move, irr: &IrreversibleProperties) {
-        self.rep_tracker.pop();
+        self.pop_hash();
         let origin = m.origin();
         let target = m.target();
         let target_piece = self.pos.piece_at(target).unwrap_or_else(|| {
