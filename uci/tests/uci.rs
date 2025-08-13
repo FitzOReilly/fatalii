@@ -906,3 +906,37 @@ fn stress() {
         }
     }
 }
+
+#[test]
+fn play_move_after_unclaimed_threefold_repetition() {
+    let search_algo = AlphaBeta::new(Box::new(EVALUATOR), TABLE_SIZE);
+    let mut test_writer = TestBuffer::new();
+    let engine_options = Arc::new(Mutex::new(EngineOptions::default()));
+    let uci_out = UciOut::new(
+        Box::new(test_writer.clone()),
+        "0.1.2",
+        Arc::clone(&engine_options),
+    );
+    let mut engine = Engine::new(search_algo, uci_out.clone(), engine_options);
+    let mut p = Parser::new(uci_out);
+
+    p.register_command(String::from("position"), Box::new(position::run_command));
+    p.register_command(String::from("go"), Box::new(go::run_command));
+
+    // The given position and move history result in a threefold repetition.
+    // The engine should do a normal search because the draw was not claimed.
+    // It should not return a null move.
+    assert!(p
+        .run_command(
+            "position startpos moves g1f3 g8f6 f3g1 f6g8 g1f3 g8f6 f3g1 f6g8\n",
+            &mut engine
+        )
+        .is_ok());
+    std::thread::sleep(Duration::from_millis(20));
+    assert!(p.run_command("go depth 1\n", &mut engine).is_ok());
+    std::thread::sleep(Duration::from_millis(200));
+
+    let out_str = String::from_utf8(test_writer.split_off(0)).unwrap();
+    println!("{out_str}");
+    assert!(!out_str.contains("bestmove 0000"));
+}

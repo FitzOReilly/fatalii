@@ -265,8 +265,10 @@ impl AlphaBeta {
         }
 
         let is_pv_node = alpha + 1 != beta;
-        if let Some(entry) = Self::is_draw(search_data, is_pv_node) {
-            return Some(entry);
+        if search_data.ply() > 0 {
+            if let Some(entry) = Self::is_draw(search_data, is_pv_node) {
+                return Some(entry);
+            }
         }
 
         if let Some(entry) = self.usable_table_entry(search_data, alpha, beta) {
