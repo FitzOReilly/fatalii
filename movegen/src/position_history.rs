@@ -119,8 +119,8 @@ impl PositionHistory {
         debug_assert_eq!(self.irreversible_props.len(), self.moves.len());
     }
 
-    pub fn current_pos_repetitions(&self) -> usize {
-        self.rep_tracker.current_pos_repetitions()
+    pub fn is_repetition(&self, plies_since_root: usize) -> bool {
+        self.rep_tracker.is_repetition(plies_since_root)
     }
 
     fn push_hash(&mut self, hash: Zobrist, is_reversible: bool) {
@@ -1444,34 +1444,37 @@ mod tests {
     }
 
     #[test]
-    fn current_pos_repetitions() {
+    fn is_repetition() {
         let mut pos_history = PositionHistory::new(Position::initial());
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(0));
         pos_history.do_move(Move::new(Square::G1, Square::F3, MoveType::QUIET));
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(1));
         pos_history.do_move(Move::new(Square::G8, Square::F6, MoveType::QUIET));
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(2));
         pos_history.do_move(Move::new(Square::F3, Square::G1, MoveType::QUIET));
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(3));
         pos_history.do_move(Move::new(Square::F6, Square::G8, MoveType::QUIET));
-        assert_eq!(2, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(4));
+        assert!(pos_history.is_repetition(5));
         pos_history.do_move(Move::NULL);
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(5));
         pos_history.do_move(Move::NULL);
-        assert_eq!(3, pos_history.current_pos_repetitions());
+        assert!(pos_history.is_repetition(6));
+        assert!(pos_history.is_repetition(0));
 
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(5));
         pos_history.undo_last_move();
-        assert_eq!(2, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(4));
+        assert!(pos_history.is_repetition(5));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(3));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(2));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(1));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(0));
     }
 
     #[test]
@@ -1481,52 +1484,52 @@ mod tests {
         let pos = Fen::str_to_pos(fen).unwrap();
 
         let mut pos_history = PositionHistory::new(pos.clone());
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(0));
         pos_history.do_move(Move::NULL);
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(1));
         pos_history.do_move(Move::NULL);
-        assert_eq!(2, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(2));
 
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(1));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(0));
 
         let mut pos_history = PositionHistory::new(pos);
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(0));
         pos_history.do_move(Move::new(Square::H1, Square::G1, MoveType::QUIET));
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(1));
         pos_history.do_move(Move::new(Square::A8, Square::B8, MoveType::QUIET));
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(2));
         pos_history.do_move(Move::new(Square::G1, Square::H1, MoveType::QUIET));
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(3));
         pos_history.do_move(Move::new(Square::B8, Square::A8, MoveType::QUIET));
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(4));
         pos_history.do_move(Move::new(Square::H1, Square::G1, MoveType::QUIET));
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(5));
         pos_history.do_move(Move::new(Square::A8, Square::B8, MoveType::QUIET));
-        assert_eq!(2, pos_history.current_pos_repetitions());
+        assert!(pos_history.is_repetition(6));
         pos_history.do_move(Move::new(Square::G1, Square::H1, MoveType::QUIET));
-        assert_eq!(2, pos_history.current_pos_repetitions());
+        assert!(pos_history.is_repetition(7));
         pos_history.do_move(Move::new(Square::B8, Square::A8, MoveType::QUIET));
-        assert_eq!(2, pos_history.current_pos_repetitions());
+        assert!(pos_history.is_repetition(8));
 
         pos_history.undo_last_move();
-        assert_eq!(2, pos_history.current_pos_repetitions());
+        assert!(pos_history.is_repetition(7));
         pos_history.undo_last_move();
-        assert_eq!(2, pos_history.current_pos_repetitions());
+        assert!(pos_history.is_repetition(6));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(5));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(4));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(3));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(2));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(1));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(0));
     }
 
     #[test]
@@ -1536,40 +1539,40 @@ mod tests {
         let pos = Fen::str_to_pos(fen).unwrap();
 
         let mut pos_history = PositionHistory::new(pos.clone());
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(0));
         pos_history.do_move(Move::NULL);
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(1));
         pos_history.do_move(Move::NULL);
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(2));
 
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(1));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(0));
 
         let mut pos_history = PositionHistory::new(pos);
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(0));
         pos_history.do_move(Move::new(Square::E1, Square::D1, MoveType::QUIET));
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(1));
         pos_history.do_move(Move::new(Square::E8, Square::D8, MoveType::QUIET));
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(2));
         pos_history.do_move(Move::new(Square::D1, Square::E1, MoveType::QUIET));
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(3));
         pos_history.do_move(Move::new(Square::D8, Square::E8, MoveType::QUIET));
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(4));
         pos_history.do_move(Move::new(Square::E1, Square::D1, MoveType::QUIET));
-        assert_eq!(2, pos_history.current_pos_repetitions());
+        assert!(pos_history.is_repetition(5));
 
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(4));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(3));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(2));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(1));
         pos_history.undo_last_move();
-        assert_eq!(1, pos_history.current_pos_repetitions());
+        assert!(!pos_history.is_repetition(0));
     }
 
     #[test]
@@ -1688,7 +1691,7 @@ mod tests {
         pos_hist.do_move(b7a6);
         pos_hist.do_move(d3c3);
         pos_hist.do_move(a6b7);
-        assert_eq!(2, pos_hist.current_pos_repetitions());
+        assert!(pos_hist.is_repetition(5));
 
         let fen_after_pawn_push = "8/1b1rr3/3kpp1p/2pn2p1/2P1B1P1/2R2N1P/2P2PK1/3R4 w - g6 0 36";
         let pos = Fen::str_to_pos(fen_after_pawn_push).unwrap();
@@ -1697,6 +1700,9 @@ mod tests {
         pos_hist.do_move(b7a6);
         pos_hist.do_move(d3c3);
         pos_hist.do_move(a6b7);
-        assert_eq!(2, pos_hist.current_pos_repetitions());
+        assert!(!pos_hist.is_repetition(4));
+        assert!(pos_hist.is_repetition(5));
+        pos_hist.do_move(c3d3);
+        assert!(pos_hist.is_repetition(5));
     }
 }

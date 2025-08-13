@@ -18,23 +18,36 @@ where
         }
     }
 
-    pub fn current_pos_repetitions(&self) -> usize {
-        let hash = match self.history.last() {
-            Some(h) => h,
-            None => return 0,
+    // Returns true if the position at the horizon has occured
+    // - at least twice after the root, or
+    // - at least three times in the entire position history
+    pub fn is_repetition(&self, plies_from_root: usize) -> bool {
+        const REPETITIONS_TO_DRAW: usize = 3;
+        let Some(horizon_hash) = self.history.last() else {
+            return false;
         };
         // We only need to check every second position because the side to move
-        //  must be the same in each repetition
+        // must be the same in each repetition
         const STEP: usize = 2;
-        1 + self
+        let mut ply = plies_from_root as isize;
+        let mut reps = 1;
+        for hash in self
             .history
             .iter()
             .rev()
             .take(self.plies_since_last_irreversible.last().unwrap_or(&0) + 1)
-            .skip(2)
+            .skip(STEP)
             .step_by(STEP)
-            .filter(|&x| x == hash)
-            .count()
+        {
+            ply -= STEP as isize;
+            if hash == horizon_hash {
+                reps += 1;
+                if ply > 0 || reps >= REPETITIONS_TO_DRAW {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     pub fn push(&mut self, hash: K, is_reversible: bool) {
@@ -64,37 +77,49 @@ mod tests {
         let key_irr = "irr";
         let mut rep_tracker = RepetitionTracker::new();
 
+        assert!(!rep_tracker.is_repetition(0));
         rep_tracker.push(key_0, true);
-        assert_eq!(1, rep_tracker.current_pos_repetitions());
+        assert!(!rep_tracker.is_repetition(1));
         rep_tracker.push(key_1, true);
-        assert_eq!(1, rep_tracker.current_pos_repetitions());
+        assert!(!rep_tracker.is_repetition(2));
         rep_tracker.push(key_2, true);
-        assert_eq!(1, rep_tracker.current_pos_repetitions());
+        assert!(!rep_tracker.is_repetition(3));
         rep_tracker.push(key_1, true);
-        assert_eq!(2, rep_tracker.current_pos_repetitions());
+        assert!(rep_tracker.is_repetition(4));
+        assert!(rep_tracker.is_repetition(3));
+        assert!(!rep_tracker.is_repetition(2));
         rep_tracker.push(key_0, true);
-        assert_eq!(2, rep_tracker.current_pos_repetitions());
+        assert!(rep_tracker.is_repetition(5));
+        assert!(!rep_tracker.is_repetition(4));
         rep_tracker.push(key_1, true);
-        assert_eq!(3, rep_tracker.current_pos_repetitions());
+        assert!(rep_tracker.is_repetition(6));
+        assert!(rep_tracker.is_repetition(1));
+        assert!(rep_tracker.is_repetition(0));
         rep_tracker.push(key_irr, false);
-        assert_eq!(1, rep_tracker.current_pos_repetitions());
+        assert!(!rep_tracker.is_repetition(7));
         rep_tracker.push(key_1, true);
-        assert_eq!(1, rep_tracker.current_pos_repetitions());
+        assert!(!rep_tracker.is_repetition(8));
 
         rep_tracker.pop();
-        assert_eq!(1, rep_tracker.current_pos_repetitions());
+        assert!(!rep_tracker.is_repetition(7));
         rep_tracker.pop();
-        assert_eq!(3, rep_tracker.current_pos_repetitions());
+        assert!(rep_tracker.is_repetition(6));
+        assert!(rep_tracker.is_repetition(1));
+        assert!(rep_tracker.is_repetition(0));
         rep_tracker.pop();
-        assert_eq!(2, rep_tracker.current_pos_repetitions());
+        assert!(rep_tracker.is_repetition(5));
+        assert!(!rep_tracker.is_repetition(4));
         rep_tracker.pop();
-        assert_eq!(2, rep_tracker.current_pos_repetitions());
+        assert!(rep_tracker.is_repetition(4));
+        assert!(rep_tracker.is_repetition(3));
+        assert!(!rep_tracker.is_repetition(2));
         rep_tracker.pop();
-        assert_eq!(1, rep_tracker.current_pos_repetitions());
+        assert!(!rep_tracker.is_repetition(3));
         rep_tracker.pop();
-        assert_eq!(1, rep_tracker.current_pos_repetitions());
+        assert!(!rep_tracker.is_repetition(2));
         rep_tracker.pop();
-        assert_eq!(1, rep_tracker.current_pos_repetitions());
+        assert!(!rep_tracker.is_repetition(1));
         rep_tracker.pop();
+        assert!(!rep_tracker.is_repetition(0));
     }
 }
