@@ -8,7 +8,6 @@ use std::fmt;
 use std::ops::Neg;
 
 pub const MAX_SEARCH_DEPTH: usize = 127;
-pub const REPETITIONS_TO_DRAW: usize = 3;
 pub const PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW: usize = 100;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

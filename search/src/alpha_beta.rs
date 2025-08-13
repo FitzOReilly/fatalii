@@ -6,7 +6,7 @@ use crate::lmr_table::LmrTable;
 use crate::move_selector::{MoveSelector, Stage};
 use crate::search::{
     Search, SearchCommand, SearchInfo, SearchResult, MAX_SEARCH_DEPTH,
-    PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW, REPETITIONS_TO_DRAW,
+    PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW,
 };
 use crate::search_data::SearchData;
 use crate::search_params::{
@@ -867,7 +867,7 @@ impl AlphaBeta {
     }
 
     fn is_draw_by_rep(search_data: &mut SearchData) -> Option<AlphaBetaResult> {
-        if search_data.pos_history().current_pos_repetitions() < REPETITIONS_TO_DRAW {
+        if !search_data.pos_history().is_repetition(search_data.ply()) {
             return None;
         }
         Some(AlphaBetaResult::new(
