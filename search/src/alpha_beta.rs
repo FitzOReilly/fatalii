@@ -24,7 +24,6 @@ use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
 use movegen::transposition_table::{TranspositionTable, TtEntry};
 use movegen::zobrist::Zobrist;
-use std::cmp;
 use std::time::Instant;
 
 pub type AlphaBetaTable = TranspositionTable<Zobrist, AlphaBetaEntry>;
@@ -122,11 +121,8 @@ impl Search for AlphaBeta {
     ) {
         let start_time = Instant::now();
         let side_to_move = pos_history.current_pos().side_to_move();
-        let hard_time_limit = TimeManager::calc_movetime_hard_limit(side_to_move, &search_options);
-        let mut soft_time_limit = cmp::min(
-            hard_time_limit,
-            TimeManager::calc_movetime_soft_limit(side_to_move, &search_options),
-        );
+        let (hard_time_limit, mut soft_time_limit) =
+            TimeManager::calc_time_limits(side_to_move, &search_options);
         let has_time_limit = soft_time_limit.is_some();
         let mut search_data = SearchData::new(
             command_receiver,
