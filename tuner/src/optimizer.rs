@@ -132,7 +132,7 @@ pub fn adam(
             validated with {validation_pos_count} positions, validation error: {validation_error}",
         );
 
-        if epoch as usize % STORE_EVERY == 0 {
+        if (epoch as usize).is_multiple_of(STORE_EVERY) {
             let checkpoint = Checkpoint {
                 params: AdamParams {
                     epoch,
