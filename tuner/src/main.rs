@@ -4,7 +4,7 @@ use std::{
 };
 
 use clap::{Args, Parser, Subcommand};
-use eval::complex::Complex;
+use eval::HandCraftedEval;
 use tuner::{
     error_function::ErrorFunction,
     eval_params::EvalParams,
@@ -109,17 +109,17 @@ fn optimize(
     let k = 1.0;
     let mut error_fn = ErrorFunction::new(k);
 
-    let mut pos_evaluator = Complex::new();
+    let mut pos_evaluator = HandCraftedEval::new();
     let feature_evaluator = FeatureEvaluator::new();
 
-    let mut training_features =
+    let mut training_coeffs =
         file_reader::read_training_data(training_data_file, &mut pos_evaluator, &feature_evaluator);
 
     optimizer::adam(
         weight_file_prefix,
         &mut weights,
         &mut error_fn,
-        &mut training_features,
+        &mut training_coeffs,
         adam_params,
         num_epochs as i32,
     )

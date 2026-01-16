@@ -1,6 +1,6 @@
 use crate::{
-    feature_evaluator::WeightVector,
-    position_features::{EvalType, FeatureVector},
+    eval_coeffs::CoeffVector,
+    feature_evaluator::{EvalType, WeightVector},
 };
 
 pub struct ErrorFunction {
@@ -38,12 +38,7 @@ impl ErrorFunction {
         }
     }
 
-    pub fn add_datapoint(
-        &mut self,
-        outcome: EvalType,
-        eval: EvalType,
-        grad_features: &FeatureVector,
-    ) {
+    pub fn add_datapoint(&mut self, outcome: EvalType, eval: EvalType, grad_coeffs: &CoeffVector) {
         let sigmoid = self.sigmoid(eval);
         let squared_error = (outcome - sigmoid).powi(2);
         self.sum_of_squared_errors_epoch += squared_error;
@@ -52,8 +47,8 @@ impl ErrorFunction {
         self.datapoint_count_batch += 1;
         let grad_sigmoid = self.k * sigmoid * (1.0 - sigmoid);
         let outer_grad = (outcome - sigmoid) * grad_sigmoid;
-        for (_row, col, feat) in grad_features.triplet_iter() {
-            self.grad[(col, 0)] += outer_grad * feat;
+        for (_row, col, coeff) in grad_coeffs.triplet_iter() {
+            self.grad[(col, 0)] += outer_grad * coeff;
         }
     }
 

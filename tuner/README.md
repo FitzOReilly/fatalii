@@ -5,10 +5,10 @@
 Inside the project folder, run:
 
 ```
-cargo build --profile release-lto --bin tuner
+cargo build --release --package tuner --bin tuner
 ```
 
-Create a folder outside the project structure (e.g. `tuner`) and copy the executable (`target/release-lto/tuner`) to it.
+Create a folder outside the project structure (e.g. `tuner`) and copy the executable (`target/release/tuner`) to it.
 
 ## Getting training data
 

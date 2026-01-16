@@ -1,34 +1,30 @@
 use std::fmt::Display;
 
 use eval::{
-    params::{BISHOP_MOB_LEN, DISTANCE_LEN, KNIGHT_MOB_LEN, MOB_LEN, QUEEN_MOB_LEN, ROOK_MOB_LEN},
+    params::{BISHOP_MOB_LEN, DISTANCE_LEN, KNIGHT_MOB_LEN, QUEEN_MOB_LEN, ROOK_MOB_LEN},
     score_pair::ScorePair,
     Score,
 };
 
-use crate::{
-    feature_evaluator::WeightVector,
-    position_features::{
-        PST_SIZE, START_IDX_BACKWARD_PAWN, START_IDX_BISHOP_PAIR, START_IDX_DOUBLED_PAWN,
-        START_IDX_ISOLATED_PAWN, START_IDX_KING_TROPISM, START_IDX_MOBILITY, START_IDX_PASSED_PAWN,
-        START_IDX_PST, START_IDX_TEMPO,
-    },
-};
+use crate::feature_evaluator::{Weight, WeightVector, PST_SIZE};
 
 #[derive(Debug)]
 pub struct EvalParams {
-    pst_pawn: [ScorePair; 32],
-    pst_knight: [ScorePair; 32],
-    pst_bishop: [ScorePair; 32],
-    pst_rook: [ScorePair; 32],
-    pst_queen: [ScorePair; 32],
-    pst_king: [ScorePair; 32],
+    pst_pawn: [ScorePair; PST_SIZE],
+    pst_knight: [ScorePair; PST_SIZE],
+    pst_bishop: [ScorePair; PST_SIZE],
+    pst_rook: [ScorePair; PST_SIZE],
+    pst_queen: [ScorePair; PST_SIZE],
+    pst_king: [ScorePair; PST_SIZE],
     tempo: ScorePair,
-    passed_pawn: [ScorePair; 32],
+    passed_pawn: [ScorePair; PST_SIZE],
     isolated_pawn: ScorePair,
     backward_pawn: ScorePair,
     doubled_pawn: ScorePair,
-    mobility: [ScorePair; MOB_LEN],
+    knight_mobility: [ScorePair; KNIGHT_MOB_LEN],
+    bishop_mobility: [ScorePair; BISHOP_MOB_LEN],
+    rook_mobility: [ScorePair; ROOK_MOB_LEN],
+    queen_mobility: [ScorePair; QUEEN_MOB_LEN],
     bishop_pair: ScorePair,
     distance_friendly_pawn: [ScorePair; DISTANCE_LEN],
     distance_enemy_pawn: [ScorePair; DISTANCE_LEN],
@@ -47,18 +43,21 @@ pub struct EvalParams {
 impl Default for EvalParams {
     fn default() -> Self {
         Self {
-            pst_pawn: [ScorePair(0, 0); 32],
-            pst_knight: [ScorePair(0, 0); 32],
-            pst_bishop: [ScorePair(0, 0); 32],
-            pst_rook: [ScorePair(0, 0); 32],
-            pst_queen: [ScorePair(0, 0); 32],
-            pst_king: [ScorePair(0, 0); 32],
+            pst_pawn: [ScorePair(0, 0); PST_SIZE],
+            pst_knight: [ScorePair(0, 0); PST_SIZE],
+            pst_bishop: [ScorePair(0, 0); PST_SIZE],
+            pst_rook: [ScorePair(0, 0); PST_SIZE],
+            pst_queen: [ScorePair(0, 0); PST_SIZE],
+            pst_king: [ScorePair(0, 0); PST_SIZE],
             tempo: ScorePair(0, 0),
-            passed_pawn: [ScorePair(0, 0); 32],
+            passed_pawn: [ScorePair(0, 0); PST_SIZE],
             isolated_pawn: ScorePair(0, 0),
             backward_pawn: ScorePair(0, 0),
             doubled_pawn: ScorePair(0, 0),
-            mobility: [ScorePair(0, 0); MOB_LEN],
+            knight_mobility: [ScorePair(0, 0); KNIGHT_MOB_LEN],
+            bishop_mobility: [ScorePair(0, 0); BISHOP_MOB_LEN],
+            rook_mobility: [ScorePair(0, 0); ROOK_MOB_LEN],
+            queen_mobility: [ScorePair(0, 0); QUEEN_MOB_LEN],
             bishop_pair: ScorePair(0, 0),
             distance_friendly_pawn: [ScorePair(0, 0); DISTANCE_LEN],
             distance_enemy_pawn: [ScorePair(0, 0); DISTANCE_LEN],
@@ -79,72 +78,35 @@ impl Default for EvalParams {
 impl From<&WeightVector> for EvalParams {
     fn from(weights: &WeightVector) -> Self {
         let mut eval_params = EvalParams::default();
-
-        let mut pst_idx = START_IDX_PST;
-        for pst in [
-            &mut eval_params.pst_pawn,
-            &mut eval_params.pst_knight,
-            &mut eval_params.pst_bishop,
-            &mut eval_params.pst_rook,
-            &mut eval_params.pst_queen,
-            &mut eval_params.pst_king,
-        ] {
-            for square_idx in 0..PST_SIZE {
-                pst[square_idx].0 = weights[pst_idx + 2 * square_idx].round() as Score;
-                pst[square_idx].1 = weights[pst_idx + 2 * square_idx + 1].round() as Score;
-            }
-            pst_idx += 2 * PST_SIZE;
-        }
-
-        eval_params.tempo.0 = weights[START_IDX_TEMPO].round() as Score;
-        eval_params.tempo.1 = weights[START_IDX_TEMPO + 1].round() as Score;
-
-        for square_idx in 0..PST_SIZE {
-            eval_params.passed_pawn[square_idx].0 =
-                weights[START_IDX_PASSED_PAWN + 2 * square_idx].round() as Score;
-            eval_params.passed_pawn[square_idx].1 =
-                weights[START_IDX_PASSED_PAWN + 2 * square_idx + 1].round() as Score;
-        }
-        eval_params.isolated_pawn.0 = weights[START_IDX_ISOLATED_PAWN].round() as Score;
-        eval_params.isolated_pawn.1 = weights[START_IDX_ISOLATED_PAWN + 1].round() as Score;
-        eval_params.backward_pawn.0 = weights[START_IDX_BACKWARD_PAWN].round() as Score;
-        eval_params.backward_pawn.1 = weights[START_IDX_BACKWARD_PAWN + 1].round() as Score;
-        eval_params.doubled_pawn.0 = weights[START_IDX_DOUBLED_PAWN].round() as Score;
-        eval_params.doubled_pawn.1 = weights[START_IDX_DOUBLED_PAWN + 1].round() as Score;
-
-        for idx in 0..MOB_LEN {
-            let offset = START_IDX_MOBILITY + 2 * idx;
-            eval_params.mobility[idx].0 = weights[offset].round() as Score;
-            eval_params.mobility[idx].1 = weights[offset + 1].round() as Score;
-        }
-
-        eval_params.bishop_pair.0 = weights[START_IDX_BISHOP_PAIR].round() as Score;
-        eval_params.bishop_pair.1 = weights[START_IDX_BISHOP_PAIR + 1].round() as Score;
-
-        let mut king_tropism_idx = START_IDX_KING_TROPISM;
-        for distance in [
-            &mut eval_params.distance_friendly_pawn,
-            &mut eval_params.distance_enemy_pawn,
-            &mut eval_params.distance_friendly_knight,
-            &mut eval_params.distance_enemy_knight,
-            &mut eval_params.distance_friendly_bishop,
-            &mut eval_params.distance_enemy_bishop,
-            &mut eval_params.distance_friendly_rook,
-            &mut eval_params.distance_enemy_rook,
-            &mut eval_params.distance_friendly_queen,
-            &mut eval_params.distance_enemy_queen,
-            &mut eval_params.distance_friendly_king,
-            &mut eval_params.distance_enemy_king,
-        ] {
-            for distance_idx in 0..DISTANCE_LEN {
-                distance[distance_idx].0 =
-                    weights[king_tropism_idx + 2 * distance_idx].round() as Score;
-                distance[distance_idx].1 =
-                    weights[king_tropism_idx + 2 * distance_idx + 1].round() as Score;
-            }
-            king_tropism_idx += 2 * DISTANCE_LEN;
-        }
-
+        let mut weight_iter = weights.iter();
+        Self::next_params(&mut eval_params.pst_pawn, &mut weight_iter);
+        Self::next_params(&mut eval_params.pst_knight, &mut weight_iter);
+        Self::next_params(&mut eval_params.pst_bishop, &mut weight_iter);
+        Self::next_params(&mut eval_params.pst_rook, &mut weight_iter);
+        Self::next_params(&mut eval_params.pst_queen, &mut weight_iter);
+        Self::next_params(&mut eval_params.pst_king, &mut weight_iter);
+        Self::next_param(&mut eval_params.tempo, &mut weight_iter);
+        Self::next_params(&mut eval_params.passed_pawn, &mut weight_iter);
+        Self::next_param(&mut eval_params.isolated_pawn, &mut weight_iter);
+        Self::next_param(&mut eval_params.backward_pawn, &mut weight_iter);
+        Self::next_param(&mut eval_params.doubled_pawn, &mut weight_iter);
+        Self::next_params(&mut eval_params.knight_mobility, &mut weight_iter);
+        Self::next_params(&mut eval_params.bishop_mobility, &mut weight_iter);
+        Self::next_params(&mut eval_params.rook_mobility, &mut weight_iter);
+        Self::next_params(&mut eval_params.queen_mobility, &mut weight_iter);
+        Self::next_param(&mut eval_params.bishop_pair, &mut weight_iter);
+        Self::next_params(&mut eval_params.distance_friendly_pawn, &mut weight_iter);
+        Self::next_params(&mut eval_params.distance_enemy_pawn, &mut weight_iter);
+        Self::next_params(&mut eval_params.distance_friendly_knight, &mut weight_iter);
+        Self::next_params(&mut eval_params.distance_enemy_knight, &mut weight_iter);
+        Self::next_params(&mut eval_params.distance_friendly_bishop, &mut weight_iter);
+        Self::next_params(&mut eval_params.distance_enemy_bishop, &mut weight_iter);
+        Self::next_params(&mut eval_params.distance_friendly_rook, &mut weight_iter);
+        Self::next_params(&mut eval_params.distance_enemy_rook, &mut weight_iter);
+        Self::next_params(&mut eval_params.distance_friendly_queen, &mut weight_iter);
+        Self::next_params(&mut eval_params.distance_enemy_queen, &mut weight_iter);
+        Self::next_params(&mut eval_params.distance_friendly_king, &mut weight_iter);
+        Self::next_params(&mut eval_params.distance_enemy_king, &mut weight_iter);
         eval_params
     }
 }
@@ -179,49 +141,8 @@ impl Display for EvalParams {
             self.bishop_pair.0, self.bishop_pair.1
         )?;
 
-        self.fmt_mob(f)?;
-
-        for (name, distance) in [
-            ("DISTANCE_FRIENDLY_PAWN_MG_EG", self.distance_friendly_pawn),
-            ("DISTANCE_ENEMY_PAWN_MG_EG", self.distance_enemy_pawn),
-            (
-                "DISTANCE_FRIENDLY_KNIGHT_MG_EG",
-                self.distance_friendly_knight,
-            ),
-            ("DISTANCE_ENEMY_KNIGHT_MG_EG", self.distance_enemy_knight),
-            (
-                "DISTANCE_FRIENDLY_BISHOP_MG_EG",
-                self.distance_friendly_bishop,
-            ),
-            ("DISTANCE_ENEMY_BISHOP_MG_EG", self.distance_enemy_bishop),
-            ("DISTANCE_FRIENDLY_ROOK_MG_EG", self.distance_friendly_rook),
-            ("DISTANCE_ENEMY_ROOK_MG_EG", self.distance_enemy_rook),
-            (
-                "DISTANCE_FRIENDLY_QUEEN_MG_EG",
-                self.distance_friendly_queen,
-            ),
-            ("DISTANCE_ENEMY_QUEEN_MG_EG", self.distance_enemy_queen),
-            ("DISTANCE_FRIENDLY_KING_MG_EG", self.distance_friendly_king),
-            ("DISTANCE_ENEMY_KING_MG_EG", self.distance_enemy_king),
-        ] {
-            write!(
-                f,
-                "const {}: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) =
-    ([{}], [{}]);\n",
-                name,
-                distance
-                    .iter()
-                    .map(|d| d.0.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                distance
-                    .iter()
-                    .map(|d| d.1.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", "),
-            )?;
-        }
-
+        self.fmt_mobilities(f)?;
+        self.fmt_distances(f)?;
         self.fmt_pst(f)?;
 
         Ok(())
@@ -229,60 +150,92 @@ impl Display for EvalParams {
 }
 
 impl EvalParams {
-    fn fmt_mob(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut offset = 0;
-        for (const_name, len_name, len) in [
-            ("MOBILITY_KNIGHT_MG_EG", "KNIGHT_MOB_LEN", KNIGHT_MOB_LEN),
-            ("MOBILITY_BISHOP_MG_EG", "BISHOP_MOB_LEN", BISHOP_MOB_LEN),
-            ("MOBILITY_ROOK_MG_EG", "ROOK_MOB_LEN", ROOK_MOB_LEN),
-            ("MOBILITY_QUEEN_MG_EG", "QUEEN_MOB_LEN", QUEEN_MOB_LEN),
+    fn next_param<'a, I>(param: &mut ScorePair, weight_iter: &mut I)
+    where
+        I: Iterator<Item = &'a Weight>,
+    {
+        param.0 = weight_iter.next().unwrap().round() as Score;
+        param.1 = weight_iter.next().unwrap().round() as Score;
+    }
+
+    fn next_params<'a, I>(params: &mut [ScorePair], weight_iter: &mut I)
+    where
+        I: Iterator<Item = &'a Weight>,
+    {
+        for param in params {
+            param.0 = weight_iter.next().unwrap().round() as Score;
+            param.1 = weight_iter.next().unwrap().round() as Score;
+        }
+    }
+
+    fn fmt_mobilities(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (const_name, len_name, mob) in [
+            (
+                "MOBILITY_KNIGHT_MG_EG",
+                "KNIGHT_MOB_LEN",
+                &self.knight_mobility[..],
+            ),
+            (
+                "MOBILITY_BISHOP_MG_EG",
+                "BISHOP_MOB_LEN",
+                &self.bishop_mobility[..],
+            ),
+            (
+                "MOBILITY_ROOK_MG_EG",
+                "ROOK_MOB_LEN",
+                &self.rook_mobility[..],
+            ),
+            (
+                "MOBILITY_QUEEN_MG_EG",
+                "QUEEN_MOB_LEN",
+                &self.queen_mobility[..],
+            ),
         ] {
-            self.fmt_single_mob(
-                f,
-                const_name,
-                len_name,
-                &self.mobility[offset..offset + len],
-            )?;
-            offset += len;
+            self.fmt_weights(f, const_name, len_name, mob)?;
         }
         Ok(())
     }
 
-    fn fmt_single_mob(
+    fn fmt_distances(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (const_name, distance) in [
+            ("DISTANCE_FRIENDLY_PAWN_MG_EG", &self.distance_friendly_pawn),
+            ("DISTANCE_ENEMY_PAWN_MG_EG", &self.distance_enemy_pawn),
+            (
+                "DISTANCE_FRIENDLY_KNIGHT_MG_EG",
+                &self.distance_friendly_knight,
+            ),
+            ("DISTANCE_ENEMY_KNIGHT_MG_EG", &self.distance_enemy_knight),
+            (
+                "DISTANCE_FRIENDLY_BISHOP_MG_EG",
+                &self.distance_friendly_bishop,
+            ),
+            ("DISTANCE_ENEMY_BISHOP_MG_EG", &self.distance_enemy_bishop),
+            ("DISTANCE_FRIENDLY_ROOK_MG_EG", &self.distance_friendly_rook),
+            ("DISTANCE_ENEMY_ROOK_MG_EG", &self.distance_enemy_rook),
+            (
+                "DISTANCE_FRIENDLY_QUEEN_MG_EG",
+                &self.distance_friendly_queen,
+            ),
+            ("DISTANCE_ENEMY_QUEEN_MG_EG", &self.distance_enemy_queen),
+            ("DISTANCE_FRIENDLY_KING_MG_EG", &self.distance_friendly_king),
+            ("DISTANCE_ENEMY_KING_MG_EG", &self.distance_enemy_king),
+        ] {
+            self.fmt_weights(f, const_name, "DISTANCE_LEN", distance)?;
+        }
+        Ok(())
+    }
+
+    fn fmt_weights(
         &self,
         f: &mut std::fmt::Formatter<'_>,
         const_name: &str,
         len_name: &str,
-        mob: &[ScorePair],
+        weights: &[ScorePair],
     ) -> std::fmt::Result {
-        write!(
+        let (mg, eg): (Vec<_>, Vec<_>) = weights.iter().map(|sp| (sp.0, sp.1)).unzip();
+        writeln!(
             f,
-            "\
-const {const_name}: ([Score; {len_name}], [Score; {len_name}]) = (
-    [
-"
-        )?;
-        write!(f, "       ")?;
-        for m in mob {
-            write!(f, " {},", m.0)?;
-        }
-        writeln!(f)?;
-        write!(
-            f,
-            "    ],
-    [
-"
-        )?;
-        write!(f, "       ")?;
-        for m in mob {
-            write!(f, " {},", m.1)?;
-        }
-        writeln!(f)?;
-        write!(
-            f,
-            "    ],
-);
-"
+            "const {const_name}: ([Score; {len_name}], [Score; {len_name}]) = ({mg:?}, {eg:?});",
         )?;
         Ok(())
     }

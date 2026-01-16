@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     error_function::ErrorFunction,
     feature_evaluator::{FeatureEvaluator, WeightVector},
-    training::TrainingFeatures,
+    training::TrainingCoeffs,
 };
 
 const STORE_EVERY: usize = 10;
@@ -16,8 +16,7 @@ pub struct AdamParams {
     pub batch_size: usize,
     pub validation_ratio: f64,
     pub learning_rate: f64,
-    pub beta_1: f64,
-    pub beta_2: f64,
+    pub betas: [f64; 2],
     pub epsilon: f64,
     pub epoch: i32,
     pub t: i32,
@@ -31,8 +30,7 @@ impl Default for AdamParams {
             batch_size: 32,
             validation_ratio: 0.1,
             learning_rate: 0.001,
-            beta_1: 0.9,
-            beta_2: 0.999,
+            betas: [0.9, 0.999],
             epsilon: 1e-8,
             epoch: 0,
             t: 0,
@@ -65,7 +63,7 @@ pub fn adam(
     weight_file_prefix: &str,
     weights: &mut WeightVector,
     error_fn: &mut ErrorFunction,
-    training_features: &mut [TrainingFeatures],
+    training_coeffs: &mut [TrainingCoeffs],
     params: AdamParams,
     num_epochs: i32,
 ) -> std::io::Result<()> {
@@ -77,33 +75,28 @@ pub fn adam(
     let batch_size = params.batch_size;
     let validation_ratio = params.validation_ratio;
     let learning_rate = params.learning_rate;
-    let beta_1 = params.beta_1;
-    let beta_2 = params.beta_2;
+    let betas = params.betas;
     let epsilon = params.epsilon;
 
     for epoch in params.epoch + 1..=params.epoch + num_epochs {
-        training_features.shuffle(&mut rng());
-        let mut iter_batch = training_features.chunks(batch_size);
+        training_coeffs.shuffle(&mut rng());
+        let mut iter_batch = training_coeffs.chunks(batch_size);
         let batch_count = iter_batch.len();
         let training_batch_count = ((1.0 - validation_ratio) * batch_count as f64) as usize;
         let mut current_batch_count = 0;
         for batch in iter_batch.by_ref() {
             t += 1;
             for pos in batch {
-                error_fn.add_datapoint(
-                    pos.outcome.into(),
-                    evaluator.eval(&pos.features),
-                    &pos.grad,
-                );
+                error_fn.add_datapoint(pos.outcome.into(), evaluator.eval(&pos.coeffs), &pos.grad);
             }
             let grad = error_fn.grad();
             let grad_squared = grad.dot(&grad);
 
-            m = beta_1 * m + (1.0 - beta_1) * grad;
-            v = beta_2 * v + (1.0 - beta_2) * grad_squared;
+            m = betas[0] * m + (1.0 - betas[0]) * grad;
+            v = betas[1] * v + (1.0 - betas[1]) * grad_squared;
 
-            let m_hat = m / (1.0 - beta_1.powi(t));
-            let v_hat = v / (1.0 - beta_2.powi(t));
+            let m_hat = m / (1.0 - betas[0].powi(t));
+            let v_hat = v / (1.0 - betas[1].powi(t));
 
             *weights -= learning_rate / (v_hat.sqrt() + epsilon) * m_hat;
             evaluator.update_weights(weights);
@@ -118,11 +111,7 @@ pub fn adam(
         error_fn.clear();
         for batch in iter_batch {
             for pos in batch {
-                error_fn.add_datapoint(
-                    pos.outcome.into(),
-                    evaluator.eval(&pos.features),
-                    &pos.grad,
-                );
+                error_fn.add_datapoint(pos.outcome.into(), evaluator.eval(&pos.coeffs), &pos.grad);
             }
         }
         let validation_pos_count = error_fn.datapoint_count_epoch();

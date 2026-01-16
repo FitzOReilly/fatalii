@@ -4,20 +4,19 @@ use std::{
     path::Path,
 };
 
-use eval::{eval::HasMatingMaterial, Eval};
+use eval::{eval::HasMatingMaterial, Eval, HandCraftedEval};
 use movegen::{fen::Fen, side::Side};
 
 use crate::{
-    feature_evaluator::FeatureEvaluator,
-    position_features::EvalType,
-    training::{Outcome, TrainingFeatures, TrainingPosition},
+    feature_evaluator::{EvalType, FeatureEvaluator},
+    training::{Outcome, TrainingCoeffs, TrainingPosition},
 };
 
 pub fn read_training_data(
     filename: &str,
-    pos_evaluator: &mut (impl Eval + HasMatingMaterial),
+    pos_evaluator: &mut HandCraftedEval,
     feature_evaluator: &FeatureEvaluator,
-) -> Vec<TrainingFeatures> {
+) -> Vec<TrainingCoeffs> {
     let mut parsed_count = 0;
     let mut training_data = Vec::new();
 
@@ -33,9 +32,13 @@ pub fn read_training_data(
                 invalid => panic!("Invalid outcome: {invalid}"),
             };
             let pos_eval = pos_evaluator.eval(&pos);
-            let training_pos = TrainingPosition { pos, outcome };
-            let training_features = TrainingFeatures::from(&training_pos);
-            let feature_eval = feature_evaluator.eval(&training_features.features);
+            let eval_coeffs = pos_evaluator.coeffs().clone();
+            let training_pos = TrainingPosition {
+                eval_coeffs,
+                outcome,
+            };
+            let training_coeffs = TrainingCoeffs::from(&training_pos);
+            let feature_eval = feature_evaluator.eval(&training_coeffs.coeffs);
 
             // Exclude draws by insufficient material
             if pos_eval != 0
@@ -48,7 +51,7 @@ pub fn read_training_data(
                     "Evaluations don't match\nPosition: {short_fen}\n\
                     Position Eval: {pos_eval}\nFeature Eval: {feature_eval}",
                 );
-                training_data.push(training_features);
+                training_data.push(training_coeffs);
             }
             parsed_count += 1;
         }
