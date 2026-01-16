@@ -1,5 +1,5 @@
 use crossbeam_channel::{unbounded, Receiver};
-use eval::complex::Complex;
+use eval::HandCraftedEval;
 use eval::{Eval, ScoreVariant, BLACK_WIN, EQ_POSITION, NEG_INF, WHITE_WIN};
 use movegen::fen::Fen;
 use movegen::move_generator::MoveGenerator;
@@ -21,7 +21,7 @@ const TIMEOUT_PER_TEST: Duration = Duration::from_millis(30000);
 const HASH_LOAD_FACTOR_MAX: u16 = 1000;
 
 fn evaluator() -> impl Eval {
-    Complex::new()
+    HandCraftedEval::new()
 }
 
 struct SearchTester {

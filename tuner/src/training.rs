@@ -1,6 +1,9 @@
-use movegen::position::Position;
+use eval::HandCraftedEvalCoeffs;
 
-use crate::position_features::{EvalType, FeatureVector, PositionFeatures};
+use crate::{
+    eval_coeffs::{CoeffVector, EvalCoeffs},
+    feature_evaluator::EvalType,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Outcome {
@@ -11,23 +14,23 @@ pub enum Outcome {
 
 #[derive(Debug, Clone)]
 pub struct TrainingPosition {
-    pub pos: Position,
+    pub eval_coeffs: HandCraftedEvalCoeffs,
     pub outcome: Outcome,
 }
 
 #[derive(Debug, Clone)]
-pub struct TrainingFeatures {
-    pub features: PositionFeatures,
-    pub grad: FeatureVector,
+pub struct TrainingCoeffs {
+    pub coeffs: EvalCoeffs,
+    pub grad: CoeffVector,
     pub outcome: Outcome,
 }
 
-impl From<&TrainingPosition> for TrainingFeatures {
+impl From<&TrainingPosition> for TrainingCoeffs {
     fn from(tp: &TrainingPosition) -> Self {
-        let features = PositionFeatures::from(&tp.pos);
-        let grad = features.grad();
+        let coeffs = EvalCoeffs::from(&tp.eval_coeffs);
+        let grad = coeffs.grad();
         Self {
-            features,
+            coeffs,
             grad,
             outcome: tp.outcome,
         }

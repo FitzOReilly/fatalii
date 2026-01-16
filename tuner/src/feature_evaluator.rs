@@ -1,14 +1,38 @@
-use eval::params::{self, DISTANCE_LEN};
+use std::iter;
+
+use eval::params::{self, DISTANCE_LEN, MOB_LEN};
 use nalgebra::SVector;
 
-use crate::position_features::{
-    EvalType, PositionFeatures, NUM_FEATURES, PST_SIZE, START_IDX_BACKWARD_PAWN,
-    START_IDX_BISHOP_PAIR, START_IDX_DOUBLED_PAWN, START_IDX_ISOLATED_PAWN, START_IDX_KING_TROPISM,
-    START_IDX_MOBILITY, START_IDX_PASSED_PAWN, START_IDX_PST, START_IDX_TEMPO,
-};
+use crate::eval_coeffs::EvalCoeffs;
 
-type Weight = f64;
+pub type Weight = f64;
 pub type WeightVector = SVector<Weight, NUM_FEATURES>;
+
+pub type EvalType = f64;
+
+pub const PST_SIZE: usize = 32;
+const NUM_SIDES: usize = 2;
+const NUM_PIECE_TYPES: usize = 6;
+const NUM_PST_FEATURES: usize = 2 * NUM_PIECE_TYPES * PST_SIZE;
+const NUM_TEMPO_FEATURES: usize = 2;
+const NUM_PASSED_PAWN_FEATURES: usize = 2 * PST_SIZE;
+const NUM_ISOLATED_PAWN_FEATURES: usize = 2;
+const NUM_BACKWARD_PAWN_FEATURES: usize = 2;
+const NUM_DOUBLED_PAWN_FEATURES: usize = 2;
+const NUM_MOBILITY_FEATURES: usize = 2 * MOB_LEN;
+const NUM_BISHOP_PAIR_FEATURES: usize = 2;
+const NUM_KING_TROPISM_FEATURES: usize = 2 * NUM_SIDES * NUM_PIECE_TYPES * DISTANCE_LEN;
+pub const NUM_FEATURES: usize = NUM_PST_FEATURES
+    + NUM_TEMPO_FEATURES
+    + NUM_PASSED_PAWN_FEATURES
+    + NUM_ISOLATED_PAWN_FEATURES
+    + NUM_BACKWARD_PAWN_FEATURES
+    + NUM_DOUBLED_PAWN_FEATURES
+    + NUM_MOBILITY_FEATURES
+    + NUM_BISHOP_PAIR_FEATURES
+    + NUM_KING_TROPISM_FEATURES;
+
+pub const START_IDX_PST: usize = 0;
 
 #[derive(Debug, Clone)]
 pub struct FeatureEvaluator {
@@ -40,8 +64,8 @@ impl FeatureEvaluator {
         }
     }
 
-    pub fn eval(&self, features: &PositionFeatures) -> EvalType {
-        (&features.feature_vec * self.weights)[0]
+    pub fn eval(&self, coeffs: &EvalCoeffs) -> EvalType {
+        (&coeffs.coeff_vec * self.weights)[0]
     }
 }
 
@@ -73,99 +97,51 @@ pub fn default_weights() -> WeightVector {
 }
 
 pub fn engine_weights() -> WeightVector {
+    let weight_iter = params::PST_PAWN[..PST_SIZE]
+        .iter()
+        .chain(params::PST_KNIGHT[..PST_SIZE].iter())
+        .chain(params::PST_BISHOP[..PST_SIZE].iter())
+        .chain(params::PST_ROOK[..PST_SIZE].iter())
+        .chain(params::PST_QUEEN[..PST_SIZE].iter())
+        .chain(params::PST_KING[..PST_SIZE].iter())
+        .chain(iter::once(&params::TEMPO))
+        .chain(params::PASSED_PAWN[..PST_SIZE].iter())
+        .chain(iter::once(&params::ISOLATED_PAWN))
+        .chain(iter::once(&params::BACKWARD_PAWN))
+        .chain(iter::once(&params::DOUBLED_PAWN))
+        .chain(params::MOBILITY_KNIGHT.iter())
+        .chain(params::MOBILITY_BISHOP.iter())
+        .chain(params::MOBILITY_ROOK.iter())
+        .chain(params::MOBILITY_QUEEN.iter())
+        .chain(iter::once(&params::BISHOP_PAIR))
+        .chain(params::DISTANCE_FRIENDLY_PAWN.iter())
+        .chain(params::DISTANCE_ENEMY_PAWN.iter())
+        .chain(params::DISTANCE_FRIENDLY_KNIGHT.iter())
+        .chain(params::DISTANCE_ENEMY_KNIGHT.iter())
+        .chain(params::DISTANCE_FRIENDLY_BISHOP.iter())
+        .chain(params::DISTANCE_ENEMY_BISHOP.iter())
+        .chain(params::DISTANCE_FRIENDLY_ROOK.iter())
+        .chain(params::DISTANCE_ENEMY_ROOK.iter())
+        .chain(params::DISTANCE_FRIENDLY_QUEEN.iter())
+        .chain(params::DISTANCE_ENEMY_QUEEN.iter())
+        .chain(params::DISTANCE_FRIENDLY_KING.iter())
+        .chain(params::DISTANCE_ENEMY_KING.iter());
     let mut weights = WeightVector::from_element(0.0);
-
-    let mut pst_idx = START_IDX_PST;
-    for pst in [
-        params::PST_PAWN,
-        params::PST_KNIGHT,
-        params::PST_BISHOP,
-        params::PST_ROOK,
-        params::PST_QUEEN,
-        params::PST_KING,
-    ] {
-        for square_idx in 0..PST_SIZE {
-            weights[pst_idx + 2 * square_idx] = pst[square_idx].0.into();
-            weights[pst_idx + 2 * square_idx + 1] = pst[square_idx].1.into();
-        }
-        pst_idx += 2 * PST_SIZE;
+    for (idx, &weight) in weight_iter.enumerate() {
+        // Middlegame
+        weights[2 * idx] = weight.0.into();
+        // Endgame
+        weights[2 * idx + 1] = weight.1.into();
     }
-
-    weights[START_IDX_TEMPO] = params::TEMPO.0.into();
-    weights[START_IDX_TEMPO + 1] = params::TEMPO.1.into();
-
-    for square_idx in 0..PST_SIZE {
-        weights[START_IDX_PASSED_PAWN + 2 * square_idx] = params::PASSED_PAWN[square_idx].0.into();
-        weights[START_IDX_PASSED_PAWN + 2 * square_idx + 1] =
-            params::PASSED_PAWN[square_idx].1.into();
-    }
-    weights[START_IDX_ISOLATED_PAWN] = params::ISOLATED_PAWN.0.into();
-    weights[START_IDX_ISOLATED_PAWN + 1] = params::ISOLATED_PAWN.1.into();
-    weights[START_IDX_BACKWARD_PAWN] = params::BACKWARD_PAWN.0.into();
-    weights[START_IDX_BACKWARD_PAWN + 1] = params::BACKWARD_PAWN.1.into();
-    weights[START_IDX_DOUBLED_PAWN] = params::DOUBLED_PAWN.0.into();
-    weights[START_IDX_DOUBLED_PAWN + 1] = params::DOUBLED_PAWN.1.into();
-
-    initialize_mobility(&mut weights);
-
-    weights[START_IDX_BISHOP_PAIR] = params::BISHOP_PAIR.0.into();
-    weights[START_IDX_BISHOP_PAIR + 1] = params::BISHOP_PAIR.1.into();
-
-    let mut king_tropism_idx = START_IDX_KING_TROPISM;
-    for distance in [
-        params::DISTANCE_FRIENDLY_PAWN,
-        params::DISTANCE_ENEMY_PAWN,
-        params::DISTANCE_FRIENDLY_KNIGHT,
-        params::DISTANCE_ENEMY_KNIGHT,
-        params::DISTANCE_FRIENDLY_BISHOP,
-        params::DISTANCE_ENEMY_BISHOP,
-        params::DISTANCE_FRIENDLY_ROOK,
-        params::DISTANCE_ENEMY_ROOK,
-        params::DISTANCE_FRIENDLY_QUEEN,
-        params::DISTANCE_ENEMY_QUEEN,
-        params::DISTANCE_FRIENDLY_KING,
-        params::DISTANCE_ENEMY_KING,
-    ] {
-        for distance_idx in 0..DISTANCE_LEN {
-            weights[king_tropism_idx + 2 * distance_idx] = distance[distance_idx].0.into();
-            weights[king_tropism_idx + 2 * distance_idx + 1] = distance[distance_idx].1.into();
-        }
-        king_tropism_idx += 2 * DISTANCE_LEN;
-    }
-
     weights
-}
-
-pub fn initialize_mobility(weights: &mut WeightVector) {
-    let mut idx = START_IDX_MOBILITY;
-    for mob in params::MOBILITY_KNIGHT {
-        weights[idx] = mob.0.into();
-        weights[idx + 1] = mob.1.into();
-        idx += 2;
-    }
-    for mob in params::MOBILITY_BISHOP {
-        weights[idx] = mob.0.into();
-        weights[idx + 1] = mob.1.into();
-        idx += 2;
-    }
-    for mob in params::MOBILITY_ROOK {
-        weights[idx] = mob.0.into();
-        weights[idx + 1] = mob.1.into();
-        idx += 2;
-    }
-    for mob in params::MOBILITY_QUEEN {
-        weights[idx] = mob.0.into();
-        weights[idx + 1] = mob.1.into();
-        idx += 2;
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use eval::{complex::Complex, Eval};
+    use eval::{Eval, HandCraftedEval};
     use movegen::fen::Fen;
 
-    use crate::{feature_evaluator::EvalType, position_features::PositionFeatures};
+    use crate::{eval_coeffs::EvalCoeffs, feature_evaluator::EvalType};
 
     use super::FeatureEvaluator;
 
@@ -173,14 +149,14 @@ mod tests {
     fn tuner_eval_matches_actual_eval() {
         let fens = ["8/6pk/5p2/P1R4P/1P5P/5K2/2P5/6r1 b - - 2 70"];
 
-        let mut evaluator = Complex::new();
+        let mut evaluator = HandCraftedEval::new();
         let feature_evaluator = FeatureEvaluator::new();
 
         for fen in fens {
             let pos = Fen::str_to_pos(fen).unwrap();
             let exp_eval = evaluator.eval(&pos);
-            let features = PositionFeatures::from(&pos);
-            let act_eval = feature_evaluator.eval(&features);
+            let coeffs = EvalCoeffs::from(evaluator.coeffs());
+            let act_eval = feature_evaluator.eval(&coeffs);
             // There may be small differences in the evaluations:
             // - The position evaluator rounds down the result, the feature evaluator doesn't
             // - Rounding errors

@@ -2,7 +2,7 @@ use std::ops::{Add, AddAssign, Mul, Sub, SubAssign};
 
 use crate::Score;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ScorePair(pub Score, pub Score);
 
 impl Mul<Score> for ScorePair {

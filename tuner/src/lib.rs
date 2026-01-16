@@ -4,5 +4,5 @@ pub mod feature_evaluator;
 pub mod file_reader;
 pub mod optimizer;
 
-mod position_features;
+mod eval_coeffs;
 mod training;
