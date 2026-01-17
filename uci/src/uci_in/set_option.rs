@@ -59,7 +59,7 @@ pub fn run_command(
                     }
                     uci_out.info_string(&(props.fun)(engine, val))?;
                 }
-                _ => todo!("Implement other types!"),
+                _ => unimplemented!("Other types are unused"),
             }
         }
         _ => return make_err_invalid_argument(args),
