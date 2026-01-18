@@ -11,7 +11,7 @@ use movegen::{
 
 use crate::{params, Score};
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Coeff(pub i8);
 
 impl Deref for Coeff {
@@ -40,7 +40,7 @@ impl From<Score> for Coeff {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct HandCraftedEvalCoeffs {
     pub game_phase: usize,
     pub pst_pawn: [Coeff; 32],
