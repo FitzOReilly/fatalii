@@ -31,12 +31,6 @@ impl Eval for HandCraftedEval {
     fn eval(&mut self, pos: &Position) -> Score {
         self.update(pos);
 
-        let white_mating_material = self.has_mating_material(Side::White);
-        let black_mating_material = self.has_mating_material(Side::Black);
-        if !white_mating_material && !black_mating_material {
-            return EQ_POSITION;
-        }
-
         let scores = self.pst_scores
             + self.tempo_scores(pos)
             + self.pawn_structure_scores
@@ -52,12 +46,14 @@ impl Eval for HandCraftedEval {
             + (GamePhase::MAX - game_phase) as i64 * scores.1 as i64)
             / GamePhase::MAX as i64) as Score;
 
-        if !white_mating_material {
-            std::cmp::min(EQ_POSITION, tapered_score)
-        } else if !black_mating_material {
-            std::cmp::max(EQ_POSITION, tapered_score)
-        } else {
-            tapered_score
+        match (
+            self.has_mating_material(Side::White),
+            self.has_mating_material(Side::Black),
+        ) {
+            (true, true) => tapered_score,
+            (true, false) => tapered_score.max(EQ_POSITION),
+            (false, true) => tapered_score.min(EQ_POSITION),
+            (false, false) => EQ_POSITION,
         }
     }
 }
@@ -503,7 +499,11 @@ impl HandCraftedEval {
 
 #[cfg(test)]
 mod tests {
-    use movegen::fen::Fen;
+    use movegen::{
+        fen::Fen, move_generator::MoveGenerator, position::Position,
+        position_history::PositionHistory, r#move::MoveList,
+    };
+    use rand::seq::{IndexedMutRandom, SliceRandom};
 
     use crate::{Eval, EQ_POSITION};
 
@@ -549,6 +549,44 @@ mod tests {
                 evaluator.eval(&pos),
                 "\nPosition: {non_draw}\n{pos}"
             );
+        }
+    }
+
+    #[test]
+    fn incremental_eval() {
+        // Test, if the evaluation for a position is independent from the
+        // previously evaluated position
+        let mut evaluator = HandCraftedEval::new();
+        let position_count = 1000;
+        let mut positions_with_evals = Vec::new();
+        #[cfg(feature = "trace")]
+        let mut positions_with_eval_coeffs = Vec::new();
+        let mut pos_hist = PositionHistory::new(Position::initial());
+        let mut move_list = MoveList::new();
+        let mut rng = rand::rng();
+        for _ in 0..position_count {
+            let pos = pos_hist.current_pos().clone();
+            let static_eval = evaluator.eval(&pos);
+            positions_with_evals.push((pos.clone(), static_eval));
+            #[cfg(feature = "trace")]
+            positions_with_eval_coeffs.push((pos, evaluator.coeffs().clone()));
+            MoveGenerator::generate_moves(&mut move_list, pos_hist.current_pos());
+            match move_list.choose_mut(&mut rng) {
+                Some(m) => pos_hist.do_move(*m),
+                None => pos_hist = PositionHistory::new(Position::initial()),
+            }
+        }
+        positions_with_evals.shuffle(&mut rng);
+        for (pos, static_eval) in positions_with_evals {
+            assert_eq!(evaluator.eval(&pos), static_eval);
+        }
+        #[cfg(feature = "trace")]
+        {
+            positions_with_eval_coeffs.shuffle(&mut rng);
+            for (pos, coeffs) in positions_with_eval_coeffs {
+                evaluator.eval(&pos);
+                assert_eq!(evaluator.coeffs(), &coeffs);
+            }
         }
     }
 }
