@@ -12,6 +12,7 @@ use movegen::pawn::Pawn;
 use movegen::piece::{self, Piece};
 use movegen::position::Position;
 use movegen::queen::Queen;
+use movegen::ray::Ray;
 use movegen::rook::Rook;
 use movegen::side::Side;
 use movegen::square::Square;
@@ -525,7 +526,9 @@ impl HandCraftedEval {
             self.coeffs.bishop_mobility.fill(Coeff(0));
             self.coeffs.rook_mobility.fill(Coeff(0));
             self.coeffs.queen_mobility.fill(Coeff(0));
-            self.coeffs.virtual_mobility.fill(Coeff(0));
+            self.coeffs.virtual_diag_mobility.fill(Coeff(0));
+            self.coeffs.virtual_file_mobility.fill(Coeff(0));
+            self.coeffs.virtual_rank_mobility.fill(Coeff(0));
         }
 
         let mut scores = ScorePair(0, 0);
@@ -579,17 +582,41 @@ impl HandCraftedEval {
             }
         }
 
-        let white_virtual_targets =
-            Queen::targets(eval_data.kings[Side::White as usize], occupancy) & !white_occupancy;
-        scores += params::VIRTUAL_MOBILITY[white_virtual_targets.pop_count()];
+        let white_king = eval_data.kings[Side::White as usize];
+        let white_diag_targets = Ray::diagonal_targets(white_king, occupancy) & !white_occupancy;
+        let white_antidiag_targets =
+            Ray::anti_diagonal_targets(white_king, occupancy) & !white_occupancy;
+        let white_file_targets = Ray::file_targets(white_king, occupancy) & !white_occupancy;
+        let white_rank_targets = Ray::rank_targets(white_king, occupancy) & !white_occupancy;
+        scores += params::VIRTUAL_DIAG_MOBILITY[white_diag_targets.pop_count()];
+        scores += params::VIRTUAL_DIAG_MOBILITY[white_antidiag_targets.pop_count()];
+        scores += params::VIRTUAL_FILE_MOBILITY[white_file_targets.pop_count()];
+        scores += params::VIRTUAL_RANK_MOBILITY[white_rank_targets.pop_count()];
         #[cfg(feature = "trace")]
-        (*self.coeffs.virtual_mobility[white_virtual_targets.pop_count()] += 1);
+        {
+            *self.coeffs.virtual_diag_mobility[white_diag_targets.pop_count()] += 1;
+            *self.coeffs.virtual_diag_mobility[white_antidiag_targets.pop_count()] += 1;
+            *self.coeffs.virtual_file_mobility[white_file_targets.pop_count()] += 1;
+            *self.coeffs.virtual_rank_mobility[white_rank_targets.pop_count()] += 1;
+        }
 
-        let black_virtual_targets =
-            Queen::targets(eval_data.kings[Side::Black as usize], occupancy) & !black_occupancy;
-        scores -= params::VIRTUAL_MOBILITY[black_virtual_targets.pop_count()];
+        let black_king = eval_data.kings[Side::Black as usize];
+        let black_diag_targets = Ray::diagonal_targets(black_king, occupancy) & !black_occupancy;
+        let black_antidiag_targets =
+            Ray::anti_diagonal_targets(black_king, occupancy) & !black_occupancy;
+        let black_file_targets = Ray::file_targets(black_king, occupancy) & !black_occupancy;
+        let black_rank_targets = Ray::rank_targets(black_king, occupancy) & !black_occupancy;
+        scores -= params::VIRTUAL_DIAG_MOBILITY[black_diag_targets.pop_count()];
+        scores -= params::VIRTUAL_DIAG_MOBILITY[black_antidiag_targets.pop_count()];
+        scores -= params::VIRTUAL_FILE_MOBILITY[black_file_targets.pop_count()];
+        scores -= params::VIRTUAL_RANK_MOBILITY[black_rank_targets.pop_count()];
         #[cfg(feature = "trace")]
-        (*self.coeffs.virtual_mobility[black_virtual_targets.pop_count()] -= 1);
+        {
+            *self.coeffs.virtual_diag_mobility[black_diag_targets.pop_count()] -= 1;
+            *self.coeffs.virtual_diag_mobility[black_antidiag_targets.pop_count()] -= 1;
+            *self.coeffs.virtual_file_mobility[black_file_targets.pop_count()] -= 1;
+            *self.coeffs.virtual_rank_mobility[black_rank_targets.pop_count()] -= 1;
+        }
 
         scores
     }

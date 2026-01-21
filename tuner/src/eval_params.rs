@@ -2,7 +2,8 @@ use std::fmt::Display;
 
 use eval::{
     params::{
-        BISHOP_MOB_LEN, DISTANCE_LEN, KNIGHT_MOB_LEN, QUEEN_MOB_LEN, ROOK_MOB_LEN, VIRTUAL_MOB_LEN,
+        BISHOP_MOB_LEN, DISTANCE_LEN, KNIGHT_MOB_LEN, QUEEN_MOB_LEN, ROOK_MOB_LEN,
+        VIRTUAL_DIAG_MOB_LEN, VIRTUAL_LINE_MOB_LEN,
     },
     score_pair::ScorePair,
     Score,
@@ -27,7 +28,9 @@ pub struct EvalParams {
     bishop_mobility: [ScorePair; BISHOP_MOB_LEN],
     rook_mobility: [ScorePair; ROOK_MOB_LEN],
     queen_mobility: [ScorePair; QUEEN_MOB_LEN],
-    virtual_mobility: [ScorePair; VIRTUAL_MOB_LEN],
+    virtual_diag_mobility: [ScorePair; VIRTUAL_DIAG_MOB_LEN],
+    virtual_file_mobility: [ScorePair; VIRTUAL_LINE_MOB_LEN],
+    virtual_rank_mobility: [ScorePair; VIRTUAL_LINE_MOB_LEN],
     bishop_pair: ScorePair,
     distance_friendly_pawn: [ScorePair; DISTANCE_LEN],
     distance_enemy_pawn: [ScorePair; DISTANCE_LEN],
@@ -61,7 +64,9 @@ impl Default for EvalParams {
             bishop_mobility: [ScorePair(0, 0); BISHOP_MOB_LEN],
             rook_mobility: [ScorePair(0, 0); ROOK_MOB_LEN],
             queen_mobility: [ScorePair(0, 0); QUEEN_MOB_LEN],
-            virtual_mobility: [ScorePair(0, 0); VIRTUAL_MOB_LEN],
+            virtual_diag_mobility: [ScorePair(0, 0); VIRTUAL_DIAG_MOB_LEN],
+            virtual_file_mobility: [ScorePair(0, 0); VIRTUAL_LINE_MOB_LEN],
+            virtual_rank_mobility: [ScorePair(0, 0); VIRTUAL_LINE_MOB_LEN],
             bishop_pair: ScorePair(0, 0),
             distance_friendly_pawn: [ScorePair(0, 0); DISTANCE_LEN],
             distance_enemy_pawn: [ScorePair(0, 0); DISTANCE_LEN],
@@ -98,7 +103,9 @@ impl From<&WeightVector> for EvalParams {
         Self::next_params(&mut eval_params.bishop_mobility, &mut weight_iter);
         Self::next_params(&mut eval_params.rook_mobility, &mut weight_iter);
         Self::next_params(&mut eval_params.queen_mobility, &mut weight_iter);
-        Self::next_params(&mut eval_params.virtual_mobility, &mut weight_iter);
+        Self::next_params(&mut eval_params.virtual_diag_mobility, &mut weight_iter);
+        Self::next_params(&mut eval_params.virtual_file_mobility, &mut weight_iter);
+        Self::next_params(&mut eval_params.virtual_rank_mobility, &mut weight_iter);
         Self::next_param(&mut eval_params.bishop_pair, &mut weight_iter);
         Self::next_params(&mut eval_params.distance_friendly_pawn, &mut weight_iter);
         Self::next_params(&mut eval_params.distance_enemy_pawn, &mut weight_iter);
@@ -196,9 +203,19 @@ impl EvalParams {
                 &self.queen_mobility[..],
             ),
             (
-                "VIRTUAL_MOBILITY_MG_EG",
-                "VIRTUAL_MOB_LEN",
-                &self.virtual_mobility[..],
+                "VIRTUAL_DIAG_MOBILITY_MG_EG",
+                "VIRTUAL_DIAG_MOB_LEN",
+                &self.virtual_diag_mobility[..],
+            ),
+            (
+                "VIRTUAL_FILE_MOBILITY_MG_EG",
+                "VIRTUAL_LINE_MOB_LEN",
+                &self.virtual_file_mobility[..],
+            ),
+            (
+                "VIRTUAL_RANK_MOBILITY_MG_EG",
+                "VIRTUAL_LINE_MOB_LEN",
+                &self.virtual_rank_mobility[..],
             ),
         ] {
             self.fmt_weights(f, const_name, len_name, mob)?;

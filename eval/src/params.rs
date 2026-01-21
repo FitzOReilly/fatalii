@@ -8,7 +8,9 @@ pub const KNIGHT_MOB_LEN: usize = 9;
 pub const BISHOP_MOB_LEN: usize = 14;
 pub const ROOK_MOB_LEN: usize = 15;
 pub const QUEEN_MOB_LEN: usize = 28;
-pub const VIRTUAL_MOB_LEN: usize = QUEEN_MOB_LEN;
+pub const VIRTUAL_DIAG_MOB_LEN: usize = 8;
+pub const VIRTUAL_LINE_MOB_LEN: usize = 8;
+pub const VIRTUAL_MOB_LEN: usize = 2 * (VIRTUAL_DIAG_MOB_LEN + VIRTUAL_LINE_MOB_LEN);
 pub const MOB_LEN: usize =
     KNIGHT_MOB_LEN + BISHOP_MOB_LEN + ROOK_MOB_LEN + QUEEN_MOB_LEN + VIRTUAL_MOB_LEN;
 
@@ -77,14 +79,12 @@ const MOBILITY_QUEEN_MG_EG: ([Score; QUEEN_MOB_LEN], [Score; QUEEN_MOB_LEN]) = (
     ],
 );
 
-const VIRTUAL_MOBILITY_MG_EG: ([Score; VIRTUAL_MOB_LEN], [Score; VIRTUAL_MOB_LEN]) = (
-    [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ],
-    [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ],
-);
+const VIRTUAL_DIAG_MOBILITY_MG_EG: ([Score; VIRTUAL_DIAG_MOB_LEN], [Score; VIRTUAL_DIAG_MOB_LEN]) =
+    ([0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]);
+const VIRTUAL_FILE_MOBILITY_MG_EG: ([Score; VIRTUAL_LINE_MOB_LEN], [Score; VIRTUAL_LINE_MOB_LEN]) =
+    ([0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]);
+const VIRTUAL_RANK_MOBILITY_MG_EG: ([Score; VIRTUAL_LINE_MOB_LEN], [Score; VIRTUAL_LINE_MOB_LEN]) =
+    ([0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]);
 
 const DISTANCE_FRIENDLY_PAWN_MG_EG: ([Score; DISTANCE_LEN], [Score; DISTANCE_LEN]) =
     ([0, 60, 39, 21, 17, -9, 3, 5], [0, 4, 12, 10, 5, 16, 15, 13]);
@@ -348,12 +348,36 @@ pub const MOBILITY_QUEEN: [ScorePair; QUEEN_MOB_LEN] = {
     table
 };
 
-pub const VIRTUAL_MOBILITY: [ScorePair; VIRTUAL_MOB_LEN] = {
-    let mg = VIRTUAL_MOBILITY_MG_EG.0;
-    let eg = VIRTUAL_MOBILITY_MG_EG.1;
-    let mut table = [ScorePair(0, 0); VIRTUAL_MOB_LEN];
+pub const VIRTUAL_DIAG_MOBILITY: [ScorePair; VIRTUAL_DIAG_MOB_LEN] = {
+    let mg = VIRTUAL_DIAG_MOBILITY_MG_EG.0;
+    let eg = VIRTUAL_DIAG_MOBILITY_MG_EG.1;
+    let mut table = [ScorePair(0, 0); VIRTUAL_DIAG_MOB_LEN];
     let mut idx = 0;
-    while idx < VIRTUAL_MOB_LEN {
+    while idx < VIRTUAL_DIAG_MOB_LEN {
+        table[idx] = ScorePair(mg[idx], eg[idx]);
+        idx += 1;
+    }
+    table
+};
+
+pub const VIRTUAL_FILE_MOBILITY: [ScorePair; VIRTUAL_LINE_MOB_LEN] = {
+    let mg = VIRTUAL_FILE_MOBILITY_MG_EG.0;
+    let eg = VIRTUAL_FILE_MOBILITY_MG_EG.1;
+    let mut table = [ScorePair(0, 0); VIRTUAL_LINE_MOB_LEN];
+    let mut idx = 0;
+    while idx < VIRTUAL_LINE_MOB_LEN {
+        table[idx] = ScorePair(mg[idx], eg[idx]);
+        idx += 1;
+    }
+    table
+};
+
+pub const VIRTUAL_RANK_MOBILITY: [ScorePair; VIRTUAL_LINE_MOB_LEN] = {
+    let mg = VIRTUAL_RANK_MOBILITY_MG_EG.0;
+    let eg = VIRTUAL_RANK_MOBILITY_MG_EG.1;
+    let mut table = [ScorePair(0, 0); VIRTUAL_LINE_MOB_LEN];
+    let mut idx = 0;
+    while idx < VIRTUAL_LINE_MOB_LEN {
         table[idx] = ScorePair(mg[idx], eg[idx]);
         idx += 1;
     }
