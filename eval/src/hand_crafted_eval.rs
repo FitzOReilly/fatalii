@@ -71,7 +71,7 @@ impl Eval for HandCraftedEval {
             + self.isolated_and_doubled_pawn_scores[Side::White as usize]
             - self.isolated_and_doubled_pawn_scores[Side::Black as usize]
             + self.backward_pawn_scores
-            + self.mobility_scores(pos)
+            + self.mobility_scores(&eval_data, pos)
             + self.bishop_pair_scores(pos)
             + self.king_tropism;
 
@@ -518,13 +518,14 @@ impl HandCraftedEval {
         backward_pawns.pop_count() as i8
     }
 
-    fn mobility_scores(&mut self, pos: &Position) -> ScorePair {
+    fn mobility_scores(&mut self, eval_data: &EvalData, pos: &Position) -> ScorePair {
         #[cfg(feature = "trace")]
         {
             self.coeffs.knight_mobility.fill(Coeff(0));
             self.coeffs.bishop_mobility.fill(Coeff(0));
             self.coeffs.rook_mobility.fill(Coeff(0));
             self.coeffs.queen_mobility.fill(Coeff(0));
+            self.coeffs.virtual_mobility.fill(Coeff(0));
         }
 
         let mut scores = ScorePair(0, 0);
@@ -577,6 +578,18 @@ impl HandCraftedEval {
                 (*self.coeffs.queen_mobility[targets.pop_count()] += score_factor as i8);
             }
         }
+
+        let white_virtual_targets =
+            Queen::targets(eval_data.kings[Side::White as usize], occupancy) & !white_occupancy;
+        scores += params::VIRTUAL_MOBILITY[white_virtual_targets.pop_count()];
+        #[cfg(feature = "trace")]
+        (*self.coeffs.virtual_mobility[white_virtual_targets.pop_count()] += 1);
+
+        let black_virtual_targets =
+            Queen::targets(eval_data.kings[Side::Black as usize], occupancy) & !black_occupancy;
+        scores -= params::VIRTUAL_MOBILITY[black_virtual_targets.pop_count()];
+        #[cfg(feature = "trace")]
+        (*self.coeffs.virtual_mobility[black_virtual_targets.pop_count()] -= 1);
 
         scores
     }

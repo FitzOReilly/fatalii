@@ -8,7 +8,9 @@ pub const KNIGHT_MOB_LEN: usize = 9;
 pub const BISHOP_MOB_LEN: usize = 14;
 pub const ROOK_MOB_LEN: usize = 15;
 pub const QUEEN_MOB_LEN: usize = 28;
-pub const MOB_LEN: usize = KNIGHT_MOB_LEN + BISHOP_MOB_LEN + ROOK_MOB_LEN + QUEEN_MOB_LEN;
+pub const VIRTUAL_MOB_LEN: usize = QUEEN_MOB_LEN;
+pub const MOB_LEN: usize =
+    KNIGHT_MOB_LEN + BISHOP_MOB_LEN + ROOK_MOB_LEN + QUEEN_MOB_LEN + VIRTUAL_MOB_LEN;
 
 pub const DISTANCE_LEN: usize = 8;
 
@@ -72,6 +74,15 @@ const MOBILITY_QUEEN_MG_EG: ([Score; QUEEN_MOB_LEN], [Score; QUEEN_MOB_LEN]) = (
     [
         -2, -1, -6, 0, -15, -15, -19, -17, 10, 30, 14, 53, 51, 49, 36, 41, 36, 67, 53, 72, 67, 63,
         58, 49, 22, 51, 6, 19,
+    ],
+);
+
+const VIRTUAL_MOBILITY_MG_EG: ([Score; VIRTUAL_MOB_LEN], [Score; VIRTUAL_MOB_LEN]) = (
+    [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ],
+    [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     ],
 );
 
@@ -289,48 +300,60 @@ const fn convert_distance(
     scores
 }
 
-pub const MOBILITY_KNIGHT: [ScorePair; 9] = {
+pub const MOBILITY_KNIGHT: [ScorePair; KNIGHT_MOB_LEN] = {
     let mg = MOBILITY_KNIGHT_MG_EG.0;
     let eg = MOBILITY_KNIGHT_MG_EG.1;
-    let mut table = [ScorePair(0, 0); 9];
+    let mut table = [ScorePair(0, 0); KNIGHT_MOB_LEN];
     let mut idx = 0;
-    while idx < 9 {
+    while idx < KNIGHT_MOB_LEN {
         table[idx] = ScorePair(mg[idx], eg[idx]);
         idx += 1;
     }
     table
 };
 
-pub const MOBILITY_BISHOP: [ScorePair; 14] = {
+pub const MOBILITY_BISHOP: [ScorePair; BISHOP_MOB_LEN] = {
     let mg = MOBILITY_BISHOP_MG_EG.0;
     let eg = MOBILITY_BISHOP_MG_EG.1;
-    let mut table = [ScorePair(0, 0); 14];
+    let mut table = [ScorePair(0, 0); BISHOP_MOB_LEN];
     let mut idx = 0;
-    while idx < 14 {
+    while idx < BISHOP_MOB_LEN {
         table[idx] = ScorePair(mg[idx], eg[idx]);
         idx += 1;
     }
     table
 };
 
-pub const MOBILITY_ROOK: [ScorePair; 15] = {
+pub const MOBILITY_ROOK: [ScorePair; ROOK_MOB_LEN] = {
     let mg = MOBILITY_ROOK_MG_EG.0;
     let eg = MOBILITY_ROOK_MG_EG.1;
-    let mut table = [ScorePair(0, 0); 15];
+    let mut table = [ScorePair(0, 0); ROOK_MOB_LEN];
     let mut idx = 0;
-    while idx < 15 {
+    while idx < ROOK_MOB_LEN {
         table[idx] = ScorePair(mg[idx], eg[idx]);
         idx += 1;
     }
     table
 };
 
-pub const MOBILITY_QUEEN: [ScorePair; 28] = {
+pub const MOBILITY_QUEEN: [ScorePair; QUEEN_MOB_LEN] = {
     let mg = MOBILITY_QUEEN_MG_EG.0;
     let eg = MOBILITY_QUEEN_MG_EG.1;
-    let mut table = [ScorePair(0, 0); 28];
+    let mut table = [ScorePair(0, 0); QUEEN_MOB_LEN];
     let mut idx = 0;
-    while idx < 28 {
+    while idx < QUEEN_MOB_LEN {
+        table[idx] = ScorePair(mg[idx], eg[idx]);
+        idx += 1;
+    }
+    table
+};
+
+pub const VIRTUAL_MOBILITY: [ScorePair; VIRTUAL_MOB_LEN] = {
+    let mg = VIRTUAL_MOBILITY_MG_EG.0;
+    let eg = VIRTUAL_MOBILITY_MG_EG.1;
+    let mut table = [ScorePair(0, 0); VIRTUAL_MOB_LEN];
+    let mut idx = 0;
+    while idx < VIRTUAL_MOB_LEN {
         table[idx] = ScorePair(mg[idx], eg[idx]);
         idx += 1;
     }

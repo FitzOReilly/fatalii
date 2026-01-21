@@ -58,6 +58,7 @@ pub struct HandCraftedEvalCoeffs {
     pub bishop_mobility: [Coeff; params::BISHOP_MOB_LEN],
     pub rook_mobility: [Coeff; params::ROOK_MOB_LEN],
     pub queen_mobility: [Coeff; params::QUEEN_MOB_LEN],
+    pub virtual_mobility: [Coeff; params::VIRTUAL_MOB_LEN],
     pub bishop_pair: Coeff,
     pub distance_friendly_pawn: [Coeff; params::DISTANCE_LEN],
     pub distance_enemy_pawn: [Coeff; params::DISTANCE_LEN],
@@ -179,6 +180,7 @@ impl HandCraftedEvalCoeffs {
             .chain(self.bishop_mobility.iter())
             .chain(self.rook_mobility.iter())
             .chain(self.queen_mobility.iter())
+            .chain(self.virtual_mobility.iter())
             .chain(iter::once(&self.bishop_pair))
             .chain(self.distance_friendly_pawn.iter())
             .chain(self.distance_enemy_pawn.iter())
