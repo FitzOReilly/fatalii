@@ -125,6 +125,7 @@ pub fn engine_weights() -> WeightVector {
         .chain(params::MOBILITY_BISHOP.iter())
         .chain(params::MOBILITY_ROOK.iter())
         .chain(params::MOBILITY_QUEEN.iter())
+        .chain(params::VIRTUAL_MOBILITY.iter())
         .chain(iter::once(&params::BISHOP_PAIR))
         .chain(params::DISTANCE_FRIENDLY_PAWN.iter())
         .chain(params::DISTANCE_ENEMY_PAWN.iter())
