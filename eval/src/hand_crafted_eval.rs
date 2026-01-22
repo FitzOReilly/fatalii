@@ -71,7 +71,7 @@ impl Eval for HandCraftedEval {
             + self.isolated_and_doubled_pawn_scores[Side::White as usize]
             - self.isolated_and_doubled_pawn_scores[Side::Black as usize]
             + self.backward_pawn_scores
-            + self.mobility_scores(pos)
+            + self.mobility_scores(&eval_data, pos)
             + self.bishop_pair_scores(pos)
             + self.king_tropism;
 
@@ -518,7 +518,7 @@ impl HandCraftedEval {
         backward_pawns.pop_count() as i8
     }
 
-    fn mobility_scores(&mut self, pos: &Position) -> ScorePair {
+    fn mobility_scores(&mut self, eval_data: &EvalData, pos: &Position) -> ScorePair {
         #[cfg(feature = "trace")]
         {
             self.coeffs.knight_mobility.fill(Coeff(0));
@@ -533,45 +533,64 @@ impl HandCraftedEval {
         let white_occupancy = pos.side_occupancy(Side::White);
         let black_occupancy = pos.side_occupancy(Side::Black);
 
+        let white_pawns = eval_data.pawns[Side::White as usize];
+        let white_pawn_attacks = Pawn::attack_targets(white_pawns, Side::White);
+        let black_pawns = eval_data.pawns[Side::Black as usize];
+        let black_pawn_attacks = Pawn::attack_targets(black_pawns, Side::Black);
+        let white_target_mask = !black_pawn_attacks;
+        let black_target_mask = !white_pawn_attacks;
+
         let all_knights = pos.piece_type_occupancy(piece::Type::Knight);
-        for (own_occupancy, score_factor) in [(white_occupancy, 1), (black_occupancy, -1)] {
+        for (own_occupancy, target_mask, score_factor) in [
+            (white_occupancy, white_target_mask, 1),
+            (black_occupancy, black_target_mask, -1),
+        ] {
             let mut own_knights = all_knights & own_occupancy;
             while own_knights != Bitboard::EMPTY {
                 let origin = own_knights.square_scan_forward_reset();
-                let targets = Knight::targets(origin) & !own_occupancy;
+                let targets = Knight::targets(origin) & !own_occupancy & target_mask;
                 scores += score_factor * params::MOBILITY_KNIGHT[targets.pop_count()];
                 #[cfg(feature = "trace")]
                 (*self.coeffs.knight_mobility[targets.pop_count()] += score_factor as i8);
             }
         }
         let all_bishops = pos.piece_type_occupancy(piece::Type::Bishop);
-        for (own_occupancy, score_factor) in [(white_occupancy, 1), (black_occupancy, -1)] {
+        for (own_occupancy, target_mask, score_factor) in [
+            (white_occupancy, white_target_mask, 1),
+            (black_occupancy, black_target_mask, -1),
+        ] {
             let mut own_bishops = all_bishops & own_occupancy;
             while own_bishops != Bitboard::EMPTY {
                 let origin = own_bishops.square_scan_forward_reset();
-                let targets = Bishop::targets(origin, occupancy) & !own_occupancy;
+                let targets = Bishop::targets(origin, occupancy) & !own_occupancy & target_mask;
                 scores += score_factor * params::MOBILITY_BISHOP[targets.pop_count()];
                 #[cfg(feature = "trace")]
                 (*self.coeffs.bishop_mobility[targets.pop_count()] += score_factor as i8);
             }
         }
         let all_rooks = pos.piece_type_occupancy(piece::Type::Rook);
-        for (own_occupancy, score_factor) in [(white_occupancy, 1), (black_occupancy, -1)] {
+        for (own_occupancy, target_mask, score_factor) in [
+            (white_occupancy, white_target_mask, 1),
+            (black_occupancy, black_target_mask, -1),
+        ] {
             let mut own_rooks = all_rooks & own_occupancy;
             while own_rooks != Bitboard::EMPTY {
                 let origin = own_rooks.square_scan_forward_reset();
-                let targets = Rook::targets(origin, occupancy) & !own_occupancy;
+                let targets = Rook::targets(origin, occupancy) & !own_occupancy & target_mask;
                 scores += score_factor * params::MOBILITY_ROOK[targets.pop_count()];
                 #[cfg(feature = "trace")]
                 (*self.coeffs.rook_mobility[targets.pop_count()] += score_factor as i8);
             }
         }
         let all_queens = pos.piece_type_occupancy(piece::Type::Queen);
-        for (own_occupancy, score_factor) in [(white_occupancy, 1), (black_occupancy, -1)] {
+        for (own_occupancy, target_mask, score_factor) in [
+            (white_occupancy, white_target_mask, 1),
+            (black_occupancy, black_target_mask, -1),
+        ] {
             let mut own_queens = all_queens & own_occupancy;
             while own_queens != Bitboard::EMPTY {
                 let origin = own_queens.square_scan_forward_reset();
-                let targets = Queen::targets(origin, occupancy) & !own_occupancy;
+                let targets = Queen::targets(origin, occupancy) & !own_occupancy & target_mask;
                 scores += score_factor * params::MOBILITY_QUEEN[targets.pop_count()];
                 #[cfg(feature = "trace")]
                 (*self.coeffs.queen_mobility[targets.pop_count()] += score_factor as i8);
