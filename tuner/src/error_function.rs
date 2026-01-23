@@ -1,5 +1,5 @@
 use crate::{
-    eval_coeffs::CoeffVector,
+    eval_coeffs::EvalCoeffs,
     feature_evaluator::{EvalType, WeightVector},
 };
 
@@ -38,7 +38,7 @@ impl ErrorFunction {
         }
     }
 
-    pub fn add_datapoint(&mut self, outcome: EvalType, eval: EvalType, grad_coeffs: &CoeffVector) {
+    pub fn add_datapoint(&mut self, outcome: EvalType, eval: EvalType, grad_coeffs: &EvalCoeffs) {
         let sigmoid = self.sigmoid(eval);
         let squared_error = (outcome - sigmoid).powi(2);
         self.sum_of_squared_errors_epoch += squared_error;
@@ -47,8 +47,9 @@ impl ErrorFunction {
         self.datapoint_count_batch += 1;
         let grad_sigmoid = self.k * sigmoid * (1.0 - sigmoid);
         let outer_grad = (outcome - sigmoid) * grad_sigmoid;
-        for (_row, col, coeff) in grad_coeffs.triplet_iter() {
-            self.grad[(col, 0)] += outer_grad * coeff;
+        for (_row, col, coeff) in grad_coeffs.coeff_vec.triplet_iter() {
+            self.grad[(2 * col, 0)] += outer_grad * grad_coeffs.mg_factor * *coeff as EvalType;
+            self.grad[(2 * col + 1, 0)] += outer_grad * grad_coeffs.eg_factor * *coeff as EvalType;
         }
     }
 

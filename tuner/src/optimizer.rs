@@ -87,7 +87,7 @@ pub fn adam(
         for batch in iter_batch.by_ref() {
             t += 1;
             for pos in batch {
-                error_fn.add_datapoint(pos.outcome.into(), evaluator.eval(&pos.coeffs), &pos.grad);
+                error_fn.add_datapoint(pos.outcome.into(), evaluator.eval(&pos.coeffs), pos.grad());
             }
             let grad = error_fn.grad();
             let grad_squared = grad.dot(&grad);
@@ -111,7 +111,7 @@ pub fn adam(
         error_fn.clear();
         for batch in iter_batch {
             for pos in batch {
-                error_fn.add_datapoint(pos.outcome.into(), evaluator.eval(&pos.coeffs), &pos.grad);
+                error_fn.add_datapoint(pos.outcome.into(), evaluator.eval(&pos.coeffs), pos.grad());
             }
         }
         let validation_pos_count = error_fn.datapoint_count_epoch();

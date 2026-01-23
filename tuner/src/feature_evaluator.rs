@@ -5,23 +5,26 @@ use nalgebra::SVector;
 
 use crate::eval_coeffs::EvalCoeffs;
 
+// Middlegame and endgame weights for each feature
+const NUM_WEIGHTS: usize = 2 * NUM_FEATURES;
+
 pub type Weight = f64;
-pub type WeightVector = SVector<Weight, NUM_FEATURES>;
+pub type WeightVector = SVector<Weight, NUM_WEIGHTS>;
 
 pub type EvalType = f64;
 
 pub const PST_SIZE: usize = 32;
 const NUM_SIDES: usize = 2;
 const NUM_PIECE_TYPES: usize = 6;
-const NUM_PST_FEATURES: usize = 2 * NUM_PIECE_TYPES * PST_SIZE;
-const NUM_TEMPO_FEATURES: usize = 2;
-const NUM_PASSED_PAWN_FEATURES: usize = 2 * PST_SIZE;
-const NUM_ISOLATED_PAWN_FEATURES: usize = 2;
-const NUM_BACKWARD_PAWN_FEATURES: usize = 2;
-const NUM_DOUBLED_PAWN_FEATURES: usize = 2;
-const NUM_MOBILITY_FEATURES: usize = 2 * MOB_LEN;
-const NUM_BISHOP_PAIR_FEATURES: usize = 2;
-const NUM_KING_TROPISM_FEATURES: usize = 2 * NUM_SIDES * NUM_PIECE_TYPES * DISTANCE_LEN;
+const NUM_PST_FEATURES: usize = NUM_PIECE_TYPES * PST_SIZE;
+const NUM_TEMPO_FEATURES: usize = 1;
+const NUM_PASSED_PAWN_FEATURES: usize = PST_SIZE;
+const NUM_ISOLATED_PAWN_FEATURES: usize = 1;
+const NUM_BACKWARD_PAWN_FEATURES: usize = 1;
+const NUM_DOUBLED_PAWN_FEATURES: usize = 1;
+const NUM_MOBILITY_FEATURES: usize = MOB_LEN;
+const NUM_BISHOP_PAIR_FEATURES: usize = 1;
+const NUM_KING_TROPISM_FEATURES: usize = NUM_SIDES * NUM_PIECE_TYPES * DISTANCE_LEN;
 pub const NUM_FEATURES: usize = NUM_PST_FEATURES
     + NUM_TEMPO_FEATURES
     + NUM_PASSED_PAWN_FEATURES
@@ -65,7 +68,16 @@ impl FeatureEvaluator {
     }
 
     pub fn eval(&self, coeffs: &EvalCoeffs) -> EvalType {
-        (&coeffs.coeff_vec * self.weights)[0]
+        coeffs
+            .coeff_vec
+            .col_indices()
+            .iter()
+            .zip(coeffs.coeff_vec.values())
+            .map(|(idx, val)| {
+                coeffs.mg_factor * *val as f64 * self.weights.index(2 * idx)
+                    + coeffs.eg_factor * *val as f64 * self.weights.index(2 * idx + 1)
+            })
+            .sum()
     }
 }
 
