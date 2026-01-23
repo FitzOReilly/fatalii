@@ -3,23 +3,27 @@ use nalgebra_sparse::{CooMatrix, CsrMatrix};
 
 use crate::feature_evaluator::{EvalType, NUM_FEATURES};
 
-pub type CoeffType = f64;
+pub type CoeffType = i8;
 pub type CoeffVector = CsrMatrix<CoeffType>;
 
 #[derive(Debug, Clone)]
 pub struct EvalCoeffs {
+    pub mg_factor: EvalType,
+    pub eg_factor: EvalType,
     pub coeff_vec: CoeffVector,
 }
 
 impl EvalCoeffs {
-    pub fn new(coeffs: CooMatrix<CoeffType>) -> Self {
+    pub fn new(mg_factor: EvalType, eg_factor: EvalType, coeffs: CooMatrix<CoeffType>) -> Self {
         Self {
+            mg_factor,
+            eg_factor,
             coeff_vec: CoeffVector::from(&coeffs),
         }
     }
 
-    pub fn grad(&self) -> CoeffVector {
-        self.coeff_vec.clone()
+    pub fn grad(&self) -> &EvalCoeffs {
+        self
     }
 }
 
@@ -33,11 +37,8 @@ impl From<&HandCraftedEvalCoeffs> for EvalCoeffs {
             .enumerate()
             .filter(|&(_, &coeff)| *coeff != 0)
         {
-            // Middlegame
-            coeff_coo.push(0, 2 * idx, mg_factor * *coeff as EvalType);
-            // Endgame
-            coeff_coo.push(0, 2 * idx + 1, eg_factor * *coeff as EvalType);
+            coeff_coo.push(0, idx, *coeff);
         }
-        Self::new(coeff_coo)
+        Self::new(mg_factor, eg_factor, coeff_coo)
     }
 }
