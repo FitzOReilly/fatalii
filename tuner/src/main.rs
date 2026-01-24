@@ -6,7 +6,6 @@ use std::{
 use clap::{Args, Parser, Subcommand};
 use eval::HandCraftedEval;
 use tuner::{
-    error_function::ErrorFunction,
     eval_params::EvalParams,
     feature_evaluator::{default_weights, engine_weights, FeatureEvaluator, WeightVector},
     file_reader,
@@ -106,9 +105,6 @@ fn optimize(
         ..initial_checkpoint.params
     };
 
-    let k = 1.0;
-    let mut error_fn = ErrorFunction::new(k);
-
     let mut pos_evaluator = HandCraftedEval::new();
     let feature_evaluator = FeatureEvaluator::new();
 
@@ -118,7 +114,6 @@ fn optimize(
     optimizer::adam(
         weight_file_prefix,
         &mut weights,
-        &mut error_fn,
         &mut training_coeffs,
         adam_params,
         num_epochs as i32,

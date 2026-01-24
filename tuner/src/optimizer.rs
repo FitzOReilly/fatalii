@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     error_function::ErrorFunction,
-    feature_evaluator::{FeatureEvaluator, WeightVector},
+    feature_evaluator::{EvalType, FeatureEvaluator, WeightVector},
     training::TrainingCoeffs,
 };
 
@@ -62,12 +62,20 @@ impl Default for Checkpoint {
 pub fn adam(
     weight_file_prefix: &str,
     weights: &mut WeightVector,
-    error_fn: &mut ErrorFunction,
     training_coeffs: &mut [TrainingCoeffs],
     params: AdamParams,
     num_epochs: i32,
 ) -> std::io::Result<()> {
     let mut evaluator = FeatureEvaluator::from(&*weights);
+    let k = optimize_k(
+        &training_coeffs
+            .iter()
+            .map(|tc| tc.outcome.into())
+            .zip(training_coeffs.iter().map(|tc| evaluator.eval(&tc.coeffs)))
+            .collect::<Vec<(_, _)>>(),
+    );
+    println!("Optimized k = {k}");
+    let mut error_fn = ErrorFunction::new(k);
 
     let mut m = params.m;
     let mut v = params.v;
@@ -144,4 +152,26 @@ pub fn adam(
         error_fn.clear();
     }
     Ok(())
+}
+
+pub fn optimize_k(outcomes_with_evals: &[(EvalType, EvalType)]) -> EvalType {
+    const K_PRECISION: usize = 10;
+    let mut start = 0.0;
+    let mut end = 20.0;
+    let step_count = 20;
+    let mut min_err = 1.0;
+    let mut best_k = 0.0;
+    for _ in 0..K_PRECISION {
+        let step_size = (end - start) / step_count as f64;
+        for k in (0..=step_count).map(|step| start + step_size * step as f64) {
+            let error = ErrorFunction::mean_squared_error(outcomes_with_evals, k);
+            if error < min_err {
+                min_err = error;
+                best_k = k;
+            }
+        }
+        start = best_k - step_size;
+        end = best_k + step_size;
+    }
+    best_k
 }

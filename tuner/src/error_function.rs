@@ -73,8 +73,23 @@ impl ErrorFunction {
         -2.0 * self.grad / self.datapoint_count_batch as EvalType
     }
 
-    fn sigmoid(&self, e: EvalType) -> EvalType {
-        1.0 / (1.0 + (-self.k * e).exp())
+    fn sigmoid(&self, eval: EvalType) -> EvalType {
+        Self::sigmoid_with_k(eval, self.k)
+    }
+
+    fn sigmoid_with_k(eval: EvalType, k: EvalType) -> EvalType {
+        1.0 / (1.0 + (-k * eval).exp())
+    }
+
+    pub fn mean_squared_error(
+        outcomes_with_evals: &[(EvalType, EvalType)],
+        k: EvalType,
+    ) -> EvalType {
+        outcomes_with_evals
+            .iter()
+            .map(|(outcome, eval)| (outcome - Self::sigmoid_with_k(*eval, k)).powi(2))
+            .sum::<EvalType>()
+            / outcomes_with_evals.len() as EvalType
     }
 }
 
