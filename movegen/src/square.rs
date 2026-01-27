@@ -179,6 +179,11 @@ impl Square {
             .abs()
             .max((self.rank().idx() as i8 - other.rank().idx() as i8).abs()) as usize
     }
+
+    pub fn relative_to(self, other: Self) -> i8 {
+        (self.rank().idx() as i8 - other.rank().idx() as i8) * File::NUM_FILES as i8
+            + (self.file().idx() as i8 - other.file().idx() as i8).abs()
+    }
 }
 
 impl From<(File, Rank)> for Square {
@@ -370,6 +375,20 @@ mod tests {
         assert_eq!(7, Square::H8.distance(Square::H1));
         assert_eq!(7, Square::H8.distance(Square::A8));
         assert_eq!(7, Square::H8.distance(Square::A1));
+    }
+
+    #[test]
+    fn relative_to() {
+        assert_eq!(0, Square::A1.relative_to(Square::A1));
+        assert_eq!(-8, Square::A1.relative_to(Square::A2));
+        assert_eq!(1, Square::A1.relative_to(Square::B1));
+        assert_eq!(-7, Square::A1.relative_to(Square::B2));
+        assert_eq!(-56, Square::A1.relative_to(Square::A8));
+        assert_eq!(7, Square::A1.relative_to(Square::H1));
+        assert_eq!(-49, Square::A1.relative_to(Square::H8));
+        assert_eq!(56, Square::H8.relative_to(Square::H1));
+        assert_eq!(7, Square::H8.relative_to(Square::A8));
+        assert_eq!(63, Square::H8.relative_to(Square::A1));
     }
 
     #[test]

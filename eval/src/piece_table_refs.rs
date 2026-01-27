@@ -5,8 +5,8 @@ use crate::{params, score_pair::ScorePair};
 #[derive(Debug, Clone, Copy)]
 pub struct PieceTableRefs<'a> {
     pub pst: &'a [ScorePair],
-    pub friendly_distance: &'a [ScorePair],
-    pub enemy_distance: &'a [ScorePair],
+    pub square_relative_to_friendly_king: &'a [ScorePair],
+    pub square_relative_to_enemy_king: &'a [ScorePair],
 }
 
 pub const PIECE_TABLE_REFS: [PieceTableRefs; 6] = {
@@ -20,8 +20,8 @@ pub const PIECE_TABLE_REFS: [PieceTableRefs; 6] = {
     ];
     let mut piece_tables = [PieceTableRefs {
         pst: &[],
-        friendly_distance: &[],
-        enemy_distance: &[],
+        square_relative_to_friendly_king: &[],
+        square_relative_to_enemy_king: &[],
     }; 6];
     let mut i = 0;
     while i < piece_types.len() {
@@ -29,33 +29,33 @@ pub const PIECE_TABLE_REFS: [PieceTableRefs; 6] = {
         let tables = match pt {
             piece::Type::Pawn => PieceTableRefs {
                 pst: &params::PST_PAWN,
-                friendly_distance: &params::DISTANCE_FRIENDLY_PAWN,
-                enemy_distance: &params::DISTANCE_ENEMY_PAWN,
+                square_relative_to_friendly_king: &params::PAWN_SQUARE_RELATIVE_TO_FRIENDLY_KING,
+                square_relative_to_enemy_king: &params::PAWN_SQUARE_RELATIVE_TO_ENEMY_KING,
             },
             piece::Type::Knight => PieceTableRefs {
                 pst: &params::PST_KNIGHT,
-                friendly_distance: &params::DISTANCE_FRIENDLY_KNIGHT,
-                enemy_distance: &params::DISTANCE_ENEMY_KNIGHT,
+                square_relative_to_friendly_king: &params::KNIGHT_SQUARE_RELATIVE_TO_FRIENDLY_KING,
+                square_relative_to_enemy_king: &params::KNIGHT_SQUARE_RELATIVE_TO_ENEMY_KING,
             },
             piece::Type::Bishop => PieceTableRefs {
                 pst: &params::PST_BISHOP,
-                friendly_distance: &params::DISTANCE_FRIENDLY_BISHOP,
-                enemy_distance: &params::DISTANCE_ENEMY_BISHOP,
+                square_relative_to_friendly_king: &params::BISHOP_SQUARE_RELATIVE_TO_FRIENDLY_KING,
+                square_relative_to_enemy_king: &params::BISHOP_SQUARE_RELATIVE_TO_ENEMY_KING,
             },
             piece::Type::Rook => PieceTableRefs {
                 pst: &params::PST_ROOK,
-                friendly_distance: &params::DISTANCE_FRIENDLY_ROOK,
-                enemy_distance: &params::DISTANCE_ENEMY_ROOK,
+                square_relative_to_friendly_king: &params::ROOK_SQUARE_RELATIVE_TO_FRIENDLY_KING,
+                square_relative_to_enemy_king: &params::ROOK_SQUARE_RELATIVE_TO_ENEMY_KING,
             },
             piece::Type::Queen => PieceTableRefs {
                 pst: &params::PST_QUEEN,
-                friendly_distance: &params::DISTANCE_FRIENDLY_QUEEN,
-                enemy_distance: &params::DISTANCE_ENEMY_QUEEN,
+                square_relative_to_friendly_king: &params::QUEEN_SQUARE_RELATIVE_TO_FRIENDLY_KING,
+                square_relative_to_enemy_king: &params::QUEEN_SQUARE_RELATIVE_TO_ENEMY_KING,
             },
             piece::Type::King => PieceTableRefs {
                 pst: &params::PST_KING,
-                friendly_distance: &[],
-                enemy_distance: &[],
+                square_relative_to_friendly_king: &[],
+                square_relative_to_enemy_king: &[],
             },
         };
         piece_tables[pt.idx()] = tables;

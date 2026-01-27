@@ -4,7 +4,9 @@ use std::{
 };
 
 use movegen::{
+    file::File,
     piece::{self, Piece},
+    rank::Rank,
     side::Side,
     square::Square,
 };
@@ -40,7 +42,7 @@ impl From<Score> for Coeff {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HandCraftedEvalCoeffs {
     pub game_phase: usize,
     pub pst_pawn: [Coeff; 32],
@@ -59,18 +61,52 @@ pub struct HandCraftedEvalCoeffs {
     pub rook_mobility: [Coeff; params::ROOK_MOB_LEN],
     pub queen_mobility: [Coeff; params::QUEEN_MOB_LEN],
     pub bishop_pair: Coeff,
-    pub distance_friendly_pawn: [Coeff; params::DISTANCE_LEN],
-    pub distance_enemy_pawn: [Coeff; params::DISTANCE_LEN],
-    pub distance_friendly_knight: [Coeff; params::DISTANCE_LEN],
-    pub distance_enemy_knight: [Coeff; params::DISTANCE_LEN],
-    pub distance_friendly_bishop: [Coeff; params::DISTANCE_LEN],
-    pub distance_enemy_bishop: [Coeff; params::DISTANCE_LEN],
-    pub distance_friendly_rook: [Coeff; params::DISTANCE_LEN],
-    pub distance_enemy_rook: [Coeff; params::DISTANCE_LEN],
-    pub distance_friendly_queen: [Coeff; params::DISTANCE_LEN],
-    pub distance_enemy_queen: [Coeff; params::DISTANCE_LEN],
-    pub distance_friendly_king: [Coeff; params::DISTANCE_LEN],
-    pub distance_enemy_king: [Coeff; params::DISTANCE_LEN],
+    pub pawn_square_relative_to_friendly_king: [Coeff; params::SQUARE_RELATIVE_TO_KING_LEN],
+    pub pawn_square_relative_to_enemy_king: [Coeff; params::SQUARE_RELATIVE_TO_KING_LEN],
+    pub knight_square_relative_to_friendly_king: [Coeff; params::SQUARE_RELATIVE_TO_KING_LEN],
+    pub knight_square_relative_to_enemy_king: [Coeff; params::SQUARE_RELATIVE_TO_KING_LEN],
+    pub bishop_square_relative_to_friendly_king: [Coeff; params::SQUARE_RELATIVE_TO_KING_LEN],
+    pub bishop_square_relative_to_enemy_king: [Coeff; params::SQUARE_RELATIVE_TO_KING_LEN],
+    pub rook_square_relative_to_friendly_king: [Coeff; params::SQUARE_RELATIVE_TO_KING_LEN],
+    pub rook_square_relative_to_enemy_king: [Coeff; params::SQUARE_RELATIVE_TO_KING_LEN],
+    pub queen_square_relative_to_friendly_king: [Coeff; params::SQUARE_RELATIVE_TO_KING_LEN],
+    pub queen_square_relative_to_enemy_king: [Coeff; params::SQUARE_RELATIVE_TO_KING_LEN],
+}
+
+impl Default for HandCraftedEvalCoeffs {
+    fn default() -> Self {
+        Self {
+            game_phase: Default::default(),
+            pst_pawn: Default::default(),
+            pst_knight: Default::default(),
+            pst_bishop: Default::default(),
+            pst_rook: Default::default(),
+            pst_queen: Default::default(),
+            pst_king: Default::default(),
+            tempo: Default::default(),
+            passed_pawn: Default::default(),
+            isolated_pawn: Default::default(),
+            backward_pawn: Default::default(),
+            doubled_pawn: Default::default(),
+            knight_mobility: Default::default(),
+            bishop_mobility: Default::default(),
+            rook_mobility: Default::default(),
+            queen_mobility: Default::default(),
+            bishop_pair: Default::default(),
+            pawn_square_relative_to_friendly_king: [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN],
+            pawn_square_relative_to_enemy_king: [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN],
+            knight_square_relative_to_friendly_king: [Coeff(0);
+                params::SQUARE_RELATIVE_TO_KING_LEN],
+            knight_square_relative_to_enemy_king: [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN],
+            bishop_square_relative_to_friendly_king: [Coeff(0);
+                params::SQUARE_RELATIVE_TO_KING_LEN],
+            bishop_square_relative_to_enemy_king: [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN],
+            rook_square_relative_to_friendly_king: [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN],
+            rook_square_relative_to_enemy_king: [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN],
+            queen_square_relative_to_friendly_king: [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN],
+            queen_square_relative_to_enemy_king: [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN],
+        }
+    }
 }
 
 impl HandCraftedEvalCoeffs {
@@ -89,56 +125,73 @@ impl HandCraftedEvalCoeffs {
         }
     }
 
-    pub fn clear_distance(&mut self) {
-        self.distance_friendly_pawn = Default::default();
-        self.distance_enemy_pawn = Default::default();
-        self.distance_friendly_knight = Default::default();
-        self.distance_enemy_knight = Default::default();
-        self.distance_friendly_bishop = Default::default();
-        self.distance_enemy_bishop = Default::default();
-        self.distance_friendly_rook = Default::default();
-        self.distance_enemy_rook = Default::default();
-        self.distance_friendly_queen = Default::default();
-        self.distance_enemy_queen = Default::default();
-        self.distance_friendly_king = Default::default();
-        self.distance_enemy_king = Default::default();
+    pub fn clear_squares_relative_to_king(&mut self) {
+        self.pawn_square_relative_to_friendly_king =
+            [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN];
+        self.pawn_square_relative_to_enemy_king = [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN];
+        self.knight_square_relative_to_friendly_king =
+            [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN];
+        self.knight_square_relative_to_enemy_king = [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN];
+        self.bishop_square_relative_to_friendly_king =
+            [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN];
+        self.bishop_square_relative_to_enemy_king = [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN];
+        self.rook_square_relative_to_friendly_king =
+            [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN];
+        self.rook_square_relative_to_enemy_king = [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN];
+        self.queen_square_relative_to_friendly_king =
+            [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN];
+        self.queen_square_relative_to_enemy_king = [Coeff(0); params::SQUARE_RELATIVE_TO_KING_LEN];
     }
 
-    pub fn add_distance(&mut self, p: Piece, square: Square, kings: &[Square; 2], diff: i8) {
-        let (friendly_dist, enemy_dist) = match p.piece_type() {
+    pub fn add_squares_relative_to_king(
+        &mut self,
+        p: Piece,
+        square: Square,
+        kings: &[Square; 2],
+        diff: i8,
+    ) {
+        let (friendly_square_relative, enemy_square_relative) = match p.piece_type() {
             piece::Type::Pawn => (
-                &mut self.distance_friendly_pawn,
-                &mut self.distance_enemy_pawn,
+                &mut self.pawn_square_relative_to_friendly_king,
+                &mut self.pawn_square_relative_to_enemy_king,
             ),
             piece::Type::Knight => (
-                &mut self.distance_friendly_knight,
-                &mut self.distance_enemy_knight,
+                &mut self.knight_square_relative_to_friendly_king,
+                &mut self.knight_square_relative_to_enemy_king,
             ),
             piece::Type::Bishop => (
-                &mut self.distance_friendly_bishop,
-                &mut self.distance_enemy_bishop,
+                &mut self.bishop_square_relative_to_friendly_king,
+                &mut self.bishop_square_relative_to_enemy_king,
             ),
             piece::Type::Rook => (
-                &mut self.distance_friendly_rook,
-                &mut self.distance_enemy_rook,
+                &mut self.rook_square_relative_to_friendly_king,
+                &mut self.rook_square_relative_to_enemy_king,
             ),
             piece::Type::Queen => (
-                &mut self.distance_friendly_queen,
-                &mut self.distance_enemy_queen,
+                &mut self.queen_square_relative_to_friendly_king,
+                &mut self.queen_square_relative_to_enemy_king,
             ),
-            piece::Type::King => (
-                &mut self.distance_friendly_king,
-                &mut self.distance_enemy_king,
-            ),
+            piece::Type::King => unreachable!(),
         };
+        const OFFSET: i8 = ((Rank::NUM_RANKS - 1) * File::NUM_FILES) as i8;
         match p.piece_side() {
             Side::White => {
-                *friendly_dist[square.distance(kings[Side::White as usize])] += diff;
-                *enemy_dist[square.distance(kings[Side::Black as usize])] -= diff;
+                *friendly_square_relative
+                    [(OFFSET + square.relative_to(kings[Side::White as usize])) as usize] += diff;
+                *enemy_square_relative[(OFFSET
+                    + square
+                        .flip_vertical()
+                        .relative_to(kings[Side::Black as usize].flip_vertical()))
+                    as usize] -= diff;
             }
             Side::Black => {
-                *friendly_dist[square.distance(kings[Side::Black as usize])] -= diff;
-                *enemy_dist[square.distance(kings[Side::White as usize])] += diff;
+                *friendly_square_relative[(OFFSET
+                    + square
+                        .flip_vertical()
+                        .relative_to(kings[Side::Black as usize].flip_vertical()))
+                    as usize] -= diff;
+                *enemy_square_relative
+                    [(OFFSET + square.relative_to(kings[Side::White as usize])) as usize] += diff;
             }
         }
     }
@@ -161,17 +214,15 @@ impl HandCraftedEvalCoeffs {
             .chain(self.rook_mobility.iter())
             .chain(self.queen_mobility.iter())
             .chain(iter::once(&self.bishop_pair))
-            .chain(self.distance_friendly_pawn.iter())
-            .chain(self.distance_enemy_pawn.iter())
-            .chain(self.distance_friendly_knight.iter())
-            .chain(self.distance_enemy_knight.iter())
-            .chain(self.distance_friendly_bishop.iter())
-            .chain(self.distance_enemy_bishop.iter())
-            .chain(self.distance_friendly_rook.iter())
-            .chain(self.distance_enemy_rook.iter())
-            .chain(self.distance_friendly_queen.iter())
-            .chain(self.distance_enemy_queen.iter())
-            .chain(self.distance_friendly_king.iter())
-            .chain(self.distance_enemy_king.iter())
+            .chain(self.pawn_square_relative_to_friendly_king.iter())
+            .chain(self.pawn_square_relative_to_enemy_king.iter())
+            .chain(self.knight_square_relative_to_friendly_king.iter())
+            .chain(self.knight_square_relative_to_enemy_king.iter())
+            .chain(self.bishop_square_relative_to_friendly_king.iter())
+            .chain(self.bishop_square_relative_to_enemy_king.iter())
+            .chain(self.rook_square_relative_to_friendly_king.iter())
+            .chain(self.rook_square_relative_to_enemy_king.iter())
+            .chain(self.queen_square_relative_to_friendly_king.iter())
+            .chain(self.queen_square_relative_to_enemy_king.iter())
     }
 }
