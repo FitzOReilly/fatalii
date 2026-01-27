@@ -8,11 +8,13 @@ use crate::score_pair::ScorePair;
 use crate::{Eval, Score, EQ_POSITION};
 use movegen::bishop::Bishop;
 use movegen::bitboard::Bitboard;
+use movegen::file::File;
 use movegen::knight::Knight;
 use movegen::pawn::Pawn;
 use movegen::piece::{self, Piece};
 use movegen::position::Position;
 use movegen::queen::Queen;
+use movegen::rank::Rank;
 use movegen::rook::Rook;
 use movegen::side::Side;
 use movegen::square::Square;
@@ -56,7 +58,7 @@ pub struct HandCraftedEval {
     passed_pawn_scores: ScorePair,
     isolated_and_doubled_pawn_scores: [ScorePair; 2],
     backward_pawn_scores: ScorePair,
-    king_tropism: ScorePair,
+    squares_relative_to_king: ScorePair,
     #[cfg(feature = "trace")]
     coeffs: HandCraftedEvalCoeffs,
 }
@@ -74,7 +76,7 @@ impl Eval for HandCraftedEval {
             + self.backward_pawn_scores
             + self.mobility_scores(pos)
             + self.bishop_pair_scores(pos)
-            + self.king_tropism;
+            + self.squares_relative_to_king;
 
         let game_phase = self.game_phase.game_phase_clamped();
         #[cfg(feature = "trace")]
@@ -149,7 +151,7 @@ impl HandCraftedEval {
             passed_pawn_scores: Default::default(),
             isolated_and_doubled_pawn_scores: Default::default(),
             backward_pawn_scores: Default::default(),
-            king_tropism: Default::default(),
+            squares_relative_to_king: Default::default(),
             #[cfg(feature = "trace")]
             coeffs: Default::default(),
         }
@@ -186,19 +188,19 @@ impl HandCraftedEval {
                 self.game_phase.remove_piece(p.piece_type());
                 self.piece_counts.remove(p);
                 self.add_pst(p, square, -1);
-                self.add_king_tropism(p, square, &eval_data.kings, -1);
+                self.add_squares_relative_to_king(p, square, &eval_data.kings, -1);
             }
             while pieces_to_add != Bitboard::EMPTY {
                 let square = pieces_to_add.square_scan_forward_reset();
                 self.game_phase.add_piece(p.piece_type());
                 self.piece_counts.add(p);
                 self.add_pst(p, square, 1);
-                self.add_king_tropism(p, square, &eval_data.kings, 1);
+                self.add_squares_relative_to_king(p, square, &eval_data.kings, 1);
             }
         }
         if eval_data.king_moved {
             // A king was moved, calculate king tropism for all pieces
-            self.update_king_tropism(eval_data, pos);
+            self.update_squares_relative_to_king(eval_data, pos);
         }
         self.update_pawn_structure_scores(eval_data);
         self.current_pos = pos.clone();
@@ -214,10 +216,10 @@ impl HandCraftedEval {
         self.coeffs.add_pst(p, square, diff);
     }
 
-    fn update_king_tropism(&mut self, eval_data: &EvalData, pos: &Position) {
-        self.king_tropism = ScorePair(0, 0);
+    fn update_squares_relative_to_king(&mut self, eval_data: &EvalData, pos: &Position) {
+        self.squares_relative_to_king = ScorePair(0, 0);
         #[cfg(feature = "trace")]
-        self.coeffs.clear_distance();
+        self.coeffs.clear_squares_relative_to_king();
         for p in [
             Piece::WHITE_PAWN,
             Piece::WHITE_KNIGHT,
@@ -229,40 +231,55 @@ impl HandCraftedEval {
             Piece::BLACK_BISHOP,
             Piece::BLACK_ROOK,
             Piece::BLACK_QUEEN,
-            // No need to calculate this for kings: The distance to itself is
-            // always 0 and the scores for the distance between each other
-            // cancel each other out.
         ] {
             let mut pieces = pos.piece_occupancy(p.piece_side(), p.piece_type());
             while pieces != Bitboard::EMPTY {
                 let square = pieces.square_scan_forward_reset();
-                self.add_king_tropism(p, square, &eval_data.kings, 1);
+                self.add_squares_relative_to_king(p, square, &eval_data.kings, 1);
             }
         }
     }
 
-    fn add_king_tropism(&mut self, p: Piece, square: Square, kings: &[Square; 2], diff: i8) {
+    fn add_squares_relative_to_king(
+        &mut self,
+        p: Piece,
+        square: Square,
+        kings: &[Square; 2],
+        diff: i8,
+    ) {
         let piece_type = p.piece_type();
         if let piece::Type::King = piece_type {
             return;
         }
+        const OFFSET: i8 = ((Rank::NUM_RANKS - 1) * File::NUM_FILES) as i8;
         let piece_table = &PIECE_TABLE_REFS[piece_type.idx()];
         match p.piece_side() {
             Side::White => {
-                self.king_tropism += diff as Score
-                    * piece_table.friendly_distance[kings[Side::White as usize].distance(square)];
-                self.king_tropism -= diff as Score
-                    * piece_table.enemy_distance[kings[Side::Black as usize].distance(square)];
+                self.squares_relative_to_king += diff as Score
+                    * piece_table.square_relative_to_friendly_king
+                        [(OFFSET + square.relative_to(kings[Side::White as usize])) as usize];
+                self.squares_relative_to_king -= diff as Score
+                    * piece_table.square_relative_to_enemy_king[(OFFSET
+                        + square
+                            .flip_vertical()
+                            .relative_to(kings[Side::Black as usize].flip_vertical()))
+                        as usize];
             }
             Side::Black => {
-                self.king_tropism -= diff as Score
-                    * piece_table.friendly_distance[kings[Side::Black as usize].distance(square)];
-                self.king_tropism += diff as Score
-                    * piece_table.enemy_distance[kings[Side::White as usize].distance(square)];
+                self.squares_relative_to_king -= diff as Score
+                    * piece_table.square_relative_to_friendly_king[(OFFSET
+                        + square
+                            .flip_vertical()
+                            .relative_to(kings[Side::Black as usize].flip_vertical()))
+                        as usize];
+                self.squares_relative_to_king += diff as Score
+                    * piece_table.square_relative_to_enemy_king
+                        [(OFFSET + square.relative_to(kings[Side::White as usize])) as usize];
             }
         }
         #[cfg(feature = "trace")]
-        self.coeffs.add_distance(p, square, kings, diff);
+        self.coeffs
+            .add_squares_relative_to_king(p, square, kings, diff);
     }
 
     fn tempo_scores(&mut self, pos: &Position) -> ScorePair {

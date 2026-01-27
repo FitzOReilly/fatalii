@@ -385,7 +385,7 @@ fn underpromotions(search_algo: impl Search + Send + 'static) {
         ),
         (
             "8/3P4/3b4/8/8/1p2k2p/1Pp4P/2K5 w - - 0 1",
-            7,
+            8,
             Move::new(Square::D7, Square::D8, MoveType::PROMOTION_ROOK),
         ),
         (
