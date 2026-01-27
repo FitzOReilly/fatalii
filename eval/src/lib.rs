@@ -15,3 +15,4 @@ pub mod score;
 pub mod score_pair;
 
 mod game_phase;
+mod piece_table_refs;

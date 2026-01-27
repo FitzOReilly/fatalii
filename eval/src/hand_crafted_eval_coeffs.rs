@@ -74,19 +74,7 @@ pub struct HandCraftedEvalCoeffs {
 }
 
 impl HandCraftedEvalCoeffs {
-    pub fn add_piece(
-        &mut self,
-        p: Piece,
-        square: Square,
-        white_king: Square,
-        black_king: Square,
-        diff: i8,
-    ) {
-        self.add_pst(p, square, diff);
-        self.add_distance(p, square, white_king, black_king, diff);
-    }
-
-    fn add_pst(&mut self, p: Piece, square: Square, diff: i8) {
+    pub fn add_pst(&mut self, p: Piece, square: Square, diff: i8) {
         let pst = match p.piece_type() {
             piece::Type::Pawn => &mut self.pst_pawn,
             piece::Type::Knight => &mut self.pst_knight,
@@ -116,14 +104,7 @@ impl HandCraftedEvalCoeffs {
         self.distance_enemy_king = Default::default();
     }
 
-    pub fn add_distance(
-        &mut self,
-        p: Piece,
-        square: Square,
-        white_king: Square,
-        black_king: Square,
-        diff: i8,
-    ) {
+    pub fn add_distance(&mut self, p: Piece, square: Square, kings: &[Square; 2], diff: i8) {
         let (friendly_dist, enemy_dist) = match p.piece_type() {
             piece::Type::Pawn => (
                 &mut self.distance_friendly_pawn,
@@ -152,12 +133,12 @@ impl HandCraftedEvalCoeffs {
         };
         match p.piece_side() {
             Side::White => {
-                *friendly_dist[square.distance(white_king)] += diff;
-                *enemy_dist[square.distance(black_king)] -= diff;
+                *friendly_dist[square.distance(kings[Side::White as usize])] += diff;
+                *enemy_dist[square.distance(kings[Side::Black as usize])] -= diff;
             }
             Side::Black => {
-                *friendly_dist[square.distance(black_king)] -= diff;
-                *enemy_dist[square.distance(white_king)] += diff;
+                *friendly_dist[square.distance(kings[Side::Black as usize])] -= diff;
+                *enemy_dist[square.distance(kings[Side::White as usize])] += diff;
             }
         }
     }
