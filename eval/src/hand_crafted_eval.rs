@@ -3,6 +3,7 @@ use crate::game_phase::{GamePhase, PieceCounts};
 #[cfg(feature = "trace")]
 use crate::hand_crafted_eval_coeffs::{Coeff, HandCraftedEvalCoeffs};
 use crate::params;
+use crate::piece_table_refs::PIECE_TABLE_REFS;
 use crate::score_pair::ScorePair;
 use crate::{Eval, Score, EQ_POSITION};
 use movegen::bishop::Bishop;
@@ -160,129 +161,39 @@ impl HandCraftedEval {
     }
 
     fn update(&mut self, eval_data: &EvalData, pos: &Position) {
-        for (piece_type, table, friendly_distance, enemy_distance) in [
-            (
-                piece::Type::Pawn,
-                &params::PST_PAWN,
-                &params::DISTANCE_FRIENDLY_PAWN,
-                &params::DISTANCE_ENEMY_PAWN,
-            ),
-            (
-                piece::Type::Knight,
-                &params::PST_KNIGHT,
-                &params::DISTANCE_FRIENDLY_KNIGHT,
-                &params::DISTANCE_ENEMY_KNIGHT,
-            ),
-            (
-                piece::Type::Bishop,
-                &params::PST_BISHOP,
-                &params::DISTANCE_FRIENDLY_BISHOP,
-                &params::DISTANCE_ENEMY_BISHOP,
-            ),
-            (
-                piece::Type::Rook,
-                &params::PST_ROOK,
-                &params::DISTANCE_FRIENDLY_ROOK,
-                &params::DISTANCE_ENEMY_ROOK,
-            ),
-            (
-                piece::Type::Queen,
-                &params::PST_QUEEN,
-                &params::DISTANCE_FRIENDLY_QUEEN,
-                &params::DISTANCE_ENEMY_QUEEN,
-            ),
-            (
-                piece::Type::King,
-                &params::PST_KING,
-                &params::DISTANCE_FRIENDLY_KING,
-                &params::DISTANCE_ENEMY_KING,
-            ),
+        for p in [
+            Piece::WHITE_PAWN,
+            Piece::WHITE_KNIGHT,
+            Piece::WHITE_BISHOP,
+            Piece::WHITE_ROOK,
+            Piece::WHITE_QUEEN,
+            Piece::WHITE_KING,
+            Piece::BLACK_PAWN,
+            Piece::BLACK_KNIGHT,
+            Piece::BLACK_BISHOP,
+            Piece::BLACK_ROOK,
+            Piece::BLACK_QUEEN,
+            Piece::BLACK_KING,
         ] {
-            let prev_white = self.current_pos.piece_occupancy(Side::White, piece_type);
-            let current_white = pos.piece_occupancy(Side::White, piece_type);
-            let mut white_remove = prev_white & !current_white;
-            let mut white_add = current_white & !prev_white;
-            while white_remove != Bitboard::EMPTY {
-                let square = white_remove.square_scan_forward_reset();
-                self.pst_scores -= table[square.idx()];
-                self.game_phase.remove_piece(piece_type);
-                let p = Piece::new(Side::White, piece_type);
+            let prev = self
+                .current_pos
+                .piece_occupancy(p.piece_side(), p.piece_type());
+            let current = pos.piece_occupancy(p.piece_side(), p.piece_type());
+            let mut pieces_to_remove = prev & !current;
+            let mut pieces_to_add = current & !prev;
+            while pieces_to_remove != Bitboard::EMPTY {
+                let square = pieces_to_remove.square_scan_forward_reset();
+                self.game_phase.remove_piece(p.piece_type());
                 self.piece_counts.remove(p);
-                self.king_tropism -=
-                    friendly_distance[eval_data.kings[Side::White as usize].distance(square)];
-                self.king_tropism +=
-                    enemy_distance[eval_data.kings[Side::Black as usize].distance(square)];
-                #[cfg(feature = "trace")]
-                self.coeffs.add_piece(
-                    p,
-                    square,
-                    eval_data.kings[Side::White as usize],
-                    eval_data.kings[Side::Black as usize],
-                    -1,
-                );
+                self.add_pst(p, square, -1);
+                self.add_king_tropism(p, square, &eval_data.kings, -1);
             }
-            while white_add != Bitboard::EMPTY {
-                let square = white_add.square_scan_forward_reset();
-                self.pst_scores += table[square.idx()];
-                self.game_phase.add_piece(piece_type);
-                let p = Piece::new(Side::White, piece_type);
+            while pieces_to_add != Bitboard::EMPTY {
+                let square = pieces_to_add.square_scan_forward_reset();
+                self.game_phase.add_piece(p.piece_type());
                 self.piece_counts.add(p);
-                self.king_tropism +=
-                    friendly_distance[eval_data.kings[Side::White as usize].distance(square)];
-                self.king_tropism -=
-                    enemy_distance[eval_data.kings[Side::Black as usize].distance(square)];
-                #[cfg(feature = "trace")]
-                self.coeffs.add_piece(
-                    p,
-                    square,
-                    eval_data.kings[Side::White as usize],
-                    eval_data.kings[Side::Black as usize],
-                    1,
-                );
-            }
-            let prev_black = self.current_pos.piece_occupancy(Side::Black, piece_type);
-            let current_black = pos.piece_occupancy(Side::Black, piece_type);
-            let mut black_remove = prev_black & !current_black;
-            let mut black_add = current_black & !prev_black;
-            while black_remove != Bitboard::EMPTY {
-                let square = black_remove.square_scan_forward_reset();
-                let square_flipped = square.flip_vertical();
-                self.pst_scores += table[square_flipped.idx()];
-                self.game_phase.remove_piece(piece_type);
-                let p = Piece::new(Side::Black, piece_type);
-                self.piece_counts.remove(p);
-                self.king_tropism -=
-                    enemy_distance[eval_data.kings[Side::White as usize].distance(square)];
-                self.king_tropism +=
-                    friendly_distance[eval_data.kings[Side::Black as usize].distance(square)];
-                #[cfg(feature = "trace")]
-                self.coeffs.add_piece(
-                    p,
-                    square,
-                    eval_data.kings[Side::White as usize],
-                    eval_data.kings[Side::Black as usize],
-                    -1,
-                );
-            }
-            while black_add != Bitboard::EMPTY {
-                let square = black_add.square_scan_forward_reset();
-                let square_flipped = square.flip_vertical();
-                self.pst_scores -= table[square_flipped.idx()];
-                self.game_phase.add_piece(piece_type);
-                let p = Piece::new(Side::Black, piece_type);
-                self.piece_counts.add(p);
-                self.king_tropism +=
-                    enemy_distance[eval_data.kings[Side::White as usize].distance(square)];
-                self.king_tropism -=
-                    friendly_distance[eval_data.kings[Side::Black as usize].distance(square)];
-                #[cfg(feature = "trace")]
-                self.coeffs.add_piece(
-                    p,
-                    square,
-                    eval_data.kings[Side::White as usize],
-                    eval_data.kings[Side::Black as usize],
-                    1,
-                );
+                self.add_pst(p, square, 1);
+                self.add_king_tropism(p, square, &eval_data.kings, 1);
             }
         }
         if eval_data.king_moved {
@@ -293,79 +204,65 @@ impl HandCraftedEval {
         self.current_pos = pos.clone();
     }
 
+    fn add_pst(&mut self, p: Piece, square: Square, diff: i8) {
+        let pst = PIECE_TABLE_REFS[p.piece_type().idx()].pst;
+        match p.piece_side() {
+            Side::White => self.pst_scores += diff as Score * pst[square.idx()],
+            Side::Black => self.pst_scores -= diff as Score * pst[square.flip_vertical().idx()],
+        }
+        #[cfg(feature = "trace")]
+        self.coeffs.add_pst(p, square, diff);
+    }
+
     fn update_king_tropism(&mut self, eval_data: &EvalData, pos: &Position) {
         self.king_tropism = ScorePair(0, 0);
         #[cfg(feature = "trace")]
         self.coeffs.clear_distance();
-        for (piece_type, friendly_distance, enemy_distance) in [
-            (
-                piece::Type::Pawn,
-                &params::DISTANCE_FRIENDLY_PAWN,
-                &params::DISTANCE_ENEMY_PAWN,
-            ),
-            (
-                piece::Type::Knight,
-                &params::DISTANCE_FRIENDLY_KNIGHT,
-                &params::DISTANCE_ENEMY_KNIGHT,
-            ),
-            (
-                piece::Type::Bishop,
-                &params::DISTANCE_FRIENDLY_BISHOP,
-                &params::DISTANCE_ENEMY_BISHOP,
-            ),
-            (
-                piece::Type::Rook,
-                &params::DISTANCE_FRIENDLY_ROOK,
-                &params::DISTANCE_ENEMY_ROOK,
-            ),
-            (
-                piece::Type::Queen,
-                &params::DISTANCE_FRIENDLY_QUEEN,
-                &params::DISTANCE_ENEMY_QUEEN,
-            ),
+        for p in [
+            Piece::WHITE_PAWN,
+            Piece::WHITE_KNIGHT,
+            Piece::WHITE_BISHOP,
+            Piece::WHITE_ROOK,
+            Piece::WHITE_QUEEN,
+            Piece::BLACK_PAWN,
+            Piece::BLACK_KNIGHT,
+            Piece::BLACK_BISHOP,
+            Piece::BLACK_ROOK,
+            Piece::BLACK_QUEEN,
             // No need to calculate this for kings: The distance to itself is
             // always 0 and the scores for the distance between each other
             // cancel each other out.
         ] {
-            let mut white_pieces = pos.piece_occupancy(Side::White, piece_type);
-            while white_pieces != Bitboard::EMPTY {
-                let square = white_pieces.square_scan_forward_reset();
-                self.king_tropism +=
-                    friendly_distance[eval_data.kings[Side::White as usize].distance(square)];
-                self.king_tropism -=
-                    enemy_distance[eval_data.kings[Side::Black as usize].distance(square)];
-                #[cfg(feature = "trace")]
-                {
-                    let p = Piece::new(Side::White, piece_type);
-                    self.coeffs.add_distance(
-                        p,
-                        square,
-                        eval_data.kings[Side::White as usize],
-                        eval_data.kings[Side::Black as usize],
-                        1,
-                    );
-                }
-            }
-            let mut black_pieces = pos.piece_occupancy(Side::Black, piece_type);
-            while black_pieces != Bitboard::EMPTY {
-                let square = black_pieces.square_scan_forward_reset();
-                self.king_tropism +=
-                    enemy_distance[eval_data.kings[Side::White as usize].distance(square)];
-                self.king_tropism -=
-                    friendly_distance[eval_data.kings[Side::Black as usize].distance(square)];
-                #[cfg(feature = "trace")]
-                {
-                    let p = Piece::new(Side::Black, piece_type);
-                    self.coeffs.add_distance(
-                        p,
-                        square,
-                        eval_data.kings[Side::White as usize],
-                        eval_data.kings[Side::Black as usize],
-                        1,
-                    );
-                }
+            let mut pieces = pos.piece_occupancy(p.piece_side(), p.piece_type());
+            while pieces != Bitboard::EMPTY {
+                let square = pieces.square_scan_forward_reset();
+                self.add_king_tropism(p, square, &eval_data.kings, 1);
             }
         }
+    }
+
+    fn add_king_tropism(&mut self, p: Piece, square: Square, kings: &[Square; 2], diff: i8) {
+        let piece_type = p.piece_type();
+        if let piece::Type::King = piece_type {
+            return;
+        }
+        let piece_table = &PIECE_TABLE_REFS[piece_type.idx()];
+        match p.piece_side() {
+            Side::White => {
+                self.king_tropism += diff as Score
+                    * piece_table.friendly_distance[kings[Side::White as usize].distance(square)];
+                self.king_tropism -= diff as Score
+                    * piece_table.enemy_distance[kings[Side::Black as usize].distance(square)];
+            }
+            Side::Black => {
+                self.king_tropism -= diff as Score
+                    * piece_table.friendly_distance[kings[Side::Black as usize].distance(square)];
+                self.king_tropism += diff as Score
+                    * piece_table.enemy_distance[kings[Side::White as usize].distance(square)];
+            }
+        }
+        #[cfg(feature = "trace")]
+        self.coeffs.add_distance(p, square, kings, diff);
     }
 
     fn tempo_scores(&mut self, pos: &Position) -> ScorePair {

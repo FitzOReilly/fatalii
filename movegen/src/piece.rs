@@ -12,6 +12,12 @@ pub enum Type {
     King = 4,
 }
 
+impl Type {
+    pub const fn idx(&self) -> usize {
+        *self as usize
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Piece(u8);
 
@@ -45,7 +51,7 @@ impl Piece {
         unsafe { std::mem::transmute::<u8, Type>(self.0 >> 1) }
     }
 
-    pub fn idx(&self) -> usize {
+    pub const fn idx(&self) -> usize {
         self.0 as usize
     }
 
