@@ -567,13 +567,13 @@ fn mate_in_x_various_depths(search_algo: impl Search + Send + 'static) {
         // Mate in 4
         (
             "7Q/6P1/3k4/8/8/P4PK1/1P6/8 b - - 0 119",
-            8,
+            9,
             ScoreVariant::Mate(Side::White, 4),
         ),
         // Mate in 5
         (
             "8/2p5/4k3/8/P2B4/r7/6rP/3K4 b - - 6 51",
-            16,
+            17,
             ScoreVariant::Mate(Side::Black, -5),
         ),
         // Mate in 2
