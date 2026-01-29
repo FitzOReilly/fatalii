@@ -256,10 +256,10 @@ impl HandCraftedEval {
         match p.piece_side() {
             Side::White => {
                 self.squares_relative_to_king += diff as Score
-                    * piece_table.square_relative_to_friendly_king
+                    * piece_table.piece_relative_to_friendly_king
                         [(OFFSET + square.relative_to(kings[Side::White as usize])) as usize];
                 self.squares_relative_to_king -= diff as Score
-                    * piece_table.square_relative_to_enemy_king[(OFFSET
+                    * piece_table.piece_relative_to_enemy_king[(OFFSET
                         + square
                             .flip_vertical()
                             .relative_to(kings[Side::Black as usize].flip_vertical()))
@@ -267,13 +267,13 @@ impl HandCraftedEval {
             }
             Side::Black => {
                 self.squares_relative_to_king -= diff as Score
-                    * piece_table.square_relative_to_friendly_king[(OFFSET
+                    * piece_table.piece_relative_to_friendly_king[(OFFSET
                         + square
                             .flip_vertical()
                             .relative_to(kings[Side::Black as usize].flip_vertical()))
                         as usize];
                 self.squares_relative_to_king += diff as Score
-                    * piece_table.square_relative_to_enemy_king
+                    * piece_table.piece_relative_to_enemy_king
                         [(OFFSET + square.relative_to(kings[Side::White as usize])) as usize];
             }
         }
@@ -328,33 +328,87 @@ impl HandCraftedEval {
 
     fn update_passed_pawn_scores(&mut self, eval_data: &EvalData) {
         #[cfg(feature = "trace")]
-        self.coeffs.passed_pawn.fill(Coeff(0));
+        {
+            self.coeffs.passed_pawn.fill(Coeff(0));
+            self.coeffs
+                .passed_pawn_relative_to_friendly_king
+                .fill(Coeff(0));
+            self.coeffs
+                .passed_pawn_relative_to_enemy_king
+                .fill(Coeff(0));
+        }
 
+        const OFFSET_RELATIVE_TO_KING: i8 = ((Rank::NUM_RANKS - 2) * File::NUM_FILES) as i8;
         self.passed_pawn_scores = ScorePair(0, 0);
-        // Ignore the rank just before promotion (7th for white, 2nd for black).
-        // Pawns on these ranks are always passed, so they are already
-        // considered by the pawn PSTs.
         let mut white_passed = Self::passed_pawns_one_side(
             eval_data.pawns[Side::White as usize],
             eval_data.pawns[Side::Black as usize],
             Side::White,
-        ) & !Bitboard::RANK_7;
+        );
         while white_passed != Bitboard::EMPTY {
             let square = white_passed.square_scan_forward_reset();
             self.passed_pawn_scores += params::PASSED_PAWN[square.idx()];
+            self.passed_pawn_scores += params::PASSED_PAWN_RELATIVE_TO_FRIENDLY_KING
+                [(OFFSET_RELATIVE_TO_KING
+                    + square.relative_to(eval_data.kings[Side::White as usize]))
+                    as usize];
+            self.passed_pawn_scores -= params::PASSED_PAWN_RELATIVE_TO_ENEMY_KING
+                [(OFFSET_RELATIVE_TO_KING
+                    + square
+                        .flip_vertical()
+                        .relative_to(eval_data.kings[Side::Black as usize].flip_vertical()))
+                    as usize];
             #[cfg(feature = "trace")]
-            (*self.coeffs.passed_pawn[square.fold_to_queenside().idx()] += 1);
+            {
+                // White pawns on the 7th rank are always passed, so they are
+                // already considered by the pawn PSTs.
+                if square.rank() != Rank::R7 {
+                    *self.coeffs.passed_pawn[square.fold_to_queenside().idx()] += 1;
+                }
+                *self.coeffs.passed_pawn_relative_to_friendly_king[(OFFSET_RELATIVE_TO_KING
+                    + square.relative_to(eval_data.kings[Side::White as usize]))
+                    as usize] += 1;
+                *self.coeffs.passed_pawn_relative_to_enemy_king[(OFFSET_RELATIVE_TO_KING
+                    + square
+                        .flip_vertical()
+                        .relative_to(eval_data.kings[Side::Black as usize].flip_vertical()))
+                    as usize] -= 1;
+            }
         }
         let mut black_passed = Self::passed_pawns_one_side(
             eval_data.pawns[Side::Black as usize],
             eval_data.pawns[Side::White as usize],
             Side::Black,
-        ) & !Bitboard::RANK_2;
+        );
         while black_passed != Bitboard::EMPTY {
             let square = black_passed.square_scan_forward_reset();
             self.passed_pawn_scores -= params::PASSED_PAWN[square.flip_vertical().idx()];
+            self.passed_pawn_scores -= params::PASSED_PAWN_RELATIVE_TO_FRIENDLY_KING
+                [(OFFSET_RELATIVE_TO_KING
+                    + square
+                        .flip_vertical()
+                        .relative_to(eval_data.kings[Side::Black as usize].flip_vertical()))
+                    as usize];
+            self.passed_pawn_scores += params::PASSED_PAWN_RELATIVE_TO_ENEMY_KING
+                [(OFFSET_RELATIVE_TO_KING
+                    + square.relative_to(eval_data.kings[Side::White as usize]))
+                    as usize];
             #[cfg(feature = "trace")]
-            (*self.coeffs.passed_pawn[square.flip_vertical().fold_to_queenside().idx()] -= 1);
+            {
+                // Black pawns on the 2nd rank are always passed, so they are
+                // already considered by the pawn PSTs.
+                if square.rank() != Rank::R2 {
+                    *self.coeffs.passed_pawn[square.flip_vertical().fold_to_queenside().idx()] -= 1;
+                }
+                *self.coeffs.passed_pawn_relative_to_friendly_king[(OFFSET_RELATIVE_TO_KING
+                    + square
+                        .flip_vertical()
+                        .relative_to(eval_data.kings[Side::Black as usize].flip_vertical()))
+                    as usize] -= 1;
+                *self.coeffs.passed_pawn_relative_to_enemy_king[(OFFSET_RELATIVE_TO_KING
+                    + square.relative_to(eval_data.kings[Side::White as usize]))
+                    as usize] += 1;
+            }
         }
     }
 

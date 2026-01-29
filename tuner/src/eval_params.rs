@@ -2,7 +2,8 @@ use std::fmt::Display;
 
 use eval::{
     params::{
-        BISHOP_MOB_LEN, KNIGHT_MOB_LEN, QUEEN_MOB_LEN, ROOK_MOB_LEN, SQUARE_RELATIVE_TO_KING_LEN,
+        BISHOP_MOB_LEN, KNIGHT_MOB_LEN, PASSED_PAWNS_RELATIVE_TO_KING_LEN,
+        PIECE_RELATIVE_TO_KING_LEN, QUEEN_MOB_LEN, ROOK_MOB_LEN,
     },
     score_pair::ScorePair,
     Score,
@@ -28,16 +29,18 @@ pub struct EvalParams {
     rook_mobility: [ScorePair; ROOK_MOB_LEN],
     queen_mobility: [ScorePair; QUEEN_MOB_LEN],
     bishop_pair: ScorePair,
-    pawn_square_relative_to_friendly_king: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN],
-    pawn_square_relative_to_enemy_king: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN],
-    knight_square_relative_to_friendly_king: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN],
-    knight_square_relative_to_enemy_king: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN],
-    bishop_square_relative_to_friendly_king: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN],
-    bishop_square_relative_to_enemy_king: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN],
-    rook_square_relative_to_friendly_king: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN],
-    rook_square_relative_to_enemy_king: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN],
-    queen_square_relative_to_friendly_king: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN],
-    queen_square_relative_to_enemy_king: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN],
+    pawn_relative_to_friendly_king: [ScorePair; PIECE_RELATIVE_TO_KING_LEN],
+    pawn_relative_to_enemy_king: [ScorePair; PIECE_RELATIVE_TO_KING_LEN],
+    knight_relative_to_friendly_king: [ScorePair; PIECE_RELATIVE_TO_KING_LEN],
+    knight_relative_to_enemy_king: [ScorePair; PIECE_RELATIVE_TO_KING_LEN],
+    bishop_relative_to_friendly_king: [ScorePair; PIECE_RELATIVE_TO_KING_LEN],
+    bishop_relative_to_enemy_king: [ScorePair; PIECE_RELATIVE_TO_KING_LEN],
+    rook_relative_to_friendly_king: [ScorePair; PIECE_RELATIVE_TO_KING_LEN],
+    rook_relative_to_enemy_king: [ScorePair; PIECE_RELATIVE_TO_KING_LEN],
+    queen_relative_to_friendly_king: [ScorePair; PIECE_RELATIVE_TO_KING_LEN],
+    queen_relative_to_enemy_king: [ScorePair; PIECE_RELATIVE_TO_KING_LEN],
+    passed_pawn_relative_to_friendly_king: [ScorePair; PASSED_PAWNS_RELATIVE_TO_KING_LEN],
+    passed_pawn_relative_to_enemy_king: [ScorePair; PASSED_PAWNS_RELATIVE_TO_KING_LEN],
 }
 
 impl Default for EvalParams {
@@ -59,16 +62,20 @@ impl Default for EvalParams {
             rook_mobility: [ScorePair(0, 0); ROOK_MOB_LEN],
             queen_mobility: [ScorePair(0, 0); QUEEN_MOB_LEN],
             bishop_pair: ScorePair(0, 0),
-            pawn_square_relative_to_friendly_king: [ScorePair(0, 0); SQUARE_RELATIVE_TO_KING_LEN],
-            pawn_square_relative_to_enemy_king: [ScorePair(0, 0); SQUARE_RELATIVE_TO_KING_LEN],
-            knight_square_relative_to_friendly_king: [ScorePair(0, 0); SQUARE_RELATIVE_TO_KING_LEN],
-            knight_square_relative_to_enemy_king: [ScorePair(0, 0); SQUARE_RELATIVE_TO_KING_LEN],
-            bishop_square_relative_to_friendly_king: [ScorePair(0, 0); SQUARE_RELATIVE_TO_KING_LEN],
-            bishop_square_relative_to_enemy_king: [ScorePair(0, 0); SQUARE_RELATIVE_TO_KING_LEN],
-            rook_square_relative_to_friendly_king: [ScorePair(0, 0); SQUARE_RELATIVE_TO_KING_LEN],
-            rook_square_relative_to_enemy_king: [ScorePair(0, 0); SQUARE_RELATIVE_TO_KING_LEN],
-            queen_square_relative_to_friendly_king: [ScorePair(0, 0); SQUARE_RELATIVE_TO_KING_LEN],
-            queen_square_relative_to_enemy_king: [ScorePair(0, 0); SQUARE_RELATIVE_TO_KING_LEN],
+            pawn_relative_to_friendly_king: [ScorePair(0, 0); PIECE_RELATIVE_TO_KING_LEN],
+            pawn_relative_to_enemy_king: [ScorePair(0, 0); PIECE_RELATIVE_TO_KING_LEN],
+            knight_relative_to_friendly_king: [ScorePair(0, 0); PIECE_RELATIVE_TO_KING_LEN],
+            knight_relative_to_enemy_king: [ScorePair(0, 0); PIECE_RELATIVE_TO_KING_LEN],
+            bishop_relative_to_friendly_king: [ScorePair(0, 0); PIECE_RELATIVE_TO_KING_LEN],
+            bishop_relative_to_enemy_king: [ScorePair(0, 0); PIECE_RELATIVE_TO_KING_LEN],
+            rook_relative_to_friendly_king: [ScorePair(0, 0); PIECE_RELATIVE_TO_KING_LEN],
+            rook_relative_to_enemy_king: [ScorePair(0, 0); PIECE_RELATIVE_TO_KING_LEN],
+            queen_relative_to_friendly_king: [ScorePair(0, 0); PIECE_RELATIVE_TO_KING_LEN],
+            queen_relative_to_enemy_king: [ScorePair(0, 0); PIECE_RELATIVE_TO_KING_LEN],
+            passed_pawn_relative_to_friendly_king: [ScorePair(0, 0);
+                PASSED_PAWNS_RELATIVE_TO_KING_LEN],
+            passed_pawn_relative_to_enemy_king: [ScorePair(0, 0);
+                PASSED_PAWNS_RELATIVE_TO_KING_LEN],
         }
     }
 }
@@ -94,43 +101,51 @@ impl From<&WeightVector> for EvalParams {
         Self::next_params(&mut eval_params.queen_mobility, &mut weight_iter);
         Self::next_param(&mut eval_params.bishop_pair, &mut weight_iter);
         Self::next_params(
-            &mut eval_params.pawn_square_relative_to_friendly_king,
+            &mut eval_params.pawn_relative_to_friendly_king,
             &mut weight_iter,
         );
         Self::next_params(
-            &mut eval_params.pawn_square_relative_to_enemy_king,
+            &mut eval_params.pawn_relative_to_enemy_king,
             &mut weight_iter,
         );
         Self::next_params(
-            &mut eval_params.knight_square_relative_to_friendly_king,
+            &mut eval_params.knight_relative_to_friendly_king,
             &mut weight_iter,
         );
         Self::next_params(
-            &mut eval_params.knight_square_relative_to_enemy_king,
+            &mut eval_params.knight_relative_to_enemy_king,
             &mut weight_iter,
         );
         Self::next_params(
-            &mut eval_params.bishop_square_relative_to_friendly_king,
+            &mut eval_params.bishop_relative_to_friendly_king,
             &mut weight_iter,
         );
         Self::next_params(
-            &mut eval_params.bishop_square_relative_to_enemy_king,
+            &mut eval_params.bishop_relative_to_enemy_king,
             &mut weight_iter,
         );
         Self::next_params(
-            &mut eval_params.rook_square_relative_to_friendly_king,
+            &mut eval_params.rook_relative_to_friendly_king,
             &mut weight_iter,
         );
         Self::next_params(
-            &mut eval_params.rook_square_relative_to_enemy_king,
+            &mut eval_params.rook_relative_to_enemy_king,
             &mut weight_iter,
         );
         Self::next_params(
-            &mut eval_params.queen_square_relative_to_friendly_king,
+            &mut eval_params.queen_relative_to_friendly_king,
             &mut weight_iter,
         );
         Self::next_params(
-            &mut eval_params.queen_square_relative_to_enemy_king,
+            &mut eval_params.queen_relative_to_enemy_king,
+            &mut weight_iter,
+        );
+        Self::next_params(
+            &mut eval_params.passed_pawn_relative_to_friendly_king,
+            &mut weight_iter,
+        );
+        Self::next_params(
+            &mut eval_params.passed_pawn_relative_to_enemy_king,
             &mut weight_iter,
         );
         eval_params
@@ -144,6 +159,7 @@ impl Display for EvalParams {
             "pub const TEMPO: ScorePair = ScorePair({}, {});",
             self.tempo.0, self.tempo.1
         )?;
+        writeln!(f)?;
         self.fmt_single_pst(f, "PASSED_PAWN_MG_EG", self.passed_pawn)?;
         writeln!(
             f,
@@ -160,15 +176,30 @@ impl Display for EvalParams {
             "pub const DOUBLED_PAWN: ScorePair = ScorePair({}, {});",
             self.doubled_pawn.0, self.doubled_pawn.1
         )?;
-
+        writeln!(f)?;
         writeln!(
             f,
             "pub const BISHOP_PAIR: ScorePair = ScorePair({}, {});",
             self.bishop_pair.0, self.bishop_pair.1
         )?;
-
+        writeln!(f)?;
         self.fmt_mobilities(f)?;
-        self.fmt_squares_relative_to_king(f)?;
+        writeln!(f)?;
+        self.fmt_pieces_relative_to_king(f)?;
+        writeln!(f)?;
+        self.fmt_weights(
+            f,
+            "PASSED_PAWN_RELATIVE_TO_FRIENDLY_KING_MG_EG",
+            "PASSED_PAWNS_RELATIVE_TO_KING_LEN",
+            &self.passed_pawn_relative_to_friendly_king,
+        )?;
+        self.fmt_weights(
+            f,
+            "PASSED_PAWN_RELATIVE_TO_ENEMY_KING_MG_EG",
+            "PASSED_PAWNS_RELATIVE_TO_KING_LEN",
+            &self.passed_pawn_relative_to_enemy_king,
+        )?;
+        writeln!(f)?;
         self.fmt_pst(f)?;
 
         Ok(())
@@ -222,50 +253,50 @@ impl EvalParams {
         Ok(())
     }
 
-    fn fmt_squares_relative_to_king(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt_pieces_relative_to_king(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (const_name, weights) in [
             (
-                "PAWN_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG",
-                &self.pawn_square_relative_to_friendly_king,
+                "PAWN_RELATIVE_TO_FRIENDLY_KING_MG_EG",
+                &self.pawn_relative_to_friendly_king,
             ),
             (
-                "PAWN_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG",
-                &self.pawn_square_relative_to_enemy_king,
+                "PAWN_RELATIVE_TO_ENEMY_KING_MG_EG",
+                &self.pawn_relative_to_enemy_king,
             ),
             (
-                "KNIGHT_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG",
-                &self.knight_square_relative_to_friendly_king,
+                "KNIGHT_RELATIVE_TO_FRIENDLY_KING_MG_EG",
+                &self.knight_relative_to_friendly_king,
             ),
             (
-                "KNIGHT_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG",
-                &self.knight_square_relative_to_enemy_king,
+                "KNIGHT_RELATIVE_TO_ENEMY_KING_MG_EG",
+                &self.knight_relative_to_enemy_king,
             ),
             (
-                "BISHOP_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG",
-                &self.bishop_square_relative_to_friendly_king,
+                "BISHOP_RELATIVE_TO_FRIENDLY_KING_MG_EG",
+                &self.bishop_relative_to_friendly_king,
             ),
             (
-                "BISHOP_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG",
-                &self.bishop_square_relative_to_enemy_king,
+                "BISHOP_RELATIVE_TO_ENEMY_KING_MG_EG",
+                &self.bishop_relative_to_enemy_king,
             ),
             (
-                "ROOK_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG",
-                &self.rook_square_relative_to_friendly_king,
+                "ROOK_RELATIVE_TO_FRIENDLY_KING_MG_EG",
+                &self.rook_relative_to_friendly_king,
             ),
             (
-                "ROOK_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG",
-                &self.rook_square_relative_to_enemy_king,
+                "ROOK_RELATIVE_TO_ENEMY_KING_MG_EG",
+                &self.rook_relative_to_enemy_king,
             ),
             (
-                "QUEEN_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG",
-                &self.queen_square_relative_to_friendly_king,
+                "QUEEN_RELATIVE_TO_FRIENDLY_KING_MG_EG",
+                &self.queen_relative_to_friendly_king,
             ),
             (
-                "QUEEN_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG",
-                &self.queen_square_relative_to_enemy_king,
+                "QUEEN_RELATIVE_TO_ENEMY_KING_MG_EG",
+                &self.queen_relative_to_enemy_king,
             ),
         ] {
-            self.fmt_weights(f, const_name, "SQUARE_RELATIVE_TO_KING_LEN", weights)?;
+            self.fmt_weights(f, const_name, "PIECE_RELATIVE_TO_KING_LEN", weights)?;
         }
         Ok(())
     }
