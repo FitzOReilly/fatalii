@@ -10,8 +10,10 @@ pub const ROOK_MOB_LEN: usize = 15;
 pub const QUEEN_MOB_LEN: usize = 28;
 pub const MOB_LEN: usize = KNIGHT_MOB_LEN + BISHOP_MOB_LEN + ROOK_MOB_LEN + QUEEN_MOB_LEN;
 
-pub const DISTANCE_LEN: usize = 8;
-pub const SQUARE_RELATIVE_TO_KING_LEN: usize = (2 * Rank::NUM_RANKS - 1) * File::NUM_FILES;
+pub const PIECE_RELATIVE_TO_KING_LEN: usize = (2 * Rank::NUM_RANKS - 1) * File::NUM_FILES;
+// Pawns are never on ranks 1 or 8, so we can ignore them
+pub const PASSED_PAWNS_RELATIVE_TO_KING_LEN: usize =
+    (2 * (Rank::NUM_RANKS - 1) - 1) * File::NUM_FILES;
 
 // (middlegame, endgame)
 const MATERIAL_KING: ScorePair = ScorePair(0, 0);
@@ -78,9 +80,9 @@ const MOBILITY_QUEEN_MG_EG: ([Score; QUEEN_MOB_LEN], [Score; QUEEN_MOB_LEN]) = (
     ],
 );
 
-const PAWN_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
+const PAWN_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
 ) = (
     [
         0, 0, 0, 0, 0, 0, 0, 0, 2, -9, -1, 0, 2, -1, 4, 0, 5, -8, 11, -2, -3, -14, -9, 3, -21, -20,
@@ -99,9 +101,9 @@ const PAWN_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
         0, 0, 0, 0, 0, 0, 0,
     ],
 );
-const PAWN_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG: (
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
+const PAWN_RELATIVE_TO_ENEMY_KING_MG_EG: (
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
 ) = (
     [
         0, 0, 0, 0, 0, 0, 0, 0, -4, -2, 4, -3, -7, 0, -3, -1, -2, -2, 0, -1, -3, 9, -5, -1, 1, 16,
@@ -120,9 +122,9 @@ const PAWN_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG: (
         22, 20, 18, 12, 11, -7, 0, 0, 0, 0, 0, 0, 0, 0,
     ],
 );
-const KNIGHT_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
+const KNIGHT_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
 ) = (
     [
         -1, -1, 0, 0, 0, 0, 0, 0, -1, -4, -6, -3, -1, 1, -2, 0, -6, -3, -9, -5, -6, -2, -2, 0, -6,
@@ -141,9 +143,9 @@ const KNIGHT_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
         42, 24, 26, 17, 33, -16, 13, 28, 25, 24, 30, 21,
     ],
 );
-const KNIGHT_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG: (
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
+const KNIGHT_RELATIVE_TO_ENEMY_KING_MG_EG: (
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
 ) = (
     [
         0, -1, 0, 1, 0, 0, -1, 0, -1, 2, 5, 1, 2, 0, 1, 3, 13, 13, 10, 5, 9, 7, 1, -1, 5, 21, 2, 8,
@@ -162,9 +164,9 @@ const KNIGHT_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG: (
         -25, -12, -28, -19, 8, 7, -3,
     ],
 );
-const BISHOP_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
+const BISHOP_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
 ) = (
     [
         -4, -4, -5, -1, -5, 1, 0, 0, -1, -4, -8, -1, -2, 1, -1, -1, -14, 4, -2, -8, 2, -1, 4, -7,
@@ -183,9 +185,9 @@ const BISHOP_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
         12, 28, 16, 24, 22, 10, 15, 7, 29, 14,
     ],
 );
-const BISHOP_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG: (
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
+const BISHOP_RELATIVE_TO_ENEMY_KING_MG_EG: (
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
 ) = (
     [
         1, 1, 1, 1, 2, 0, 0, 0, 3, 3, 7, 1, 2, 2, 0, 0, 8, 7, 2, -1, 4, -1, 3, 2, 12, 20, 0, 12,
@@ -204,9 +206,9 @@ const BISHOP_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG: (
         -13, 12, -21,
     ],
 );
-const ROOK_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
+const ROOK_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
 ) = (
     [
         -3, -5, -13, 5, 2, -5, -1, -1, -4, -12, -7, -11, -6, 0, -3, -3, -11, -1, -13, -12, -25, -2,
@@ -225,9 +227,9 @@ const ROOK_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
         36, 37, 34, 39, 63, 63, 58, 53, 52, 46, 51, 50, 64, 55, 52, 53, 48, 6,
     ],
 );
-const ROOK_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG: (
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
+const ROOK_RELATIVE_TO_ENEMY_KING_MG_EG: (
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
 ) = (
     [
         7, 22, 11, 5, 4, 0, -1, 1, 13, 20, 22, 17, 19, 11, 10, 3, 21, 5, -7, 19, 14, 18, 12, 1, 1,
@@ -246,9 +248,9 @@ const ROOK_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG: (
         -44, -57, -63, -71, -67, -72, -89, -50, -47, -56, -62, -63, -63, -75, -70,
     ],
 );
-const QUEEN_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
+const QUEEN_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
 ) = (
     [
         4, -4, 2, 2, -2, 0, -3, 2, 3, 0, 0, 9, 5, -3, -2, 4, -1, -2, 7, 6, -10, 1, -4, 0, 0, -23,
@@ -267,9 +269,9 @@ const QUEEN_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
         44, 26, 42, 9,
     ],
 );
-const QUEEN_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG: (
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
-    [Score; SQUARE_RELATIVE_TO_KING_LEN],
+const QUEEN_RELATIVE_TO_ENEMY_KING_MG_EG: (
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
+    [Score; PIECE_RELATIVE_TO_KING_LEN],
 ) = (
     [
         2, 22, 4, 10, 27, 6, 13, 5, 6, 21, 22, 17, 20, 26, 8, 6, 3, 12, 24, 1, 27, 5, 26, 4, -11,
@@ -287,6 +289,21 @@ const QUEEN_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG: (
         -34, -53, -6, -30, -17, -25, -35, -55, -23, -58, -24, -4, -20, -46, -16, -38, -2, 13, -32,
         2, 1, -25, -4, -29, -30, 2, 8, 42, 30, -5, -14, 6, -5, 5, 9,
     ],
+);
+
+const PASSED_PAWN_RELATIVE_TO_FRIENDLY_KING_MG_EG: (
+    [Score; PASSED_PAWNS_RELATIVE_TO_KING_LEN],
+    [Score; PASSED_PAWNS_RELATIVE_TO_KING_LEN],
+) = (
+    [0; PASSED_PAWNS_RELATIVE_TO_KING_LEN],
+    [0; PASSED_PAWNS_RELATIVE_TO_KING_LEN],
+);
+const PASSED_PAWN_RELATIVE_TO_ENEMY_KING_MG_EG: (
+    [Score; PASSED_PAWNS_RELATIVE_TO_KING_LEN],
+    [Score; PASSED_PAWNS_RELATIVE_TO_KING_LEN],
+) = (
+    [0; PASSED_PAWNS_RELATIVE_TO_KING_LEN],
+    [0; PASSED_PAWNS_RELATIVE_TO_KING_LEN],
 );
 
 // Piece square tables:
@@ -448,15 +465,32 @@ const fn human_readable_to_file_rank(piece_value: Score, pst: [Score; 32]) -> [S
 
 const fn convert_square_relative_to(
     mg_eg: (
-        [Score; SQUARE_RELATIVE_TO_KING_LEN],
-        [Score; SQUARE_RELATIVE_TO_KING_LEN],
+        [Score; PIECE_RELATIVE_TO_KING_LEN],
+        [Score; PIECE_RELATIVE_TO_KING_LEN],
     ),
-) -> [ScorePair; SQUARE_RELATIVE_TO_KING_LEN] {
+) -> [ScorePair; PIECE_RELATIVE_TO_KING_LEN] {
     let mg = mg_eg.0;
     let eg = mg_eg.1;
-    let mut scores = [ScorePair(0, 0); SQUARE_RELATIVE_TO_KING_LEN];
+    let mut scores = [ScorePair(0, 0); PIECE_RELATIVE_TO_KING_LEN];
     let mut idx = 0;
-    while idx < SQUARE_RELATIVE_TO_KING_LEN {
+    while idx < PIECE_RELATIVE_TO_KING_LEN {
+        scores[idx] = ScorePair(mg[idx], eg[idx]);
+        idx += 1;
+    }
+    scores
+}
+
+const fn convert_passed_pawn_relative_to(
+    mg_eg: (
+        [Score; PASSED_PAWNS_RELATIVE_TO_KING_LEN],
+        [Score; PASSED_PAWNS_RELATIVE_TO_KING_LEN],
+    ),
+) -> [ScorePair; PASSED_PAWNS_RELATIVE_TO_KING_LEN] {
+    let mg = mg_eg.0;
+    let eg = mg_eg.1;
+    let mut scores = [ScorePair(0, 0); PASSED_PAWNS_RELATIVE_TO_KING_LEN];
+    let mut idx = 0;
+    while idx < PASSED_PAWNS_RELATIVE_TO_KING_LEN {
         scores[idx] = ScorePair(mg[idx], eg[idx]);
         idx += 1;
     }
@@ -511,26 +545,31 @@ pub const MOBILITY_QUEEN: [ScorePair; 28] = {
     table
 };
 
-pub const PAWN_SQUARE_RELATIVE_TO_FRIENDLY_KING: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN] =
-    convert_square_relative_to(PAWN_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG);
-pub const PAWN_SQUARE_RELATIVE_TO_ENEMY_KING: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN] =
-    convert_square_relative_to(PAWN_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG);
-pub const KNIGHT_SQUARE_RELATIVE_TO_FRIENDLY_KING: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN] =
-    convert_square_relative_to(KNIGHT_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG);
-pub const KNIGHT_SQUARE_RELATIVE_TO_ENEMY_KING: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN] =
-    convert_square_relative_to(KNIGHT_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG);
-pub const BISHOP_SQUARE_RELATIVE_TO_FRIENDLY_KING: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN] =
-    convert_square_relative_to(BISHOP_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG);
-pub const BISHOP_SQUARE_RELATIVE_TO_ENEMY_KING: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN] =
-    convert_square_relative_to(BISHOP_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG);
-pub const ROOK_SQUARE_RELATIVE_TO_FRIENDLY_KING: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN] =
-    convert_square_relative_to(ROOK_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG);
-pub const ROOK_SQUARE_RELATIVE_TO_ENEMY_KING: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN] =
-    convert_square_relative_to(ROOK_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG);
-pub const QUEEN_SQUARE_RELATIVE_TO_FRIENDLY_KING: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN] =
-    convert_square_relative_to(QUEEN_SQUARE_RELATIVE_TO_FRIENDLY_KING_MG_EG);
-pub const QUEEN_SQUARE_RELATIVE_TO_ENEMY_KING: [ScorePair; SQUARE_RELATIVE_TO_KING_LEN] =
-    convert_square_relative_to(QUEEN_SQUARE_RELATIVE_TO_ENEMY_KING_MG_EG);
+pub const PAWN_RELATIVE_TO_FRIENDLY_KING: [ScorePair; PIECE_RELATIVE_TO_KING_LEN] =
+    convert_square_relative_to(PAWN_RELATIVE_TO_FRIENDLY_KING_MG_EG);
+pub const PAWN_RELATIVE_TO_ENEMY_KING: [ScorePair; PIECE_RELATIVE_TO_KING_LEN] =
+    convert_square_relative_to(PAWN_RELATIVE_TO_ENEMY_KING_MG_EG);
+pub const KNIGHT_RELATIVE_TO_FRIENDLY_KING: [ScorePair; PIECE_RELATIVE_TO_KING_LEN] =
+    convert_square_relative_to(KNIGHT_RELATIVE_TO_FRIENDLY_KING_MG_EG);
+pub const KNIGHT_RELATIVE_TO_ENEMY_KING: [ScorePair; PIECE_RELATIVE_TO_KING_LEN] =
+    convert_square_relative_to(KNIGHT_RELATIVE_TO_ENEMY_KING_MG_EG);
+pub const BISHOP_RELATIVE_TO_FRIENDLY_KING: [ScorePair; PIECE_RELATIVE_TO_KING_LEN] =
+    convert_square_relative_to(BISHOP_RELATIVE_TO_FRIENDLY_KING_MG_EG);
+pub const BISHOP_RELATIVE_TO_ENEMY_KING: [ScorePair; PIECE_RELATIVE_TO_KING_LEN] =
+    convert_square_relative_to(BISHOP_RELATIVE_TO_ENEMY_KING_MG_EG);
+pub const ROOK_RELATIVE_TO_FRIENDLY_KING: [ScorePair; PIECE_RELATIVE_TO_KING_LEN] =
+    convert_square_relative_to(ROOK_RELATIVE_TO_FRIENDLY_KING_MG_EG);
+pub const ROOK_RELATIVE_TO_ENEMY_KING: [ScorePair; PIECE_RELATIVE_TO_KING_LEN] =
+    convert_square_relative_to(ROOK_RELATIVE_TO_ENEMY_KING_MG_EG);
+pub const QUEEN_RELATIVE_TO_FRIENDLY_KING: [ScorePair; PIECE_RELATIVE_TO_KING_LEN] =
+    convert_square_relative_to(QUEEN_RELATIVE_TO_FRIENDLY_KING_MG_EG);
+pub const QUEEN_RELATIVE_TO_ENEMY_KING: [ScorePair; PIECE_RELATIVE_TO_KING_LEN] =
+    convert_square_relative_to(QUEEN_RELATIVE_TO_ENEMY_KING_MG_EG);
+
+pub const PASSED_PAWN_RELATIVE_TO_FRIENDLY_KING: [ScorePair; PASSED_PAWNS_RELATIVE_TO_KING_LEN] =
+    convert_passed_pawn_relative_to(PASSED_PAWN_RELATIVE_TO_FRIENDLY_KING_MG_EG);
+pub const PASSED_PAWN_RELATIVE_TO_ENEMY_KING: [ScorePair; PASSED_PAWNS_RELATIVE_TO_KING_LEN] =
+    convert_passed_pawn_relative_to(PASSED_PAWN_RELATIVE_TO_ENEMY_KING_MG_EG);
 
 pub const PASSED_PAWN: PieceSquareTable = {
     let mg = human_readable_to_file_rank(0, PASSED_PAWN_MG_EG.0);

@@ -1,6 +1,6 @@
 use std::iter;
 
-use eval::params::{self, MOB_LEN, SQUARE_RELATIVE_TO_KING_LEN};
+use eval::params::{self, MOB_LEN, PASSED_PAWNS_RELATIVE_TO_KING_LEN, PIECE_RELATIVE_TO_KING_LEN};
 use nalgebra::SVector;
 
 use crate::eval_coeffs::EvalCoeffs;
@@ -24,8 +24,10 @@ const NUM_BACKWARD_PAWN_FEATURES: usize = 1;
 const NUM_DOUBLED_PAWN_FEATURES: usize = 1;
 const NUM_MOBILITY_FEATURES: usize = MOB_LEN;
 const NUM_BISHOP_PAIR_FEATURES: usize = 1;
-const NUM_SQUARE_RELATIVE_TO_KING_FEATURES: usize =
-    NUM_SIDES * (NUM_PIECE_TYPES - 1) * SQUARE_RELATIVE_TO_KING_LEN;
+const NUM_PIECE_RELATIVE_TO_KING_FEATURES: usize =
+    NUM_SIDES * (NUM_PIECE_TYPES - 1) * PIECE_RELATIVE_TO_KING_LEN;
+const NUM_PASSED_PAWN_RELATIVE_TO_KING_FEATURES: usize =
+    NUM_SIDES * PASSED_PAWNS_RELATIVE_TO_KING_LEN;
 pub const NUM_FEATURES: usize = NUM_PST_FEATURES
     + NUM_TEMPO_FEATURES
     + NUM_PASSED_PAWN_FEATURES
@@ -34,7 +36,8 @@ pub const NUM_FEATURES: usize = NUM_PST_FEATURES
     + NUM_DOUBLED_PAWN_FEATURES
     + NUM_MOBILITY_FEATURES
     + NUM_BISHOP_PAIR_FEATURES
-    + NUM_SQUARE_RELATIVE_TO_KING_FEATURES;
+    + NUM_PIECE_RELATIVE_TO_KING_FEATURES
+    + NUM_PASSED_PAWN_RELATIVE_TO_KING_FEATURES;
 
 pub const START_IDX_PST: usize = 0;
 
@@ -127,16 +130,18 @@ pub fn engine_weights() -> WeightVector {
         .chain(params::MOBILITY_ROOK.iter())
         .chain(params::MOBILITY_QUEEN.iter())
         .chain(iter::once(&params::BISHOP_PAIR))
-        .chain(params::PAWN_SQUARE_RELATIVE_TO_FRIENDLY_KING.iter())
-        .chain(params::PAWN_SQUARE_RELATIVE_TO_ENEMY_KING.iter())
-        .chain(params::KNIGHT_SQUARE_RELATIVE_TO_FRIENDLY_KING.iter())
-        .chain(params::KNIGHT_SQUARE_RELATIVE_TO_ENEMY_KING.iter())
-        .chain(params::BISHOP_SQUARE_RELATIVE_TO_FRIENDLY_KING.iter())
-        .chain(params::BISHOP_SQUARE_RELATIVE_TO_ENEMY_KING.iter())
-        .chain(params::ROOK_SQUARE_RELATIVE_TO_FRIENDLY_KING.iter())
-        .chain(params::ROOK_SQUARE_RELATIVE_TO_ENEMY_KING.iter())
-        .chain(params::QUEEN_SQUARE_RELATIVE_TO_FRIENDLY_KING.iter())
-        .chain(params::QUEEN_SQUARE_RELATIVE_TO_ENEMY_KING.iter());
+        .chain(params::PAWN_RELATIVE_TO_FRIENDLY_KING.iter())
+        .chain(params::PAWN_RELATIVE_TO_ENEMY_KING.iter())
+        .chain(params::KNIGHT_RELATIVE_TO_FRIENDLY_KING.iter())
+        .chain(params::KNIGHT_RELATIVE_TO_ENEMY_KING.iter())
+        .chain(params::BISHOP_RELATIVE_TO_FRIENDLY_KING.iter())
+        .chain(params::BISHOP_RELATIVE_TO_ENEMY_KING.iter())
+        .chain(params::ROOK_RELATIVE_TO_FRIENDLY_KING.iter())
+        .chain(params::ROOK_RELATIVE_TO_ENEMY_KING.iter())
+        .chain(params::QUEEN_RELATIVE_TO_FRIENDLY_KING.iter())
+        .chain(params::QUEEN_RELATIVE_TO_ENEMY_KING.iter())
+        .chain(params::PASSED_PAWN_RELATIVE_TO_FRIENDLY_KING.iter())
+        .chain(params::PASSED_PAWN_RELATIVE_TO_ENEMY_KING.iter());
     let mut weights = WeightVector::from_element(0.0);
     for (idx, &weight) in weight_iter.enumerate() {
         // Middlegame
