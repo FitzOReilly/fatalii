@@ -209,8 +209,11 @@ impl HandCraftedEval {
     fn add_pst(&mut self, p: Piece, square: Square, diff: i8) {
         let pst = PIECE_TABLE_REFS[p.piece_type().idx()].pst;
         match p.piece_side() {
-            Side::White => self.pst_scores += diff as Score * pst[square.idx()],
-            Side::Black => self.pst_scores -= diff as Score * pst[square.flip_vertical().idx()],
+            Side::White => self.pst_scores += diff as Score * pst[square.fold_to_queenside().idx()],
+            Side::Black => {
+                self.pst_scores -=
+                    diff as Score * pst[square.flip_vertical().fold_to_queenside().idx()]
+            }
         }
         #[cfg(feature = "trace")]
         self.coeffs.add_pst(p, square, diff);
@@ -347,7 +350,7 @@ impl HandCraftedEval {
         );
         while white_passed != Bitboard::EMPTY {
             let square = white_passed.square_scan_forward_reset();
-            self.passed_pawn_scores += params::PASSED_PAWN[square.idx()];
+            self.passed_pawn_scores += params::PASSED_PAWN[square.fold_to_queenside().idx()];
             self.passed_pawn_scores += params::PASSED_PAWN_RELATIVE_TO_FRIENDLY_KING
                 [(OFFSET_RELATIVE_TO_KING
                     + square.relative_to(eval_data.kings[Side::White as usize]))
@@ -382,7 +385,8 @@ impl HandCraftedEval {
         );
         while black_passed != Bitboard::EMPTY {
             let square = black_passed.square_scan_forward_reset();
-            self.passed_pawn_scores -= params::PASSED_PAWN[square.flip_vertical().idx()];
+            self.passed_pawn_scores -=
+                params::PASSED_PAWN[square.flip_vertical().fold_to_queenside().idx()];
             self.passed_pawn_scores -= params::PASSED_PAWN_RELATIVE_TO_FRIENDLY_KING
                 [(OFFSET_RELATIVE_TO_KING
                     + square

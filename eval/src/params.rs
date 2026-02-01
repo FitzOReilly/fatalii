@@ -2,7 +2,12 @@ use movegen::{file::File, rank::Rank, square::Square};
 
 use crate::{score_pair::ScorePair, Score};
 
-pub type PieceSquareTable = [ScorePair; 64];
+// Piece square tables:
+// We use symmetrical PSTs, so we only define values for half the board. Squares
+// on the kingside (right side) will be mirrored to the queenside (left side)
+// during evaluation.
+const PST_LEN: usize = 32;
+pub type PieceSquareTable = [ScorePair; PST_LEN];
 
 pub const KNIGHT_MOB_LEN: usize = 9;
 pub const BISHOP_MOB_LEN: usize = 14;
@@ -27,7 +32,7 @@ const MATERIAL_PAWN: ScorePair = ScorePair(0, 0);
 pub const TEMPO: ScorePair = ScorePair(29, 29);
 
 #[rustfmt::skip]
-const PASSED_PAWN_MG_EG: ([Score; 32], [Score; 32]) = (
+const PASSED_PAWN_MG_EG: ([Score; PST_LEN], [Score; PST_LEN]) = (
     [
            0,    0,    0,    0,
            0,    0,    0,    0,
@@ -329,11 +334,8 @@ const PASSED_PAWN_RELATIVE_TO_ENEMY_KING_MG_EG: (
     ],
 );
 
-// Piece square tables:
-// We only define values for the queenside (left side) and mirror them to the
-// kingside (right side) so that we end up with symmetrical PSTs.
 #[rustfmt::skip]
-const PST_PAWN_MG_EG: ([Score; 32], [Score; 32]) = (
+const PST_PAWN_MG_EG: ([Score; PST_LEN], [Score; PST_LEN]) = (
     [
            0,    0,    0,    0,
          111,  153,  152,  164,
@@ -356,7 +358,7 @@ const PST_PAWN_MG_EG: ([Score; 32], [Score; 32]) = (
     ],
 );
 #[rustfmt::skip]
-const PST_KNIGHT_MG_EG: ([Score; 32], [Score; 32]) = (
+const PST_KNIGHT_MG_EG: ([Score; PST_LEN], [Score; PST_LEN]) = (
     [
          185,  278,  255,  307,
          300,  294,  398,  325,
@@ -379,7 +381,7 @@ const PST_KNIGHT_MG_EG: ([Score; 32], [Score; 32]) = (
     ],
 );
 #[rustfmt::skip]
-const PST_BISHOP_MG_EG: ([Score; 32], [Score; 32]) = (
+const PST_BISHOP_MG_EG: ([Score; PST_LEN], [Score; PST_LEN]) = (
     [
          303,  309,  292,  252,
          296,  356,  337,  342,
@@ -402,7 +404,7 @@ const PST_BISHOP_MG_EG: ([Score; 32], [Score; 32]) = (
     ],
 );
 #[rustfmt::skip]
-const PST_ROOK_MG_EG: ([Score; 32], [Score; 32]) = (
+const PST_ROOK_MG_EG: ([Score; PST_LEN], [Score; PST_LEN]) = (
     [
          540,  567,  560,  560,
          564,  539,  560,  550,
@@ -425,7 +427,7 @@ const PST_ROOK_MG_EG: ([Score; 32], [Score; 32]) = (
     ],
 );
 #[rustfmt::skip]
-const PST_QUEEN_MG_EG: ([Score; 32], [Score; 32]) = (
+const PST_QUEEN_MG_EG: ([Score; PST_LEN], [Score; PST_LEN]) = (
     [
          958,  968,  965,  987,
          983,  957,  946,  883,
@@ -448,7 +450,7 @@ const PST_QUEEN_MG_EG: ([Score; 32], [Score; 32]) = (
     ],
 );
 #[rustfmt::skip]
-const PST_KING_MG_EG: ([Score; 32], [Score; 32]) = (
+const PST_KING_MG_EG: ([Score; PST_LEN], [Score; PST_LEN]) = (
     [
           15,    8,   33,    5,
          -13,    3,   35,   -1,
@@ -471,19 +473,35 @@ const PST_KING_MG_EG: ([Score; 32], [Score; 32]) = (
     ],
 );
 
-const fn human_readable_to_file_rank(piece_value: Score, pst: [Score; 32]) -> [Score; 64] {
-    let mut res = [0; 64];
+const fn human_readable_to_file_rank(
+    material_value: Score,
+    pst: [Score; PST_LEN],
+) -> [Score; PST_LEN] {
+    let mut res = [0; PST_LEN];
     let mut idx = 0;
-    while idx < 32 {
+    while idx < PST_LEN {
         let rank = 7 - idx / 4;
         let file = idx % 4;
         let new_idx = Square::from_file_and_rank(File::from_idx(file), Rank::from_idx(rank)).idx();
-        let mirrored_idx = Square::from_idx(new_idx).mirror_horizontal().idx();
-        res[new_idx] = piece_value + pst[idx];
-        res[mirrored_idx] = piece_value + pst[idx];
+        res[new_idx] = material_value + pst[idx];
         idx += 1;
     }
     res
+}
+
+const fn convert_pst(
+    material_value: ScorePair,
+    mg_eg: ([Score; PST_LEN], [Score; PST_LEN]),
+) -> PieceSquareTable {
+    let mg = human_readable_to_file_rank(material_value.0, mg_eg.0);
+    let eg = human_readable_to_file_rank(material_value.1, mg_eg.1);
+    let mut table = [ScorePair(0, 0); PST_LEN];
+    let mut idx = 0;
+    while idx < PST_LEN {
+        table[idx] = ScorePair(mg[idx], eg[idx]);
+        idx += 1;
+    }
+    table
 }
 
 const fn convert_square_relative_to(
@@ -594,89 +612,14 @@ pub const PASSED_PAWN_RELATIVE_TO_FRIENDLY_KING: [ScorePair; PASSED_PAWNS_RELATI
 pub const PASSED_PAWN_RELATIVE_TO_ENEMY_KING: [ScorePair; PASSED_PAWNS_RELATIVE_TO_KING_LEN] =
     convert_passed_pawn_relative_to(PASSED_PAWN_RELATIVE_TO_ENEMY_KING_MG_EG);
 
-pub const PASSED_PAWN: PieceSquareTable = {
-    let mg = human_readable_to_file_rank(0, PASSED_PAWN_MG_EG.0);
-    let eg = human_readable_to_file_rank(0, PASSED_PAWN_MG_EG.1);
-    let mut table = [ScorePair(0, 0); 64];
-    let mut idx = 0;
-    while idx < 64 {
-        table[idx] = ScorePair(mg[idx], eg[idx]);
-        idx += 1;
-    }
-    table
-};
+pub const PASSED_PAWN: PieceSquareTable = convert_pst(ScorePair(0, 0), PASSED_PAWN_MG_EG);
 
-pub const PST_PAWN: PieceSquareTable = {
-    let mg = human_readable_to_file_rank(MATERIAL_PAWN.0, PST_PAWN_MG_EG.0);
-    let eg = human_readable_to_file_rank(MATERIAL_PAWN.1, PST_PAWN_MG_EG.1);
-    let mut table = [ScorePair(0, 0); 64];
-    let mut idx = 0;
-    while idx < 64 {
-        table[idx] = ScorePair(mg[idx], eg[idx]);
-        idx += 1;
-    }
-    table
-};
-
-pub const PST_KNIGHT: PieceSquareTable = {
-    let mg = human_readable_to_file_rank(MATERIAL_KNIGHT.0, PST_KNIGHT_MG_EG.0);
-    let eg = human_readable_to_file_rank(MATERIAL_KNIGHT.1, PST_KNIGHT_MG_EG.1);
-    let mut table = [ScorePair(0, 0); 64];
-    let mut idx = 0;
-    while idx < 64 {
-        table[idx] = ScorePair(mg[idx], eg[idx]);
-        idx += 1;
-    }
-    table
-};
-
-pub const PST_BISHOP: PieceSquareTable = {
-    let mg = human_readable_to_file_rank(MATERIAL_BISHOP.0, PST_BISHOP_MG_EG.0);
-    let eg = human_readable_to_file_rank(MATERIAL_BISHOP.1, PST_BISHOP_MG_EG.1);
-    let mut table = [ScorePair(0, 0); 64];
-    let mut idx = 0;
-    while idx < 64 {
-        table[idx] = ScorePair(mg[idx], eg[idx]);
-        idx += 1;
-    }
-    table
-};
-
-pub const PST_ROOK: PieceSquareTable = {
-    let mg = human_readable_to_file_rank(MATERIAL_ROOK.0, PST_ROOK_MG_EG.0);
-    let eg = human_readable_to_file_rank(MATERIAL_ROOK.1, PST_ROOK_MG_EG.1);
-    let mut table = [ScorePair(0, 0); 64];
-    let mut idx = 0;
-    while idx < 64 {
-        table[idx] = ScorePair(mg[idx], eg[idx]);
-        idx += 1;
-    }
-    table
-};
-
-pub const PST_QUEEN: PieceSquareTable = {
-    let mg = human_readable_to_file_rank(MATERIAL_QUEEN.0, PST_QUEEN_MG_EG.0);
-    let eg = human_readable_to_file_rank(MATERIAL_QUEEN.1, PST_QUEEN_MG_EG.1);
-    let mut table = [ScorePair(0, 0); 64];
-    let mut idx = 0;
-    while idx < 64 {
-        table[idx] = ScorePair(mg[idx], eg[idx]);
-        idx += 1;
-    }
-    table
-};
-
-pub const PST_KING: PieceSquareTable = {
-    let mg = human_readable_to_file_rank(MATERIAL_KING.0, PST_KING_MG_EG.0);
-    let eg = human_readable_to_file_rank(MATERIAL_KING.1, PST_KING_MG_EG.1);
-    let mut table = [ScorePair(0, 0); 64];
-    let mut idx = 0;
-    while idx < 64 {
-        table[idx] = ScorePair(mg[idx], eg[idx]);
-        idx += 1;
-    }
-    table
-};
+pub const PST_PAWN: PieceSquareTable = convert_pst(MATERIAL_PAWN, PST_PAWN_MG_EG);
+pub const PST_KNIGHT: PieceSquareTable = convert_pst(MATERIAL_KNIGHT, PST_KNIGHT_MG_EG);
+pub const PST_BISHOP: PieceSquareTable = convert_pst(MATERIAL_BISHOP, PST_BISHOP_MG_EG);
+pub const PST_ROOK: PieceSquareTable = convert_pst(MATERIAL_ROOK, PST_ROOK_MG_EG);
+pub const PST_QUEEN: PieceSquareTable = convert_pst(MATERIAL_QUEEN, PST_QUEEN_MG_EG);
+pub const PST_KING: PieceSquareTable = convert_pst(MATERIAL_KING, PST_KING_MG_EG);
 
 #[cfg(test)]
 mod tests {
@@ -697,19 +640,19 @@ mod tests {
         ];
 
         let res = super::human_readable_to_file_rank(100, arr);
-        assert_eq!(156, res[Square::A1.idx()]);
-        assert_eq!(148, res[Square::A2.idx()]);
-        assert_eq!(100, res[Square::A8.idx()]);
-        assert_eq!(157, res[Square::B1.idx()]);
-        assert_eq!(149, res[Square::B2.idx()]);
-        assert_eq!(142, res[Square::C3.idx()]);
-        assert_eq!(135, res[Square::D4.idx()]);
-        assert_eq!(127, res[Square::E5.idx()]);
-        assert_eq!(118, res[Square::F6.idx()]);
-        assert_eq!(109, res[Square::G7.idx()]);
-        assert_eq!(101, res[Square::G8.idx()]);
-        assert_eq!(156, res[Square::H1.idx()]);
-        assert_eq!(108, res[Square::H7.idx()]);
-        assert_eq!(100, res[Square::H8.idx()]);
+        assert_eq!(156, res[Square::A1.fold_to_queenside().idx()]);
+        assert_eq!(148, res[Square::A2.fold_to_queenside().idx()]);
+        assert_eq!(100, res[Square::A8.fold_to_queenside().idx()]);
+        assert_eq!(157, res[Square::B1.fold_to_queenside().idx()]);
+        assert_eq!(149, res[Square::B2.fold_to_queenside().idx()]);
+        assert_eq!(142, res[Square::C3.fold_to_queenside().idx()]);
+        assert_eq!(135, res[Square::D4.fold_to_queenside().idx()]);
+        assert_eq!(127, res[Square::E5.fold_to_queenside().idx()]);
+        assert_eq!(118, res[Square::F6.fold_to_queenside().idx()]);
+        assert_eq!(109, res[Square::G7.fold_to_queenside().idx()]);
+        assert_eq!(101, res[Square::G8.fold_to_queenside().idx()]);
+        assert_eq!(156, res[Square::H1.fold_to_queenside().idx()]);
+        assert_eq!(108, res[Square::H7.fold_to_queenside().idx()]);
+        assert_eq!(100, res[Square::H8.fold_to_queenside().idx()]);
     }
 }
