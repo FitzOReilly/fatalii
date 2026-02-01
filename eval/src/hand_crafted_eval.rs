@@ -25,6 +25,8 @@ struct EvalData {
     kings: [Square; 2],
     pawns_changed: [bool; 2],
     pawns: [Bitboard; 2],
+    outposts: [Bitboard; 2],
+    defended_outposts: [Bitboard; 2],
 }
 
 impl EvalData {
@@ -37,6 +39,14 @@ impl EvalData {
         let white_pawns = pos.piece_occupancy(Side::White, piece::Type::Pawn);
         let prev_black_pawns = prev_pos.piece_occupancy(Side::Black, piece::Type::Pawn);
         let black_pawns = pos.piece_occupancy(Side::Black, piece::Type::Pawn);
+        let white_pawn_attacks = Pawn::attack_targets(white_pawns, Side::White);
+        let black_pawn_attacks = Pawn::attack_targets(black_pawns, Side::Black);
+        let white_pawn_attack_spans = white_pawn_attacks.north_fill();
+        let black_pawn_attack_spans = black_pawn_attacks.south_fill();
+        let white_outposts = !black_pawn_attack_spans;
+        let black_outposts = !white_pawn_attack_spans;
+        let white_defended_outposts = white_outposts & white_pawn_attacks;
+        let black_defended_outposts = black_outposts & black_pawn_attacks;
         Self {
             king_moved: prev_white_king != white_king || prev_black_king != black_king,
             kings: [white_king.to_square(), black_king.to_square()],
@@ -45,6 +55,8 @@ impl EvalData {
                 prev_black_pawns != black_pawns,
             ],
             pawns: [white_pawns, black_pawns],
+            outposts: [white_outposts, black_outposts],
+            defended_outposts: [white_defended_outposts, black_defended_outposts],
         }
     }
 }
@@ -69,14 +81,15 @@ impl Eval for HandCraftedEval {
         self.update(&eval_data, pos);
 
         let scores = self.pst_scores
+            + self.squares_relative_to_king
             + self.tempo_scores(pos)
             + self.passed_pawn_scores
             + self.isolated_and_doubled_pawn_scores[Side::White as usize]
             - self.isolated_and_doubled_pawn_scores[Side::Black as usize]
             + self.backward_pawn_scores
+            + self.outpost_scores(&eval_data, pos)
             + self.mobility_scores(pos)
-            + self.bishop_pair_scores(pos)
-            + self.squares_relative_to_king;
+            + self.bishop_pair_scores(pos);
 
         let game_phase = self.game_phase.game_phase_clamped();
         #[cfg(feature = "trace")]
@@ -484,6 +497,58 @@ impl HandCraftedEval {
         let backward_pawn_targets = own_pawn_stops & !own_front_attack_span & opp_attack_targets;
         let backward_pawns = Pawn::single_push_origins(backward_pawn_targets, side);
         backward_pawns.pop_count() as i8
+    }
+
+    fn outpost_scores(&mut self, eval_data: &EvalData, pos: &Position) -> ScorePair {
+        let mut scores = ScorePair(0, 0);
+
+        let white_knights = pos.piece_occupancy(Side::White, piece::Type::Knight);
+        let white_defended_knight_outposts =
+            white_knights & eval_data.defended_outposts[Side::White as usize];
+        let white_undefended_knight_outposts = white_knights
+            & eval_data.outposts[Side::White as usize]
+            & !white_defended_knight_outposts;
+        let black_knights = pos.piece_occupancy(Side::Black, piece::Type::Knight);
+        let black_defended_knight_outposts =
+            black_knights & eval_data.defended_outposts[Side::Black as usize];
+        let black_undefended_knight_outposts = black_knights
+            & eval_data.outposts[Side::Black as usize]
+            & !black_defended_knight_outposts;
+        let undefended_knight_outpost_count = white_undefended_knight_outposts.pop_count() as Score
+            - black_undefended_knight_outposts.pop_count() as Score;
+        scores += undefended_knight_outpost_count * params::UNDEFENDED_KNIGHT_OUTPOST;
+        let defended_knight_outpost_count = white_defended_knight_outposts.pop_count() as Score
+            - black_defended_knight_outposts.pop_count() as Score;
+        scores += defended_knight_outpost_count * params::DEFENDED_KNIGHT_OUTPOST;
+
+        let white_bishops = pos.piece_occupancy(Side::White, piece::Type::Bishop);
+        let white_defended_bishop_outposts =
+            white_bishops & eval_data.defended_outposts[Side::White as usize];
+        let white_undefended_bishop_outposts = white_bishops
+            & eval_data.outposts[Side::White as usize]
+            & !white_defended_bishop_outposts;
+        let black_bishops = pos.piece_occupancy(Side::Black, piece::Type::Bishop);
+        let black_defended_bishop_outposts =
+            black_bishops & eval_data.defended_outposts[Side::Black as usize];
+        let black_undefended_bishop_outposts = black_bishops
+            & eval_data.outposts[Side::Black as usize]
+            & !black_defended_bishop_outposts;
+        let undefended_bishop_outpost_count = white_undefended_bishop_outposts.pop_count() as Score
+            - black_undefended_bishop_outposts.pop_count() as Score;
+        scores += undefended_bishop_outpost_count * params::UNDEFENDED_BISHOP_OUTPOST;
+        let defended_bishop_outpost_count = white_defended_bishop_outposts.pop_count() as Score
+            - black_defended_bishop_outposts.pop_count() as Score;
+        scores += defended_bishop_outpost_count * params::DEFENDED_BISHOP_OUTPOST;
+
+        #[cfg(feature = "trace")]
+        {
+            self.coeffs.undefended_knight_outpost = undefended_knight_outpost_count.into();
+            self.coeffs.defended_knight_outpost = defended_knight_outpost_count.into();
+            self.coeffs.undefended_bishop_outpost = undefended_bishop_outpost_count.into();
+            self.coeffs.defended_bishop_outpost = defended_bishop_outpost_count.into();
+        }
+
+        scores
     }
 
     fn mobility_scores(&mut self, pos: &Position) -> ScorePair {

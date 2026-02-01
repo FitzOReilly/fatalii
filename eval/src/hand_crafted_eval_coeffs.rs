@@ -56,6 +56,10 @@ pub struct HandCraftedEvalCoeffs {
     pub isolated_pawn: Coeff,
     pub backward_pawn: Coeff,
     pub doubled_pawn: Coeff,
+    pub undefended_knight_outpost: Coeff,
+    pub defended_knight_outpost: Coeff,
+    pub undefended_bishop_outpost: Coeff,
+    pub defended_bishop_outpost: Coeff,
     pub knight_mobility: [Coeff; params::KNIGHT_MOB_LEN],
     pub bishop_mobility: [Coeff; params::BISHOP_MOB_LEN],
     pub rook_mobility: [Coeff; params::ROOK_MOB_LEN],
@@ -90,6 +94,10 @@ impl Default for HandCraftedEvalCoeffs {
             isolated_pawn: Default::default(),
             backward_pawn: Default::default(),
             doubled_pawn: Default::default(),
+            undefended_knight_outpost: Default::default(),
+            defended_knight_outpost: Default::default(),
+            undefended_bishop_outpost: Default::default(),
+            defended_bishop_outpost: Default::default(),
             knight_mobility: Default::default(),
             bishop_mobility: Default::default(),
             rook_mobility: Default::default(),
@@ -208,6 +216,10 @@ impl HandCraftedEvalCoeffs {
             .chain(iter::once(&self.isolated_pawn))
             .chain(iter::once(&self.backward_pawn))
             .chain(iter::once(&self.doubled_pawn))
+            .chain(iter::once(&self.undefended_knight_outpost))
+            .chain(iter::once(&self.defended_knight_outpost))
+            .chain(iter::once(&self.undefended_bishop_outpost))
+            .chain(iter::once(&self.defended_bishop_outpost))
             .chain(self.knight_mobility.iter())
             .chain(self.bishop_mobility.iter())
             .chain(self.rook_mobility.iter())

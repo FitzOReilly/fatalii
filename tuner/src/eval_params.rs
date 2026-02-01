@@ -24,6 +24,10 @@ pub struct EvalParams {
     isolated_pawn: ScorePair,
     backward_pawn: ScorePair,
     doubled_pawn: ScorePair,
+    undefended_knight_outpost: ScorePair,
+    defended_knight_outpost: ScorePair,
+    undefended_bishop_outpost: ScorePair,
+    defended_bishop_outpost: ScorePair,
     knight_mobility: [ScorePair; KNIGHT_MOB_LEN],
     bishop_mobility: [ScorePair; BISHOP_MOB_LEN],
     rook_mobility: [ScorePair; ROOK_MOB_LEN],
@@ -57,6 +61,10 @@ impl Default for EvalParams {
             isolated_pawn: ScorePair(0, 0),
             backward_pawn: ScorePair(0, 0),
             doubled_pawn: ScorePair(0, 0),
+            undefended_knight_outpost: ScorePair(0, 0),
+            defended_knight_outpost: ScorePair(0, 0),
+            undefended_bishop_outpost: ScorePair(0, 0),
+            defended_bishop_outpost: ScorePair(0, 0),
             knight_mobility: [ScorePair(0, 0); KNIGHT_MOB_LEN],
             bishop_mobility: [ScorePair(0, 0); BISHOP_MOB_LEN],
             rook_mobility: [ScorePair(0, 0); ROOK_MOB_LEN],
@@ -95,6 +103,10 @@ impl From<&WeightVector> for EvalParams {
         Self::next_param(&mut eval_params.isolated_pawn, &mut weight_iter);
         Self::next_param(&mut eval_params.backward_pawn, &mut weight_iter);
         Self::next_param(&mut eval_params.doubled_pawn, &mut weight_iter);
+        Self::next_param(&mut eval_params.undefended_knight_outpost, &mut weight_iter);
+        Self::next_param(&mut eval_params.defended_knight_outpost, &mut weight_iter);
+        Self::next_param(&mut eval_params.undefended_bishop_outpost, &mut weight_iter);
+        Self::next_param(&mut eval_params.defended_bishop_outpost, &mut weight_iter);
         Self::next_params(&mut eval_params.knight_mobility, &mut weight_iter);
         Self::next_params(&mut eval_params.bishop_mobility, &mut weight_iter);
         Self::next_params(&mut eval_params.rook_mobility, &mut weight_iter);
@@ -175,6 +187,27 @@ impl Display for EvalParams {
             f,
             "pub const DOUBLED_PAWN: ScorePair = ScorePair({}, {});",
             self.doubled_pawn.0, self.doubled_pawn.1
+        )?;
+        writeln!(f)?;
+        writeln!(
+            f,
+            "pub const UNDEFENDED_KNIGHT_OUTPOST: ScorePair = ScorePair({}, {});",
+            self.undefended_knight_outpost.0, self.undefended_knight_outpost.1
+        )?;
+        writeln!(
+            f,
+            "pub const DEFENDED_KNIGHT_OUTPOST: ScorePair = ScorePair({}, {});",
+            self.defended_knight_outpost.0, self.defended_knight_outpost.1
+        )?;
+        writeln!(
+            f,
+            "pub const UNDEFENDED_BISHOP_OUTPOST: ScorePair = ScorePair({}, {});",
+            self.undefended_bishop_outpost.0, self.undefended_bishop_outpost.1
+        )?;
+        writeln!(
+            f,
+            "pub const DEFENDED_BISHOP_OUTPOST: ScorePair = ScorePair({}, {});",
+            self.defended_bishop_outpost.0, self.defended_bishop_outpost.1
         )?;
         writeln!(f)?;
         writeln!(

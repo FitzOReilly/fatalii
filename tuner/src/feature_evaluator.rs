@@ -22,6 +22,7 @@ const NUM_PASSED_PAWN_FEATURES: usize = PST_SIZE;
 const NUM_ISOLATED_PAWN_FEATURES: usize = 1;
 const NUM_BACKWARD_PAWN_FEATURES: usize = 1;
 const NUM_DOUBLED_PAWN_FEATURES: usize = 1;
+const NUM_OUTPOST_FEATURES: usize = 4;
 const NUM_MOBILITY_FEATURES: usize = MOB_LEN;
 const NUM_BISHOP_PAIR_FEATURES: usize = 1;
 const NUM_PIECE_RELATIVE_TO_KING_FEATURES: usize =
@@ -34,6 +35,7 @@ pub const NUM_FEATURES: usize = NUM_PST_FEATURES
     + NUM_ISOLATED_PAWN_FEATURES
     + NUM_BACKWARD_PAWN_FEATURES
     + NUM_DOUBLED_PAWN_FEATURES
+    + NUM_OUTPOST_FEATURES
     + NUM_MOBILITY_FEATURES
     + NUM_BISHOP_PAIR_FEATURES
     + NUM_PIECE_RELATIVE_TO_KING_FEATURES
@@ -125,6 +127,10 @@ pub fn engine_weights() -> WeightVector {
         .chain(iter::once(&params::ISOLATED_PAWN))
         .chain(iter::once(&params::BACKWARD_PAWN))
         .chain(iter::once(&params::DOUBLED_PAWN))
+        .chain(iter::once(&params::UNDEFENDED_KNIGHT_OUTPOST))
+        .chain(iter::once(&params::DEFENDED_KNIGHT_OUTPOST))
+        .chain(iter::once(&params::UNDEFENDED_BISHOP_OUTPOST))
+        .chain(iter::once(&params::DEFENDED_BISHOP_OUTPOST))
         .chain(params::MOBILITY_KNIGHT.iter())
         .chain(params::MOBILITY_BISHOP.iter())
         .chain(params::MOBILITY_ROOK.iter())
