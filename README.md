@@ -53,7 +53,7 @@ Fatalii supports both standard chess and Chess960 (a.k.a. Fischer Random Chess).
   - Mobility
   - Bishop pair
   - Tempo
-  - King tropism
+  - Piece positions relative to both kings
   - Tapered evaluation for all parameters
   - Tuned with training positions from the
     [Zurichess dataset quiet-labeled.v7](https://bitbucket.org/zurichess/tuner/downloads/quiet-labeled.v7.epd.gz)
