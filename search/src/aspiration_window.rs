@@ -1,5 +1,5 @@
 use crate::search_params::SearchParams;
-use eval::{Score, NEG_INF, POS_INF};
+use eval::{NEG_INF, POS_INF, Score};
 
 #[derive(Debug)]
 pub struct AspirationWindow {

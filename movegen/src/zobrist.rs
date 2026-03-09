@@ -934,9 +934,9 @@ impl Zobrist {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::r#move::{Move, MoveList, MoveType};
     use crate::move_generator::MoveGenerator;
     use crate::position_history::PositionHistory;
-    use crate::r#move::{Move, MoveList, MoveType};
 
     #[test]
     fn hash_values_differ() {

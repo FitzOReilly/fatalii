@@ -1,6 +1,6 @@
 pub use crate::engine::{Engine, EngineError};
 pub use crate::engine_options::{
-    EngineOptions, Variant, DEFAULT_HASH_BYTES, DEFAULT_HASH_MB, DEFAULT_MOVE_OVERHEAD_MILLIS,
+    DEFAULT_HASH_BYTES, DEFAULT_HASH_MB, DEFAULT_MOVE_OVERHEAD_MILLIS, EngineOptions, Variant,
 };
 pub use crate::engine_out::EngineOut;
 

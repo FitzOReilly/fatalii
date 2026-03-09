@@ -4,9 +4,9 @@ use crate::history_table::HistoryTable;
 use crate::search_data::SearchData;
 use crate::static_exchange_eval::static_exchange_eval;
 use eval::Score;
+use movegen::r#move::{Move, MoveList};
 use movegen::piece;
 use movegen::position::Position;
-use movegen::r#move::{Move, MoveList};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
@@ -217,14 +217,13 @@ impl MoveSelector {
         search_data: &mut SearchData,
         transpos_table: &mut AlphaBetaTable,
     ) -> Option<Move> {
-        if let Some(entry) = transpos_table.get(&search_data.current_pos_hash()) {
-            if let Some(idx) = self
+        if let Some(entry) = transpos_table.get(&search_data.current_pos_hash())
+            && let Some(idx) = self
                 .moves
                 .iter()
                 .position(|x| x.r#move == entry.best_move())
-            {
-                return Some(self.moves.swap_remove(idx).r#move);
-            }
+        {
+            return Some(self.moves.swap_remove(idx).r#move);
         }
         None
     }
@@ -358,14 +357,14 @@ impl MoveSelector {
         search_data: &mut SearchData,
         counter_table: &CounterTable,
     ) -> Option<Move> {
-        if let Some(last_move) = search_data.pos_history().last_move() {
-            if let Some(last_moved_piece) = search_data.pos_history().last_moved_piece() {
-                let counter = counter_table.counter(last_moved_piece, last_move.target());
-                if counter != Move::NULL {
-                    if let Some(idx) = self.moves.iter().position(|x| x.r#move == counter) {
-                        return Some(self.moves.swap_remove(idx).r#move);
-                    }
-                }
+        if let Some(last_move) = search_data.pos_history().last_move()
+            && let Some(last_moved_piece) = search_data.pos_history().last_moved_piece()
+        {
+            let counter = counter_table.counter(last_moved_piece, last_move.target());
+            if counter != Move::NULL
+                && let Some(idx) = self.moves.iter().position(|x| x.r#move == counter)
+            {
+                return Some(self.moves.swap_remove(idx).r#move);
             }
         }
 

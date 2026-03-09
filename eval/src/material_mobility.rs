@@ -134,8 +134,8 @@ impl MaterialMobility {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use movegen::position_history::PositionHistory;
     use movegen::r#move::{Move, MoveType};
+    use movegen::position_history::PositionHistory;
     use movegen::square::Square;
 
     #[test]

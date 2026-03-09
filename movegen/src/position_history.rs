@@ -1,10 +1,10 @@
 use crate::bitboard::Bitboard;
 use crate::fen::Fen;
+use crate::r#move::{Move, MoveType};
 use crate::move_generator::MoveGenerator;
 use crate::pawn::Pawn;
 use crate::piece::{self, Piece};
 use crate::position::{CastlingRights, Position};
-use crate::r#move::{Move, MoveType};
 use crate::rank::Rank;
 use crate::repetition_tracker::RepetitionTracker;
 use crate::side::Side;

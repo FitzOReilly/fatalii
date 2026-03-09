@@ -1,5 +1,5 @@
 use crate::uci_move::UciMove;
-use crate::uci_option::{OptionType, UciOption, OPTIONS};
+use crate::uci_option::{OPTIONS, OptionType, UciOption};
 use crate::uci_score::UciScore;
 use engine::{EngineOptions, EngineOut, Variant};
 use movegen::r#move::Move;

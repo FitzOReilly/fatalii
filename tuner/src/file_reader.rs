@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use eval::{eval::HasMatingMaterial, Eval, HandCraftedEval};
+use eval::{Eval, HandCraftedEval, eval::HasMatingMaterial};
 use movegen::{fen::Fen, side::Side};
 
 use crate::{
@@ -57,7 +57,9 @@ pub fn read_training_data(
         }
         let training_count = training_data.len();
         let filtered_count = parsed_count - training_count;
-        println!("Positions: {parsed_count} parsed, {filtered_count} filtered out, will use {training_count} for training");
+        println!(
+            "Positions: {parsed_count} parsed, {filtered_count} filtered out, will use {training_count} for training"
+        );
     }
     training_data
 }

@@ -1,5 +1,5 @@
-use crate::parser::{ParserMessage, UciError};
 use crate::UciOut;
+use crate::parser::{ParserMessage, UciError};
 use engine::Engine;
 use std::error::Error;
 

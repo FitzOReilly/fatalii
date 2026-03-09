@@ -1,6 +1,6 @@
 use movegen::{file::File, rank::Rank, square::Square};
 
-use crate::{score_pair::ScorePair, Score};
+use crate::{Score, score_pair::ScorePair};
 
 // Piece square tables:
 // We use symmetrical PSTs, so we only define values for half the board. Squares

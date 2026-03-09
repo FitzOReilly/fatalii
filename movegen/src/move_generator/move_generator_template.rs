@@ -3,12 +3,12 @@ use crate::bishop::Bishop;
 use crate::bitboard::Bitboard;
 use crate::king::King;
 use crate::knight::Knight;
+use crate::r#move::{Move, MoveList, MoveType};
 use crate::pawn::Pawn;
 use crate::piece;
 use crate::piece_targets::PieceTargets;
 use crate::position::CastlingRights;
 use crate::queen::Queen;
-use crate::r#move::{Move, MoveList, MoveType};
 use crate::rank::Rank;
 use crate::rook::Rook;
 use crate::side::Side;
@@ -546,7 +546,7 @@ pub trait MoveGeneratorTemplate {
                                 piece::Type::Queen,
                             ),
                         )
-                        .into()
+                        .into();
                     }
                 }
             }
@@ -566,7 +566,7 @@ pub trait MoveGeneratorTemplate {
                                 piece::Type::Queen,
                             ),
                         )
-                        .into()
+                        .into();
                     }
                 }
             }

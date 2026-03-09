@@ -7,7 +7,7 @@ use clap::{Args, Parser, Subcommand};
 use eval::HandCraftedEval;
 use tuner::{
     eval_params::EvalParams,
-    feature_evaluator::{default_weights, engine_weights, FeatureEvaluator, WeightVector},
+    feature_evaluator::{FeatureEvaluator, WeightVector, default_weights, engine_weights},
     file_reader,
     optimizer::{self, AdamParams, Checkpoint},
 };

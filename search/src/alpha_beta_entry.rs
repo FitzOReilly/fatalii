@@ -1,6 +1,6 @@
 use crate::search::MAX_SEARCH_DEPTH;
-use eval::score::{dec_mate_dist_by, inc_mate_dist_by};
 use eval::Score;
+use eval::score::{dec_mate_dist_by, inc_mate_dist_by};
 use movegen::r#move::Move;
 use movegen::transposition_table::TtEntry;
 use movegen::zobrist::Zobrist;

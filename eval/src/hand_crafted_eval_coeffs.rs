@@ -11,7 +11,7 @@ use movegen::{
     square::Square,
 };
 
-use crate::{params, Score};
+use crate::{Score, params};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Coeff(pub i8);

@@ -1,8 +1,8 @@
 use movegen::file::File;
+use movegen::r#move::{Move, MoveList, MoveType};
 use movegen::move_generator::MoveGenerator;
 use movegen::piece;
 use movegen::position::Position;
-use movegen::r#move::{Move, MoveList, MoveType};
 use regex::Regex;
 use std::str;
 

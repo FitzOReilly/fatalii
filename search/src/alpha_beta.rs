@@ -5,22 +5,22 @@ use crate::history_table::HistoryTable;
 use crate::lmr_table::LmrTable;
 use crate::move_selector::{MoveSelector, Stage};
 use crate::search::{
-    Search, SearchCommand, SearchInfo, SearchResult, MAX_SEARCH_DEPTH,
-    PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW,
+    MAX_SEARCH_DEPTH, PLIES_WITHOUT_PAWN_MOVE_OR_CAPTURE_TO_DRAW, Search, SearchCommand,
+    SearchInfo, SearchResult,
 };
 use crate::search_data::SearchData;
 use crate::search_params::{
-    SearchParams, SearchParamsOptions, DELTA_PRUNING_MARGIN_ALL_MOVES, DELTA_PRUNING_MARGIN_MOVE,
-    MIN_LATE_MOVE_REDUCTION_DEPTH, MIN_NULL_MOVE_PRUNE_DEPTH, MIN_PVS_DEPTH,
+    DELTA_PRUNING_MARGIN_ALL_MOVES, DELTA_PRUNING_MARGIN_MOVE, MIN_LATE_MOVE_REDUCTION_DEPTH,
+    MIN_NULL_MOVE_PRUNE_DEPTH, MIN_PVS_DEPTH, SearchParams, SearchParamsOptions,
 };
 use crate::time_manager::TimeManager;
-use crate::{static_exchange_eval as see, SearchOptions};
+use crate::{SearchOptions, static_exchange_eval as see};
 use crossbeam_channel::{Receiver, Sender};
 use eval::score::is_valid;
-use eval::{Eval, Score, BLACK_WIN, EQ_POSITION, NEG_INF, POS_INF, WHITE_WIN};
+use eval::{BLACK_WIN, EQ_POSITION, Eval, NEG_INF, POS_INF, Score, WHITE_WIN};
+use movegen::r#move::{Move, MoveList};
 use movegen::move_generator::MoveGenerator;
 use movegen::position_history::PositionHistory;
-use movegen::r#move::{Move, MoveList};
 use movegen::side::Side;
 use movegen::transposition_table::{TranspositionTable, TtEntry};
 use movegen::zobrist::Zobrist;
@@ -156,10 +156,10 @@ impl Search for AlphaBeta {
                 if search_data.should_stop_search_immediately() {
                     break;
                 }
-                if let Some(limit) = soft_time_limit {
-                    if search_data.start_time().elapsed() > limit {
-                        break;
-                    }
+                if let Some(limit) = soft_time_limit
+                    && search_data.start_time().elapsed() > limit
+                {
+                    break;
                 }
             }
 
@@ -206,14 +206,13 @@ impl Search for AlphaBeta {
                         let score = abs_alpha_beta_res.score();
                         if eval::score::is_mating(score)
                             && eval::score::mate_dist(score).unsigned_abs() as usize <= d
+                            && let Some(ref mut limit) = soft_time_limit
                         {
-                            if let Some(ref mut limit) = soft_time_limit {
-                                // A mate has been found. Don't abort the search immediately, because we
-                                // might have pruned away a shorter mate. Instead lower the search time.
-                                // This also makes sure that we continue searching if there is no time
-                                // limit given.
-                                *limit = *limit * 3 / 4;
-                            }
+                            // A mate has been found. Don't abort the search immediately, because we
+                            // might have pruned away a shorter mate. Instead lower the search time.
+                            // This also makes sure that we continue searching if there is no time
+                            // limit given.
+                            *limit = *limit * 3 / 4;
                         }
                         break;
                     }
@@ -261,10 +260,10 @@ impl AlphaBeta {
         }
 
         let is_pv_node = alpha + 1 != beta;
-        if search_data.ply() > 0 {
-            if let Some(entry) = Self::is_draw(search_data, is_pv_node) {
-                return Some(entry);
-            }
+        if search_data.ply() > 0
+            && let Some(entry) = Self::is_draw(search_data, is_pv_node)
+        {
+            return Some(entry);
         }
 
         if let Some(entry) = self.usable_table_entry(search_data, alpha, beta) {
@@ -611,11 +610,11 @@ impl AlphaBeta {
             return entry;
         }
 
-        if let Some(entry) = self.lookup_table_entry(search_data) {
-            if let Some(bounded) = entry.bound_soft(alpha, beta) {
-                search_data.increment_cache_hits();
-                return bounded;
-            }
+        if let Some(entry) = self.lookup_table_entry(search_data)
+            && let Some(bounded) = entry.bound_soft(alpha, beta)
+        {
+            search_data.increment_cache_hits();
+            return bounded;
         }
 
         if search_data.is_in_check() {
@@ -825,28 +824,28 @@ impl AlphaBeta {
         alpha: Score,
         beta: Score,
     ) -> Option<AlphaBetaResult> {
-        if let Some(entry) = self.lookup_table_entry(search_data) {
-            if let Some(bounded) = entry.bound_soft(alpha, beta) {
-                search_data.increment_cache_hits();
-                match (bounded.score_type(), search_data.remaining_depth()) {
-                    (ScoreType::Exact, 0) => return Some(bounded),
-                    (ScoreType::Exact, 1) => {
-                        search_data.update_pv_move_and_truncate(bounded.best_move());
-                        // Root move ordering: move the new best move to the front
-                        if search_data.ply() == 0 {
-                            search_data.move_to_front(bounded.best_move());
-                        }
-                        return Some(bounded);
+        if let Some(entry) = self.lookup_table_entry(search_data)
+            && let Some(bounded) = entry.bound_soft(alpha, beta)
+        {
+            search_data.increment_cache_hits();
+            match (bounded.score_type(), search_data.remaining_depth()) {
+                (ScoreType::Exact, 0) => return Some(bounded),
+                (ScoreType::Exact, 1) => {
+                    search_data.update_pv_move_and_truncate(bounded.best_move());
+                    // Root move ordering: move the new best move to the front
+                    if search_data.ply() == 0 {
+                        search_data.move_to_front(bounded.best_move());
                     }
-                    (ScoreType::Exact, _) => {
-                        // For greater depths, we need to keep searching in order to obtain the PV
-                    }
-                    _ => {
-                        // We're not in a PV node, but it might be in the previous search depth's PV.
-                        // So we make sure to remove it.
-                        search_data.end_prev_pv();
-                        return Some(bounded);
-                    }
+                    return Some(bounded);
+                }
+                (ScoreType::Exact, _) => {
+                    // For greater depths, we need to keep searching in order to obtain the PV
+                }
+                _ => {
+                    // We're not in a PV node, but it might be in the previous search depth's PV.
+                    // So we make sure to remove it.
+                    search_data.end_prev_pv();
+                    return Some(bounded);
                 }
             }
         }

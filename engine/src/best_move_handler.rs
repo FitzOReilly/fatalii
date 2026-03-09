@@ -2,8 +2,8 @@ use crate::engine_out::EngineOut;
 use crossbeam_channel::Receiver;
 use movegen::r#move::Move;
 use movegen::side::Side;
-use search::search::SearchResult;
 use search::SearchOptions;
+use search::search::SearchResult;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -20,40 +20,45 @@ impl BestMoveHandler {
         let mut side_to_move = None;
         let mut best_move = None;
 
-        let thread = thread::spawn(move || loop {
-            let message = receiver.recv().expect("Error receiving BestMoveCommand");
-            match message {
-                BestMoveCommand::SetOptions(new_options) => match options.lock() {
-                    Ok(mut opt) => *opt = *new_options,
-                    Err(e) => panic!("{}", e),
-                },
-                BestMoveCommand::SetSideToMove(s) => side_to_move = s,
-                BestMoveCommand::DepthFinished(res) => engine_out
-                    .info_depth_finished(Self::search_result_to_relative(Some(res), side_to_move))
-                    .expect("Error writing search info"),
-                BestMoveCommand::Stop(StopReason::Command) => {
-                    match options.lock() {
-                        Ok(mut opt) => opt.infinite = false,
+        let thread = thread::spawn(move || {
+            loop {
+                let message = receiver.recv().expect("Error receiving BestMoveCommand");
+                match message {
+                    BestMoveCommand::SetOptions(new_options) => match options.lock() {
+                        Ok(mut opt) => *opt = *new_options,
                         Err(e) => panic!("{}", e),
-                    }
-                    engine_out
-                        .best_move(best_move.take())
-                        .expect("Error writing best move");
-                }
-                BestMoveCommand::Stop(StopReason::Finished(new_best_move)) => {
-                    best_move = Some(new_best_move);
-                    match options.lock() {
-                        Ok(opt) => {
-                            if !opt.infinite {
-                                engine_out
-                                    .best_move(best_move.take())
-                                    .expect("Error writing best move");
-                            }
+                    },
+                    BestMoveCommand::SetSideToMove(s) => side_to_move = s,
+                    BestMoveCommand::DepthFinished(res) => engine_out
+                        .info_depth_finished(Self::search_result_to_relative(
+                            Some(res),
+                            side_to_move,
+                        ))
+                        .expect("Error writing search info"),
+                    BestMoveCommand::Stop(StopReason::Command) => {
+                        match options.lock() {
+                            Ok(mut opt) => opt.infinite = false,
+                            Err(e) => panic!("{}", e),
                         }
-                        Err(e) => panic!("{}", e),
+                        engine_out
+                            .best_move(best_move.take())
+                            .expect("Error writing best move");
                     }
+                    BestMoveCommand::Stop(StopReason::Finished(new_best_move)) => {
+                        best_move = Some(new_best_move);
+                        match options.lock() {
+                            Ok(opt) => {
+                                if !opt.infinite {
+                                    engine_out
+                                        .best_move(best_move.take())
+                                        .expect("Error writing best move");
+                                }
+                            }
+                            Err(e) => panic!("{}", e),
+                        }
+                    }
+                    BestMoveCommand::Terminate => break,
                 }
-                BestMoveCommand::Terminate => break,
             }
         });
 

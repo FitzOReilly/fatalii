@@ -176,9 +176,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::r#move::{Move, MoveType};
     use crate::position::Position;
     use crate::position_history::PositionHistory;
-    use crate::r#move::{Move, MoveType};
     use crate::square::Square;
     use crate::zobrist::Zobrist;
 

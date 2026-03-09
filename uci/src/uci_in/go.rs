@@ -1,6 +1,6 @@
-use crate::parser::{split_first_word, ParserMessage, UciError};
-use crate::uci_move::UciMove;
 use crate::UciOut;
+use crate::parser::{ParserMessage, UciError, split_first_word};
+use crate::uci_move::UciMove;
 use engine::{Engine, EngineError};
 use movegen::r#move::MoveList;
 use search::SearchOptions;
@@ -54,7 +54,7 @@ fn parse_options(
                 return Err(Box::new(UciError::InvalidArgument(format!(
                     "go {}",
                     go_args.trim_end()
-                ))))
+                ))));
             }
         }
     }

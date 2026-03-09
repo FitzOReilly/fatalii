@@ -1,6 +1,6 @@
-use crate::parser::{split_first_word, ParserMessage, UciError};
-use crate::uci_option::{OptionType, OPTIONS};
 use crate::UciOut;
+use crate::parser::{ParserMessage, UciError, split_first_word};
+use crate::uci_option::{OPTIONS, OptionType};
 use engine::{Engine, EngineOut};
 use std::error::Error;
 

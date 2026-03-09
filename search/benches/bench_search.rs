@@ -1,14 +1,14 @@
-use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput};
-use crossbeam_channel::{unbounded, Receiver};
+use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use crossbeam_channel::{Receiver, unbounded};
 use eval::Eval;
 use eval::HandCraftedEval;
 use movegen::fen::Fen;
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
+use search::SearchOptions;
 use search::alpha_beta::AlphaBeta;
 use search::search::{Search, SearchInfo, SearchResult};
 use search::searcher::Searcher;
-use search::SearchOptions;
 use std::time::Duration;
 
 const TIMEOUT_PER_BENCH: Duration = Duration::from_millis(10000);

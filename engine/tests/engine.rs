@@ -7,8 +7,8 @@ use mock_engine_out::MockEngineOut;
 use more_asserts::assert_le;
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
-use search::alpha_beta::AlphaBeta;
 use search::SearchOptions;
+use search::alpha_beta::AlphaBeta;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -38,12 +38,14 @@ fn search_timeout() {
     let tol = 80;
 
     let start = Instant::now();
-    assert!(engine
-        .search(SearchOptions {
-            movetime: Some(movetime),
-            ..Default::default()
-        })
-        .is_ok());
+    assert!(
+        engine
+            .search(SearchOptions {
+                movetime: Some(movetime),
+                ..Default::default()
+            })
+            .is_ok()
+    );
     assert!(receiver.recv_timeout(waittime).is_ok());
     let stop = Instant::now();
     assert_le!(
@@ -75,12 +77,14 @@ fn search_timeout_aborted() {
     let tol = 80;
 
     let start = Instant::now();
-    assert!(engine
-        .search(SearchOptions {
-            movetime: Some(movetime),
-            ..Default::default()
-        })
-        .is_ok());
+    assert!(
+        engine
+            .search(SearchOptions {
+                movetime: Some(movetime),
+                ..Default::default()
+            })
+            .is_ok()
+    );
     thread::sleep(sleeptime);
     engine.stop();
     assert!(receiver.recv_timeout(waittime).is_ok());
