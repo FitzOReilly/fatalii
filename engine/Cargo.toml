@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 crossbeam-channel = "0.5"
-thiserror = "2.0.11"
+thiserror = "2.0.18"
 movegen = { path = "../movegen" }
 search = { path = "../search" }
 
