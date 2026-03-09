@@ -1,9 +1,9 @@
-use crate::search_params::SearchParamsOptions;
 use crate::SearchOptions;
+use crate::search_params::SearchParamsOptions;
 use crossbeam_channel::{Receiver, Sender};
 use eval::Score;
-use movegen::position_history::PositionHistory;
 use movegen::r#move::{Move, MoveList};
+use movegen::position_history::PositionHistory;
 use std::fmt;
 use std::ops::Neg;
 

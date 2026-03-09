@@ -1,8 +1,8 @@
 use std::cmp;
 
+use crate::r#move::MoveList;
 use crate::move_generator::MoveGenerator;
 use crate::position_history::PositionHistory;
-use crate::r#move::MoveList;
 use crate::transposition_table::{TranspositionTable, TtEntry};
 use crate::zobrist::Zobrist;
 

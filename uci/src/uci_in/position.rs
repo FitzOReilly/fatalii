@@ -1,6 +1,6 @@
-use crate::parser::{split_first_word, ParserMessage, UciError};
-use crate::uci_move::UciMove;
 use crate::UciOut;
+use crate::parser::{ParserMessage, UciError, split_first_word};
+use crate::uci_move::UciMove;
 use engine::{Engine, Variant};
 use movegen::fen::Fen;
 use movegen::position::Position as Pos;
@@ -19,7 +19,7 @@ pub fn run_command(
             return Err(Box::new(UciError::InvalidArgument(format!(
                 "position {}",
                 args.trim_end()
-            ))))
+            ))));
         }
     };
 
@@ -38,7 +38,7 @@ pub fn run_command(
                                     "Invalid move `{}` in command: position {}",
                                     move_str,
                                     args.trim_end()
-                                ))))
+                                ))));
                             }
                         }
                     }
@@ -57,7 +57,7 @@ pub fn run_command(
                                     "Invalid move `{}` in command: position {}",
                                     move_str,
                                     args.trim_end()
-                                ))))
+                                ))));
                             }
                         }
                     }
@@ -69,7 +69,7 @@ pub fn run_command(
             return Err(Box::new(UciError::InvalidArgument(format!(
                 "position {}",
                 args.trim_end()
-            ))))
+            ))));
         }
     };
 

@@ -1,13 +1,13 @@
-use engine::{Engine, EngineOptions, DEFAULT_HASH_BYTES};
+use engine::{DEFAULT_HASH_BYTES, Engine, EngineOptions};
 use eval::HandCraftedEval;
 use search::alpha_beta::AlphaBeta;
 use std::error::Error;
 use std::io;
 use std::sync::{Arc, Mutex};
+use uci::UciOut;
 use uci::uci_in::{
     debug, go, is_ready, position, quit, set_option, stop, uci as cmd_uci, ucinewgame,
 };
-use uci::UciOut;
 use uci::{Parser, ParserMessage};
 
 pub fn run() -> Result<(), Box<dyn Error>> {

@@ -3,12 +3,12 @@ use std::time::{Duration, Instant};
 use crate::move_candidates::MoveCandidates;
 use crate::node_counter::NodeCounter;
 use crate::pv_table::PvTable;
-use crate::search::{SearchCommand, SearchInfo, MAX_SEARCH_DEPTH};
+use crate::search::{MAX_SEARCH_DEPTH, SearchCommand, SearchInfo};
 use crossbeam_channel::{Receiver, Sender, TryRecvError};
 use eval::{Eval, Score};
+use movegen::r#move::{Move, MoveList};
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
-use movegen::r#move::{Move, MoveList};
 use movegen::zobrist::Zobrist;
 
 pub type Killers = [Option<Move>; NUM_KILLERS];
@@ -356,15 +356,15 @@ impl<'a> SearchData<'a> {
             if let Ok(SearchCommand::Stop) = self.try_recv_cmd() {
                 return true;
             }
-            if let Some(limit) = self.hard_time_limit() {
-                if self.start_time().elapsed() > limit {
-                    return true;
-                }
+            if let Some(limit) = self.hard_time_limit()
+                && self.start_time().elapsed() > limit
+            {
+                return true;
             }
-            if let Some(max_nodes) = self.max_nodes() {
-                if self.searched_nodes() >= max_nodes {
-                    return true;
-                }
+            if let Some(max_nodes) = self.max_nodes()
+                && self.searched_nodes() >= max_nodes
+            {
+                return true;
             }
         }
         false

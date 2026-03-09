@@ -2,8 +2,8 @@ use crate::move_generator::move_generator_template::MoveGeneratorTemplate;
 
 use crate::attacks_to::AttacksTo;
 use crate::bitboard::Bitboard;
-use crate::pawn::Pawn;
 use crate::r#move::MoveList;
+use crate::pawn::Pawn;
 use crate::square::Square;
 
 // In check, the only legal moves are:

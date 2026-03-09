@@ -1,7 +1,7 @@
 use eval::Score;
 use movegen::{
-    bishop::Bishop, bitboard::Bitboard, king::King, knight::Knight, pawn::Pawn, piece,
-    position::Position, r#move::Move, rook::Rook, side::Side, square::Square,
+    bishop::Bishop, bitboard::Bitboard, king::King, knight::Knight, r#move::Move, pawn::Pawn,
+    piece, position::Position, rook::Rook, side::Side, square::Square,
 };
 
 pub fn static_exchange_eval(pos: &Position, m: Move, threshold: Score) -> bool {

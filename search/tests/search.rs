@@ -1,18 +1,18 @@
-use crossbeam_channel::{unbounded, Receiver};
+use crossbeam_channel::{Receiver, unbounded};
 use eval::HandCraftedEval;
-use eval::{Eval, ScoreVariant, BLACK_WIN, EQ_POSITION, NEG_INF, WHITE_WIN};
+use eval::{BLACK_WIN, EQ_POSITION, Eval, NEG_INF, ScoreVariant, WHITE_WIN};
 use movegen::fen::Fen;
+use movegen::r#move::{Move, MoveList, MoveType};
 use movegen::move_generator::MoveGenerator;
 use movegen::piece;
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
-use movegen::r#move::{Move, MoveList, MoveType};
 use movegen::side::Side;
 use movegen::square::Square;
+use search::SearchOptions;
 use search::alpha_beta::AlphaBeta;
 use search::search::{Search, SearchInfo, SearchResult};
 use search::searcher::Searcher;
-use search::SearchOptions;
 use std::cmp;
 use std::time::Duration;
 

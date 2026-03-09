@@ -10,9 +10,9 @@ use crate::move_generator::move_generator_template::MoveGeneratorTemplate;
 
 use crate::attacks_to::AttacksTo;
 use crate::bitboard::Bitboard;
+use crate::r#move::{Move, MoveList};
 use crate::piece;
 use crate::position::Position;
-use crate::r#move::{Move, MoveList};
 use crate::square::Square;
 
 pub struct MoveGenerator;
@@ -128,9 +128,9 @@ mod tests {
 
     use super::*;
     use crate::fen::Fen;
+    use crate::r#move::{Move, MoveType};
     use crate::position::Position;
     use crate::position_history::PositionHistory;
-    use crate::r#move::{Move, MoveType};
     use crate::square::Square;
     use rand::seq::IndexedMutRandom;
 

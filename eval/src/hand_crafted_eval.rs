@@ -5,7 +5,7 @@ use crate::hand_crafted_eval_coeffs::{Coeff, HandCraftedEvalCoeffs};
 use crate::params;
 use crate::piece_table_refs::PIECE_TABLE_REFS;
 use crate::score_pair::ScorePair;
-use crate::{Eval, Score, EQ_POSITION};
+use crate::{EQ_POSITION, Eval, Score};
 use movegen::bishop::Bishop;
 use movegen::bitboard::Bitboard;
 use movegen::file::File;
@@ -557,12 +557,12 @@ impl HandCraftedEval {
 #[cfg(test)]
 mod tests {
     use movegen::{
-        fen::Fen, move_generator::MoveGenerator, position::Position,
-        position_history::PositionHistory, r#move::MoveList,
+        fen::Fen, r#move::MoveList, move_generator::MoveGenerator, position::Position,
+        position_history::PositionHistory,
     };
     use rand::seq::{IndexedMutRandom, SliceRandom};
 
-    use crate::{Eval, EQ_POSITION};
+    use crate::{EQ_POSITION, Eval};
 
     use super::HandCraftedEval;
 

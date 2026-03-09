@@ -1,4 +1,4 @@
-use engine::{Engine, Variant, DEFAULT_HASH_MB, DEFAULT_MOVE_OVERHEAD_MILLIS};
+use engine::{DEFAULT_HASH_MB, DEFAULT_MOVE_OVERHEAD_MILLIS, Engine, Variant};
 use eval::Score;
 use movegen::file::File;
 use search::search_params::SearchParamsOptions;

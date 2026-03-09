@@ -1,7 +1,7 @@
 use movegen::{
+    r#move::{Move, MoveList},
     piece::Piece,
     position::Position,
-    r#move::{Move, MoveList},
     square::Square,
 };
 

@@ -12,10 +12,10 @@ use search::search::Search;
 use std::str;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use uci::UciOut;
 use uci::uci_in::{
     debug, go, is_ready, position, quit, set_option, stop, uci as cmd_uci, ucinewgame,
 };
-use uci::UciOut;
 use uci::{Parser, ParserMessage};
 
 const EVALUATOR: MaterialMobility = MaterialMobility::new();
@@ -183,14 +183,16 @@ fn run_command_position() {
     assert!(p.run_command("position startpos\n", &mut engine).is_ok());
     assert_eq!(Some(&Position::initial()), engine.position());
 
-    assert!(p
-        .run_command(format!("position fen {FEN_STR}\n").as_str(), &mut engine)
-        .is_ok());
+    assert!(
+        p.run_command(format!("position fen {FEN_STR}\n").as_str(), &mut engine)
+            .is_ok()
+    );
     assert_eq!(Fen::str_to_pos(FEN_STR).ok().as_ref(), engine.position());
 
-    assert!(p
-        .run_command("position startpos moves e2e4 c7c5 g1f3\n", &mut engine)
-        .is_ok());
+    assert!(
+        p.run_command("position startpos moves e2e4 c7c5 g1f3\n", &mut engine)
+            .is_ok()
+    );
     let fen = "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2";
     assert_eq!(Fen::str_to_pos(fen).ok().as_ref(), engine.position());
 }
@@ -211,9 +213,10 @@ fn run_command_position_chess_960() {
     p.register_command(String::from("position"), Box::new(position::run_command));
     p.register_command(String::from("setoption"), Box::new(set_option::run_command));
 
-    assert!(p
-        .run_command("setoption name UCI_Chess960 value true\n", &mut engine)
-        .is_ok());
+    assert!(
+        p.run_command("setoption name UCI_Chess960 value true\n", &mut engine)
+            .is_ok()
+    );
 
     assert_matches!(engine.variant(), Variant::Chess960(_, _));
     assert_eq!(None, engine.position());
@@ -230,20 +233,22 @@ fn run_command_position_chess_960() {
     assert!(p.run_command("position startpos\n", &mut engine).is_ok());
     assert_eq!(Some(&Position::initial()), engine.position());
 
-    assert!(p
-        .run_command(
+    assert!(
+        p.run_command(
             format!("position fen {FEN_STR_CHESS_960}\n").as_str(),
             &mut engine
         )
-        .is_ok());
+        .is_ok()
+    );
     assert_eq!(Fen::str_to_pos(FEN_STR).ok().as_ref(), engine.position());
 
-    assert!(p
-        .run_command(
+    assert!(
+        p.run_command(
             &format!("position fen {FEN_STR_CHESS_960} moves e1h1\n"),
             &mut engine
         )
-        .is_ok());
+        .is_ok()
+    );
     let fen = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQ1RK1 b - - 2 8";
     assert_eq!(
         Fen::str_to_pos_chess_960(fen).ok().as_ref(),
@@ -385,9 +390,10 @@ fn run_command_go() {
 
     // Combine multiple options
     assert!(p.run_command("position startpos\n", &mut engine).is_ok());
-    assert!(p
-        .run_command("go depth 2 movetime 100\n", &mut engine)
-        .is_ok());
+    assert!(
+        p.run_command("go depth 2 movetime 100\n", &mut engine)
+            .is_ok()
+    );
     std::thread::sleep(Duration::from_millis(400));
     assert!(contains(test_writer.split_off(0), "bestmove"));
     assert!(p.run_command("stop\n", &mut engine).is_ok());
@@ -404,9 +410,10 @@ fn run_command_go() {
     std::thread::sleep(Duration::from_millis(20));
     assert!(!contains(test_writer.split_off(0), "bestmove"));
 
-    assert!(p
-        .run_command("go movetime 100 infinite\n", &mut engine)
-        .is_ok());
+    assert!(
+        p.run_command("go movetime 100 infinite\n", &mut engine)
+            .is_ok()
+    );
     std::thread::sleep(Duration::from_millis(400));
     assert!(!contains(test_writer.split_off(0), "bestmove"));
     assert!(p.run_command("stop\n", &mut engine).is_ok());
@@ -439,19 +446,22 @@ fn run_command_go_time() {
     assert!(p.run_command("go btime\n", &mut engine).is_err());
     assert!(p.run_command("go winc\n", &mut engine).is_err());
     assert!(p.run_command("go binc\n", &mut engine).is_err());
-    assert!(p
-        .run_command("go wtime 500 btime 800 winc 100 binc 100\n", &mut engine)
-        .is_ok());
+    assert!(
+        p.run_command("go wtime 500 btime 800 winc 100 binc 100\n", &mut engine)
+            .is_ok()
+    );
     std::thread::sleep(Duration::from_millis(500));
     assert!(contains(test_writer.split_off(0), "bestmove"));
 
-    assert!(p
-        .run_command("position startpos moves e2e4\n", &mut engine)
-        .is_ok());
+    assert!(
+        p.run_command("position startpos moves e2e4\n", &mut engine)
+            .is_ok()
+    );
     std::thread::sleep(Duration::from_millis(20));
-    assert!(p
-        .run_command("go wtime 500 btime 800 winc 100 binc 100\n", &mut engine)
-        .is_ok());
+    assert!(
+        p.run_command("go wtime 500 btime 800 winc 100 binc 100\n", &mut engine)
+            .is_ok()
+    );
     std::thread::sleep(Duration::from_millis(800));
     assert!(contains(test_writer.split_off(0), "bestmove"));
 }
@@ -475,9 +485,10 @@ fn run_command_go_time_limit_exceeded() {
     p.register_command(String::from("position"), Box::new(position::run_command));
     p.register_command(String::from("go"), Box::new(go::run_command));
 
-    assert!(p
-        .run_command("setoption name Move Overhead value 100\n", &mut engine)
-        .is_ok());
+    assert!(
+        p.run_command("setoption name Move Overhead value 100\n", &mut engine)
+            .is_ok()
+    );
 
     assert!(p.run_command("position startpos\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(20));
@@ -485,9 +496,10 @@ fn run_command_go_time_limit_exceeded() {
     std::thread::sleep(Duration::from_millis(50));
     assert!(contains(test_writer.split_off(0), "bestmove"));
 
-    assert!(p
-        .run_command("position startpos moves e2e4\n", &mut engine)
-        .is_ok());
+    assert!(
+        p.run_command("position startpos moves e2e4\n", &mut engine)
+            .is_ok()
+    );
     std::thread::sleep(Duration::from_millis(20));
     assert!(p.run_command("go wtime 0 btime 0\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(50));
@@ -541,9 +553,10 @@ fn run_command_go_with_negative_value() {
     p.register_command(String::from("stop"), Box::new(stop::run_command));
 
     assert!(p.run_command("position startpos\n", &mut engine).is_ok());
-    assert!(p
-        .run_command("go wtime 100 btime -1\n", &mut engine)
-        .is_ok());
+    assert!(
+        p.run_command("go wtime 100 btime -1\n", &mut engine)
+            .is_ok()
+    );
     std::thread::sleep(Duration::from_millis(400));
     assert!(contains(test_writer.split_off(0), "bestmove"));
     assert!(p.run_command("go wtime -1\n", &mut engine).is_ok());
@@ -605,15 +618,19 @@ fn run_command_quit() {
     let res = p.run_command("quit\n", &mut engine);
     assert!(res.is_ok());
     assert_eq!(Some(ParserMessage::Quit), res.unwrap());
-    assert!(String::from_utf8(test_writer.split_off(0))
-        .unwrap()
-        .is_empty());
+    assert!(
+        String::from_utf8(test_writer.split_off(0))
+            .unwrap()
+            .is_empty()
+    );
     let res = p.run_command("ignored quit\n", &mut engine);
     assert!(res.is_ok());
     assert_eq!(Some(ParserMessage::Quit), res.unwrap());
-    assert!(String::from_utf8(test_writer.split_off(0))
-        .unwrap()
-        .is_empty());
+    assert!(
+        String::from_utf8(test_writer.split_off(0))
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]
@@ -635,12 +652,13 @@ fn info_score_equal_from_both_sides() {
     let re_info_score = Regex::new(r"score cp \d+").unwrap();
 
     // Set up King's Gambit
-    assert!(p
-        .run_command(
+    assert!(
+        p.run_command(
             "position fen rnbqkbnr/pppp1ppp/8/4p3/4PP2/8/PPPP2PP/RNBQKBNR b KQkq - 0 2\n",
             &mut engine
         )
-        .is_ok());
+        .is_ok()
+    );
     std::thread::sleep(Duration::from_millis(20));
     assert!(p.run_command("go depth 1\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(400));
@@ -659,12 +677,13 @@ fn info_score_equal_from_both_sides() {
         .as_str();
 
     // Set up mirrored position
-    assert!(p
-        .run_command(
+    assert!(
+        p.run_command(
             "position fen rnbqkbnr/pppp2pp/8/4pp2/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2\n",
             &mut engine
         )
-        .is_ok());
+        .is_ok()
+    );
     std::thread::sleep(Duration::from_millis(20));
     assert!(p.run_command("go depth 1\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(400));
@@ -703,12 +722,13 @@ fn mate_in_one_white_to_move() {
     p.register_command(String::from("go"), Box::new(go::run_command));
 
     // Set up mate in one
-    assert!(p
-        .run_command(
+    assert!(
+        p.run_command(
             "position fen 8/7k/7P/8/8/8/6Q1/6K1 w - - 0 1\n",
             &mut engine
         )
-        .is_ok());
+        .is_ok()
+    );
     std::thread::sleep(Duration::from_millis(20));
     assert!(p.run_command("go movetime 100\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(200));
@@ -735,12 +755,13 @@ fn mate_in_one_black_to_move() {
     p.register_command(String::from("go"), Box::new(go::run_command));
 
     // Set up mate in one
-    assert!(p
-        .run_command(
+    assert!(
+        p.run_command(
             "position fen 6k1/6q1/8/8/8/7p/7K/8 b - - 0 1\n",
             &mut engine
         )
-        .is_ok());
+        .is_ok()
+    );
     std::thread::sleep(Duration::from_millis(20));
     assert!(p.run_command("go movetime 100\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(200));
@@ -771,8 +792,8 @@ fn threefold_repetition(search_algo: impl Search + Send + 'static) {
     p.register_command(String::from("go"), Box::new(go::run_command));
 
     // Set up threefold repetition on next move
-    assert!(p
-        .run_command(
+    assert!(
+        p.run_command(
             "position startpos moves e2e3 b8c6 f1b5 g8f6 d1f3 c6b4 b1a3 e7e5 c2c3 e5e4 f3f5 b4c6 \
             g1e2 d7d5 f5e5 c8e6 e2d4 f8d6 e5g5 f6d7 g5g7 d6e5 g7h6 c6d4 e3d4 d8f6 d2d3 f6h6 c1h6 \
             c7c6 d4e5 c6b5 a3b5 e8e7 h6g5 f7f6 e5f6 d7f6 e1d2 a8g8 h2h4 e4d3 a1e1 h7h6 b5d4 h6g5 \
@@ -789,14 +810,16 @@ fn threefold_repetition(search_algo: impl Search + Send + 'static) {
             e3f5 a2a1 e5e6 a1b1 e6e7 b1a1 e7f7 a1b1 f5e3 b1a1 f7g7 a1b1 g7f7 b1a1 f7g7 a1b1\n",
             &mut engine
         )
-        .is_ok());
+        .is_ok()
+    );
     std::thread::sleep(Duration::from_millis(20));
-    assert!(p
-        .run_command(
+    assert!(
+        p.run_command(
             "go wtime 8955 btime 109427 winc 1000 binc 1000 movestogo 4\n",
             &mut engine
         )
-        .is_ok());
+        .is_ok()
+    );
     std::thread::sleep(Duration::from_millis(400));
 }
 
@@ -838,13 +861,15 @@ fn search_stopped_after_depth_1_if_move_is_forced() {
         (fen_black_to_move, "btime 10000", false),
     ] {
         assert!(p.run_command("ucinewgame\n", &mut engine).is_ok());
-        assert!(p
-            .run_command(&format!("position fen {fen}\n"), &mut engine)
-            .is_ok());
+        assert!(
+            p.run_command(&format!("position fen {fen}\n"), &mut engine)
+                .is_ok()
+        );
         std::thread::sleep(Duration::from_millis(20));
-        assert!(p
-            .run_command(&format!("go {go_option}\n"), &mut engine)
-            .is_ok());
+        assert!(
+            p.run_command(&format!("go {go_option}\n"), &mut engine)
+                .is_ok()
+        );
         std::thread::sleep(Duration::from_millis(200));
 
         assert!(p.run_command("stop\n", &mut engine).is_ok());
@@ -886,12 +911,13 @@ fn stress() {
         assert!(p.run_command("debug on\n", &mut engine).is_ok());
 
         for hash_size in [1, 8, 64] {
-            assert!(p
-                .run_command(
+            assert!(
+                p.run_command(
                     format!("setoption name Hash value {hash_size}\n").as_str(),
                     &mut engine
                 )
-                .is_ok());
+                .is_ok()
+            );
             assert!(p.run_command("isready\n", &mut engine).is_ok());
 
             for i in 0..10_000 {
@@ -926,12 +952,13 @@ fn play_move_after_unclaimed_threefold_repetition() {
     // The given position and move history result in a threefold repetition.
     // The engine should do a normal search because the draw was not claimed.
     // It should not return a null move.
-    assert!(p
-        .run_command(
+    assert!(
+        p.run_command(
             "position startpos moves g1f3 g8f6 f3g1 f6g8 g1f3 g8f6 f3g1 f6g8\n",
             &mut engine
         )
-        .is_ok());
+        .is_ok()
+    );
     std::thread::sleep(Duration::from_millis(20));
     assert!(p.run_command("go depth 1\n", &mut engine).is_ok());
     std::thread::sleep(Duration::from_millis(200));

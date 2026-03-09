@@ -1,4 +1,4 @@
-use movegen::{piece::Piece, r#move::Move, square::Square};
+use movegen::{r#move::Move, piece::Piece, square::Square};
 
 #[derive(Debug, Clone)]
 pub struct CounterTable {

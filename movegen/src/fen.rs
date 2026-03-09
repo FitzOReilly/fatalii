@@ -323,10 +323,10 @@ impl Fen {
             for cur in fen.bytes() {
                 let cur_castling_right = match cur {
                     b'K' | b'Q' | b'k' | b'q' if cur == prev => {
-                        return Err(FenError::DuplicateCastlingRights)
+                        return Err(FenError::DuplicateCastlingRights);
                     }
                     b'K' | b'Q' | b'k' | b'q' if cur < prev => {
-                        return Err(FenError::WrongCastlingRightOrder)
+                        return Err(FenError::WrongCastlingRightOrder);
                     }
                     b'K' => CastlingRights::WHITE_KINGSIDE,
                     b'Q' => CastlingRights::WHITE_QUEENSIDE,
@@ -386,7 +386,7 @@ impl Fen {
                 match king_file.idx().cmp(&castling_file.idx()) {
                     Ordering::Less => match kingside {
                         Some(f) if f != castling_file => {
-                            return Err(FenError::InvalidCastlingRights)
+                            return Err(FenError::InvalidCastlingRights);
                         }
                         _ => {
                             kingside = Some(castling_file);
@@ -400,7 +400,7 @@ impl Fen {
                     Ordering::Equal => return Err(FenError::InvalidCastlingRights),
                     Ordering::Greater => match queenside {
                         Some(f) if f != castling_file => {
-                            return Err(FenError::InvalidCastlingRights)
+                            return Err(FenError::InvalidCastlingRights);
                         }
                         _ => {
                             queenside = Some(castling_file);

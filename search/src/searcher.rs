@@ -1,9 +1,9 @@
 use crate::{
+    SearchOptions,
     search::{Search, SearchCommand, SearchInfo},
     search_params::SearchParamsOptions,
-    SearchOptions,
 };
-use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, bounded, unbounded};
 use movegen::position_history::PositionHistory;
 
 use std::thread;
@@ -113,33 +113,35 @@ impl Worker {
         mut command_receiver: Receiver<SearchCommand>,
         mut info_sender: Sender<SearchInfo>,
     ) -> Self {
-        let thread = thread::spawn(move || loop {
-            let message = command_receiver
-                .recv()
-                .expect("Error receiving SearchCommand");
+        let thread = thread::spawn(move || {
+            loop {
+                let message = command_receiver
+                    .recv()
+                    .expect("Error receiving SearchCommand");
 
-            match message {
-                SearchCommand::SetHashSize(bytes, _sender) => {
-                    Self::set_hash_size(&mut search_algo, bytes);
+                match message {
+                    SearchCommand::SetHashSize(bytes, _sender) => {
+                        Self::set_hash_size(&mut search_algo, bytes);
+                    }
+                    SearchCommand::ClearHashTable(_sender) => {
+                        Self::clear_hash_table(&mut search_algo);
+                    }
+                    SearchCommand::SetSearchParams(search_params, _sender) => {
+                        Self::set_search_params(&mut search_algo, search_params);
+                    }
+                    SearchCommand::Search(inner) => {
+                        let (pos_hist, search_options) = *inner;
+                        Self::search(
+                            &mut search_algo,
+                            pos_hist,
+                            search_options,
+                            &mut command_receiver,
+                            &mut info_sender,
+                        );
+                    }
+                    SearchCommand::Stop => {}
+                    SearchCommand::Terminate => break,
                 }
-                SearchCommand::ClearHashTable(_sender) => {
-                    Self::clear_hash_table(&mut search_algo);
-                }
-                SearchCommand::SetSearchParams(search_params, _sender) => {
-                    Self::set_search_params(&mut search_algo, search_params);
-                }
-                SearchCommand::Search(inner) => {
-                    let (pos_hist, search_options) = *inner;
-                    Self::search(
-                        &mut search_algo,
-                        pos_hist,
-                        search_options,
-                        &mut command_receiver,
-                        &mut info_sender,
-                    );
-                }
-                SearchCommand::Stop => {}
-                SearchCommand::Terminate => break,
             }
         });
         Self {
@@ -179,11 +181,13 @@ impl SearchInfoHandler {
         info_receiver: Receiver<SearchInfo>,
         mut info_callback: Box<dyn FnMut(SearchInfo) + Send>,
     ) -> Self {
-        let thread = thread::spawn(move || loop {
-            match info_receiver.recv() {
-                Ok(SearchInfo::Terminated) => break,
-                Ok(res) => info_callback(res),
-                Err(_) => break,
+        let thread = thread::spawn(move || {
+            loop {
+                match info_receiver.recv() {
+                    Ok(SearchInfo::Terminated) => break,
+                    Ok(res) => info_callback(res),
+                    Err(_) => break,
+                }
             }
         });
         Self {

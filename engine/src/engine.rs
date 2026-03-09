@@ -1,14 +1,14 @@
 use crate::best_move_handler::{BestMoveCommand, BestMoveHandler, StopReason};
 use crate::engine_out::EngineOut;
 use crate::{EngineOptions, Variant};
-use crossbeam_channel::{unbounded, Sender};
+use crossbeam_channel::{Sender, unbounded};
 use movegen::position::Position;
 use movegen::position_history::PositionHistory;
 use movegen::side::Side;
+use search::SearchOptions;
 use search::search::{Search, SearchInfo};
 use search::search_params::SearchParamsOptions;
 use search::searcher::Searcher;
-use search::SearchOptions;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 

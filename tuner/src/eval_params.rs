@@ -1,15 +1,15 @@
 use std::fmt::Display;
 
 use eval::{
+    Score,
     params::{
         BISHOP_MOB_LEN, KNIGHT_MOB_LEN, PASSED_PAWNS_RELATIVE_TO_KING_LEN,
         PIECE_RELATIVE_TO_KING_LEN, QUEEN_MOB_LEN, ROOK_MOB_LEN,
     },
     score_pair::ScorePair,
-    Score,
 };
 
-use crate::feature_evaluator::{Weight, WeightVector, PST_SIZE};
+use crate::feature_evaluator::{PST_SIZE, Weight, WeightVector};
 
 #[derive(Debug)]
 pub struct EvalParams {
