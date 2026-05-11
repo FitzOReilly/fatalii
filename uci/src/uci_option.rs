@@ -70,10 +70,13 @@ fn set_move_overhead(engine: &mut Engine, move_overhead: i64) -> String {
 }
 
 fn set_chess_960(engine: &mut Engine, enable: bool) -> String {
-    engine.set_variant(Variant::Chess960(File::H, File::A));
-    match enable {
-        true => String::from("Chess 960 enabled"),
-        false => String::from("Chess 960 disabled"),
+    engine.clear_position_history();
+    if enable {
+        engine.set_variant(Variant::Chess960(File::H, File::A));
+        String::from("Chess 960 enabled")
+    } else {
+        engine.set_variant(Variant::Standard);
+        String::from("Chess 960 disabled")
     }
 }
 

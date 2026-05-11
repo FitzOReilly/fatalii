@@ -217,16 +217,16 @@ fn run_command_position_chess_960() {
         p.run_command("setoption name UCI_Chess960 value true\n", &mut engine)
             .is_ok()
     );
-
     assert_matches!(engine.variant(), Variant::Chess960(_, _));
     assert_eq!(None, engine.position());
 
-    let invalid_commands = [
+    let standard_commands = [
         &format!("position fen {FEN_STR}\n"),
         &format!("position fen {FEN_STR} moves e1g1\n"),
+        "position startpos moves d2d4 g8f6 c2c4 g7g6 b1c3 d7d5 g1f3 f8g7 d1b3 d5c4 b3c4 e8g8 c1f4 c7c6 e2e4 d8b6\n",
     ];
-    for inv_cmd in invalid_commands {
-        assert!(p.run_command(inv_cmd, &mut engine).is_err());
+    for cmd in standard_commands {
+        assert!(p.run_command(cmd, &mut engine).is_err());
     }
     assert_eq!(None, engine.position());
 
@@ -234,11 +234,8 @@ fn run_command_position_chess_960() {
     assert_eq!(Some(&Position::initial()), engine.position());
 
     assert!(
-        p.run_command(
-            format!("position fen {FEN_STR_CHESS_960}\n").as_str(),
-            &mut engine
-        )
-        .is_ok()
+        p.run_command(&format!("position fen {FEN_STR_CHESS_960}\n"), &mut engine)
+            .is_ok()
     );
     assert_eq!(Fen::str_to_pos(FEN_STR).ok().as_ref(), engine.position());
 
@@ -254,6 +251,17 @@ fn run_command_position_chess_960() {
         Fen::str_to_pos_chess_960(fen).ok().as_ref(),
         engine.position()
     );
+
+    // Disable chess 960, expect engine to be back in standard mode
+    assert!(
+        p.run_command("setoption name UCI_Chess960 value false\n", &mut engine)
+            .is_ok()
+    );
+    assert_matches!(engine.variant(), Variant::Standard);
+    assert_eq!(None, engine.position());
+    for cmd in standard_commands {
+        assert!(p.run_command(cmd, &mut engine).is_ok());
+    }
 }
 
 #[test]
